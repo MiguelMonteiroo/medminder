@@ -1,4 +1,4 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView} from "react-native";
 import { useState } from "react";
 import { MedicationCard } from "../components/MedicationCard";
 import { Medication } from "../types/Medication";
@@ -33,7 +33,9 @@ export function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}
+     contentContainerStyle={styles.content}
+     keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>MediTrack</Text>
       <TextInput
         value={name}
@@ -75,16 +77,20 @@ export function HomeScreen() {
           ))
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F5F5F5",
+  },
+    content: {
+    flexGrow: 1,
     padding: 24,
     paddingTop: 60,
-    backgroundColor: "#F5F5F5",
+    paddingBottom: 80,
   },
   title: {
     fontSize: 28,
@@ -118,6 +124,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#777",
     textAlign: "center",
-    marginTop: 24,
+    marginTop: 48,
   },
 });
