@@ -4,7 +4,7 @@ type Props = {
     name: string;
     dosage: string;
     notes?: string;
-    onDelete: () => void
+    onDelete: () => void;
 }
 
 const styles = StyleSheet.create({
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
 
 export function MedicationCard({name, dosage, notes, onDelete} : Props){
     return(
-        <View>
+        <View style={styles.card}>
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.dosage}>{dosage}</Text>
             {notes ? <Text style={styles.notes}>{notes}</Text> : null}
