@@ -1,4 +1,4 @@
-import {View, Text, Button, StyleSheet} from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 
 type Props = {
     name: string;
@@ -26,6 +26,19 @@ const styles = StyleSheet.create({
     notes: {
         color: "#777",
         marginTop: 4,
+    },
+    deleteButton: {
+        marginTop: 12,
+        backgroundColor: "#DC2626",
+        padding: 10,
+        borderRadius: 8,
+        alignSelf: "flex-end",
+        paddingHorizontal: 12
+    },
+    deleteButtonText: {
+        color: "#FFF",
+        fontWeight: "bold",
+        fontSize: 12,
     }
 })
 
@@ -36,7 +49,9 @@ export function MedicationCard({name, dosage, notes, onDelete} : Props){
             <Text style={styles.dosage}>{dosage}</Text>
             {notes ? <Text style={styles.notes}>{notes}</Text> : null}
 
-            <Button title= "Remover" onPress={onDelete}/>
+            <Pressable style={styles.deleteButton} onPress={onDelete}>
+                <Text style={styles.deleteButtonText}>Remover</Text>
+            </Pressable>
         </View>
     )
 }

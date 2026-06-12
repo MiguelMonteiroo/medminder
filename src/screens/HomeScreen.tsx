@@ -1,21 +1,10 @@
-import { View, Text, TextInput, Button, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useState } from "react";
 import { MedicationCard } from "../components/MedicationCard";
 import { Medication } from "../types/Medication";
 
 export function HomeScreen() {
-  const [medications, setMedications] = useState<Medication[]>([
-    {
-      id: "1",
-      name: "Losartana",
-      dosage: "50mg",
-    },
-    {
-      id: "2",
-      name: "Vitamina D",
-      dosage: "1000UI",
-    },
-  ]);
+  const [medications, setMedications] = useState<Medication[]>([]);
 
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
@@ -66,17 +55,25 @@ export function HomeScreen() {
         placeholder="Notas"
         style={styles.input}
       />
-      <Button title="Add" onPress={addMedication} />
+
+      <Pressable style={styles.addButton} onPress={addMedication}>
+        <Text style={styles.addButtonText}>Adicionar</Text>
+      </Pressable>
+
       <View style={styles.list}>
-        {medications.map((medication) => (
-          <MedicationCard
-            key={medication.id}
-            name={medication.name}
-            dosage={medication.dosage}
-            notes={medication.notes}
-            onDelete={() => removeMedication(medication.id)}
-          />
-        ))}
+        {medications.length === 0 ? (
+          <Text style={styles.emptyText}>Nenhum medicamento cadastrado.</Text>
+        ) : (
+          medications.map((medication) => (
+            <MedicationCard
+              key={medication.id}
+              name={medication.name}
+              dosage={medication.dosage}
+              notes={medication.notes}
+              onDelete={() => removeMedication(medication.id)}
+            />
+          ))
+        )}
       </View>
     </View>
   );
@@ -104,5 +101,23 @@ const styles = StyleSheet.create({
   },
   list: {
     marginTop: 20,
+  },
+  addButton: {
+    backgroundColor: "#14ce68",
+    padding: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  addButtonText: {
+    color: "#FFF",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#777",
+    textAlign: "center",
+    marginTop: 24,
   },
 });
