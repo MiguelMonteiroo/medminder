@@ -3,5 +3,6 @@ export type Medication = {
     name: string;
     dosage: string;
     time: string;
+    frequency: string;
     notes?: string;
 }

@@ -4,6 +4,7 @@ type Props = {
     name: string;
     dosage: string;
     time: string;
+    frequency: string;
     notes?: string;
     onDelete: () => void;
 }
@@ -28,6 +29,10 @@ const styles = StyleSheet.create({
         color: "#555",
         marginTop: 4,
     },
+    frequency: {
+        color: "#555",
+        marginTop: 4,
+    },
     notes: {
         color: "#777",
         marginTop: 4,
@@ -47,12 +52,13 @@ const styles = StyleSheet.create({
     }
 })
 
-export function MedicationCard({name, dosage, time, notes, onDelete} : Props){
+export function MedicationCard({name, dosage, time, frequency, notes, onDelete} : Props){
     return(
         <View style={styles.card}>
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.dosage}>Dosagem: {dosage}</Text>
             <Text style={styles.time}>Horario: {time}</Text>
+            {frequency ? <Text style={styles.frequency}>Frequencia: {frequency}</Text> : null}
             {notes ? <Text style={styles.notes}>Notas: {notes}</Text> : null}
 
             <Pressable style={styles.deleteButton} onPress={onDelete}>

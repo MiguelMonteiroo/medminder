@@ -17,6 +17,7 @@ export function HomeScreen() {
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
   const [time, setTime] = useState("");
+  const [frequency, setFrequency] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -46,6 +47,7 @@ export function HomeScreen() {
         name: name.trim(),
         dosage: dosage.trim() || "Sem dosagem",
         time: time.trim(),
+        frequency: frequency.trim(),
         notes: notes.trim(),
       },
     ]);
@@ -53,6 +55,7 @@ export function HomeScreen() {
     setName("");
     setDosage("");
     setTime("");
+    setFrequency("");
     setNotes("");
   }
 
@@ -98,6 +101,12 @@ export function HomeScreen() {
         style={styles.input}
       />
 
+       <TextInput
+        value={frequency}
+        onChangeText={setFrequency}
+        placeholder="Frequencia: (ex: 1 vez ao dia)"
+        style={styles.input}
+      />
       <TextInput
         value={notes}
         onChangeText={setNotes}
@@ -120,6 +129,7 @@ export function HomeScreen() {
               name={item.name}
               dosage={item.dosage}
               time={item.time}
+              frequency={item.frequency}
               notes={item.notes}
               onDelete={() => removeMedication(item.id)}
             />
