@@ -24,7 +24,7 @@ export function HomeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>MediTrack</Text>
     
-      <MedicationForm onAddMedication={handleAddMedication}/>
+      <MedicationForm onAddMedication={handleAddMedication} />
       <View style={styles.list}>
         <FlatList
           data={medications}

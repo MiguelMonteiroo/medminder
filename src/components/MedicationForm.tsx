@@ -118,13 +118,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 8,
   },
-  list: {
-    flex: 1,
-    marginTop: 20,
-  },
-  listContent: {
-    paddingBottom: 80,
-  },
   addButton: {
     backgroundColor: "#14ce68",
     padding: 14,
