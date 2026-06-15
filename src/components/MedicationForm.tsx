@@ -41,6 +41,7 @@ export function MedicationForm({onAddMedication}: Props) {
         time: time.trim(),
         frequency: frequency.trim(),
         notes: notes.trim(),
+        taken: false,
       });
 
     setName("");

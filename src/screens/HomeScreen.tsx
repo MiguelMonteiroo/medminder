@@ -8,9 +8,11 @@ import { useState } from "react";
 import { MedicationCard } from "../components/MedicationCard";
 import { Medication } from "../types/Medication";
 import { MedicationForm } from "../components/MedicationForm";
+import { MedicationSummary } from "../components/MedicationSummary";
 
 export function HomeScreen() {
   const [medications, setMedications] = useState<Medication[]>([]);
+  const takenCount  = medications.filter(medication => medication.taken).length
 
   function handleAddMedication(medication: Medication) {
     setMedications([...medications, medication]);
@@ -20,12 +22,25 @@ export function HomeScreen() {
     setMedications(medications.filter((medication) => medication.id !== id));
   }
 
+  function toggleMedicationTaken(id: string) {
+    setMedications(
+      medications.map((medication) => medication.id === id ?
+       {...medication, taken: !medication.taken}
+        : medication)
+    )
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>MediTrack</Text>
     
       <MedicationForm onAddMedication={handleAddMedication} />
+    
       <View style={styles.list}>
+        <MedicationSummary 
+          takenCount={takenCount} 
+          totalCount={medications.length}
+        />
         <FlatList
           data={medications}
           keyExtractor={(item) => item.id}
@@ -36,6 +51,8 @@ export function HomeScreen() {
               time={item.time}
               frequency={item.frequency}
               notes={item.notes}
+              taken={item.taken}
+              onToggleTaken= {() => toggleMedicationTaken(item.id)}
               onDelete={() => removeMedication(item.id)}
             />
           )}
@@ -64,6 +81,7 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
     marginTop: 20,
+    
   },
   listContent: {
     paddingBottom: 80,

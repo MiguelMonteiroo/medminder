@@ -5,4 +5,5 @@ export type Medication = {
     time: string;
     frequency: string;
     notes?: string;
+    taken: boolean;
 }
