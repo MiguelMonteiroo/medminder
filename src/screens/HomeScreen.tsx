@@ -32,7 +32,7 @@ export function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>MediTrack</Text>
+      <Text style={styles.title}>MedMinder</Text>
     
       <MedicationForm onAddMedication={handleAddMedication} />
     
