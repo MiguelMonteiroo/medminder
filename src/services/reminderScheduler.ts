@@ -1,4 +1,4 @@
-import * as Notifications from "expo-notifications";
+import notifee, { TriggerType, AlarmType } from "@notifee/react-native";
 import { Medication, MedicationSchedule, DoseOccurrence } from "../types/domain";
 import { NotificationRepository } from "../database/repositories/notificationRepository";
 
@@ -14,8 +14,8 @@ export function createReminderScheduler(
 
     if (isNaN(triggerDate.getTime())) return "";
 
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
+    const notificationId = await notifee.createTriggerNotification(
+      {
         title: "Hora do Medicamento",
         body: `Tome ${medication.name} ${medication.dosage ? `- ${medication.dosage}` : ""}`,
         data: {
@@ -23,12 +23,18 @@ export function createReminderScheduler(
           medicationId: medication.id,
           scheduleId: schedule.id,
         },
+        android: {
+          channelId: "medication-reminders",
+        },
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate,
-      },
-    });
+      {
+        type: TriggerType.TIMESTAMP,
+        timestamp: triggerDate.getTime(),
+        alarmManager: {
+          type: AlarmType.SET_EXACT,
+        },
+      }
+    );
 
     const mappingId = `notif-${occurrence.id}`;
     await notificationRepo.create({
@@ -46,15 +52,13 @@ export function createReminderScheduler(
   async function cancelForMedication(medicationId: string): Promise<void> {
     const mappings = await notificationRepo.getByMedicationId(medicationId);
     for (const mapping of mappings) {
-      await Notifications.cancelScheduledNotificationAsync(
-        mapping.notificationId
-      );
+      await notifee.cancelTriggerNotification(mapping.notificationId);
     }
     await notificationRepo.removeByMedicationId(medicationId);
   }
 
   async function cancelAll(): Promise<void> {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    await notifee.cancelAllNotifications();
   }
 
   return { scheduleForOccurrence, cancelForMedication, cancelAll };

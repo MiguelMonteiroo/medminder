@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { NativeDB } from "../nativeDb";
 import { Medication } from "../../types/domain";
 
 function rowToMedication(row: any): Medication {
@@ -13,7 +13,7 @@ function rowToMedication(row: any): Medication {
   };
 }
 
-export function createMedicationRepository(db: SQLiteDatabase) {
+export function createMedicationRepository(db: NativeDB) {
   async function getAll(): Promise<Medication[]> {
     const rows = await db.getAllAsync(
       "SELECT * FROM medications ORDER BY created_at DESC"

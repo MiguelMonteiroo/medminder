@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { NativeDB } from "../nativeDb";
 import { MedicationSchedule } from "../../types/domain";
 
 function rowToSchedule(row: any): MedicationSchedule {
@@ -16,7 +16,7 @@ function rowToSchedule(row: any): MedicationSchedule {
   };
 }
 
-export function createScheduleRepository(db: SQLiteDatabase) {
+export function createScheduleRepository(db: NativeDB) {
   async function getByMedicationId(
     medicationId: string
   ): Promise<MedicationSchedule[]> {

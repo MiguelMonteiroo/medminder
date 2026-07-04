@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { NativeDB } from "../nativeDb";
 import { ReminderNotification } from "../../types/domain";
 
 function rowToNotification(row: any): ReminderNotification {
@@ -12,7 +12,7 @@ function rowToNotification(row: any): ReminderNotification {
   };
 }
 
-export function createNotificationRepository(db: SQLiteDatabase) {
+export function createNotificationRepository(db: NativeDB) {
   async function getAll(): Promise<ReminderNotification[]> {
     const rows = await db.getAllAsync(
       "SELECT * FROM notification_mappings ORDER BY scheduled_for ASC"

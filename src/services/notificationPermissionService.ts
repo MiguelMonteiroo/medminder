@@ -1,31 +1,28 @@
-import * as Notifications from "expo-notifications";
+import notifee, { AuthorizationStatus } from "@notifee/react-native";
 import { Platform } from "react-native";
 
 export async function getNotificationPermissionStatus(): Promise<{
   granted: boolean;
 }> {
-  const settings = await Notifications.getPermissionsAsync();
-  return { granted: settings.granted };
+  const settings = await notifee.getNotificationSettings();
+  return { granted: settings.authorizationStatus === AuthorizationStatus.AUTHORIZED };
 }
 
 export async function requestNotificationPermission(): Promise<{
   granted: boolean;
 }> {
   if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("medication-reminders", {
+    await notifee.createChannel({
+      id: "medication-reminders",
       name: "Lembretes de Medicamentos",
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
+      vibration: true,
+      vibrationPattern: [250, 250, 250, 250],
     });
   }
 
-  const settings = await Notifications.requestPermissionsAsync({
-    ios: {
-      allowAlert: true,
-      allowBadge: true,
-      allowSound: true,
-    },
-  });
+  const settings = await notifee.requestPermission();
 
-  return { granted: settings.granted };
+  return {
+    granted: settings.authorizationStatus === AuthorizationStatus.AUTHORIZED,
+  };
 }

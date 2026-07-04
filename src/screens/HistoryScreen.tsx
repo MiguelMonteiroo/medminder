@@ -1,6 +1,6 @@
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { useState, useEffect } from "react";
-import { useSQLiteContext } from "expo-sqlite";
+import { useDatabase } from "../database/DatabaseProvider";
 import { BarChart3 } from "lucide-react-native";
 import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
@@ -18,7 +18,7 @@ import { spacing } from "../theme/spacing";
 
 export function HistoryScreen() {
   const { medications, schedules } = useAppData();
-  const db = useSQLiteContext();
+  const db = useDatabase();
   const [logs, setLogs] = useState<DoseLog[]>([]);
   const [loading, setLoading] = useState(true);
 

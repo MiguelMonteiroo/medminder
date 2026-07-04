@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useSQLiteContext } from "expo-sqlite";
+import { useDatabase } from "../database/DatabaseProvider";
 import { Medication, MedicationSchedule, DoseLog, DoseOccurrence } from "../types/domain";
 import { createMedicationRepository, MedicationRepository } from "../database/repositories/medicationRepository";
 import { createScheduleRepository, ScheduleRepository } from "../database/repositories/scheduleRepository";
@@ -52,7 +52,7 @@ function getTodayString(): string {
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const db = useSQLiteContext();
+  const db = useDatabase();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [logs, setLogs] = useState<DoseLog[]>([]);

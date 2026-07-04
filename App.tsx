@@ -1,8 +1,7 @@
 import { NavigationContainer } from "@react-navigation/native";
-import { SQLiteProvider } from "expo-sqlite";
+import { DatabaseProvider } from "./src/database/DatabaseProvider";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AppDataProvider } from "./src/services/appDataProvider";
-import { migrateDbIfNeeded } from "./src/database/migrations";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 
 function LoadingFallback() {
@@ -16,17 +15,13 @@ function LoadingFallback() {
 
 export default function App() {
   return (
-    <SQLiteProvider
-      databaseName="medminder.db"
-      onInit={migrateDbIfNeeded}
-      useSuspense
-    >
+    <DatabaseProvider>
       <NavigationContainer>
         <AppDataProvider>
           <AppNavigator />
         </AppDataProvider>
       </NavigationContainer>
-    </SQLiteProvider>
+    </DatabaseProvider>
   );
 }
 

@@ -1,8 +1,8 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { NativeDB } from "./nativeDb";
 
 const DATABASE_VERSION = 1;
 
-export async function migrateDbIfNeeded(db: SQLiteDatabase) {
+export async function migrateDbIfNeeded(db: NativeDB) {
   const result = await db.getFirstAsync<{ user_version: number }>(
     "PRAGMA user_version"
   );

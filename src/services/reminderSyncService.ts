@@ -1,19 +1,15 @@
-import * as Notifications from "expo-notifications";
-import { Medication, MedicationSchedule } from "../types/domain";
-import { generateDoseOccurrencesForDate } from "../utils/doseEngine";
+import notifee from "@notifee/react-native";
 import { NotificationRepository } from "../database/repositories/notificationRepository";
 
 export async function reconcileNotifications(
-  medications: Medication[],
-  schedules: MedicationSchedule[],
   notificationRepo: NotificationRepository
 ): Promise<void> {
-  const scheduledNotifs = await Notifications.getAllScheduledNotificationsAsync();
-  const scheduledIds = new Set(scheduledNotifs.map((n) => n.identifier));
+  const scheduledIds = await notifee.getTriggerNotificationIds();
+  const scheduledSet = new Set(scheduledIds);
 
   const storedMappings = await notificationRepo.getAll();
   for (const mapping of storedMappings) {
-    if (!scheduledIds.has(mapping.notificationId)) {
+    if (!scheduledSet.has(mapping.notificationId)) {
       await notificationRepo.remove(mapping.id);
     }
   }

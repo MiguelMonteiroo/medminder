@@ -1,30 +1,29 @@
 {
-  "name": "medminder",
+  "name": "MedMinder",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "postinstall": "patch-package",
+    "start": "react-native start",
+    "android": "react-native run-android",
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "jest": {
-    "preset": "jest-expo",
+    "preset": "react-native",
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg))"
-    ]
+      "node_modules/(?!(react-native|@react-native|@react-navigation|react-native-screens|react-native-safe-area-context|@notifee/react-native|@op-engineering/op-sqlite|lucide-react-native|react-native-svg)/)"
+    ],
+    "moduleNameMapper": {
+      "^@notifee/react-native$": "<rootDir>/node_modules/@notifee/react-native/jest-mock.js"
+    }
   },
   "dependencies": {
+    "@notifee/react-native": "^9.1.8",
+    "@op-engineering/op-sqlite": "^17.1.1",
     "@react-navigation/bottom-tabs": "^7.18.7",
     "@react-navigation/native": "^7.3.7",
     "@react-navigation/native-stack": "^7.17.9",
-    "expo": "^57.0.2",
-    "expo-dev-client": "~57.0.5",
-    "expo-notifications": "~57.0.3",
-    "expo-sqlite": "~57.0.0",
-    "expo-status-bar": "~57.0.0",
     "lucide-react-native": "^1.23.0",
     "react": "19.2.3",
     "react-native": "0.86.0",
@@ -33,14 +32,20 @@
     "react-native-svg": "15.15.4"
   },
   "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
+    "@babel/runtime": "^7.27.2",
+    "@react-native-community/cli": "^20.2.0",
+    "@react-native/babel-preset": "^0.86.0",
+    "@react-native/community-cli-plugin": "^0.86.0",
+    "@react-native/metro-config": "^0.86.0",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.2.4",
+    "babel-jest": "^29.7.0",
     "jest": "~29.7.0",
-    "jest-expo": "~57.0.1",
+    "patch-package": "^8.0.1",
+    "react-test-renderer": "^19.2.3",
     "typescript": "~6.0.3"
   },
-  "private": true,
-  "overrides": {
-    "uuid": "^11.1.1"
-  }
+  "private": true
 }
