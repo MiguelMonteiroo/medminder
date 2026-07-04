@@ -38,7 +38,11 @@ yarn-error.*
 
 # native build outputs (do NOT ignore android/ and ios/ source dirs)
 /android/app/build
+/android/app/.cxx
 /android/.gradle
 /android/build
 /ios/build
 /ios/Pods
+
+# local tooling artifacts
+*opencodediff*.txt

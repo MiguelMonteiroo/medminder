@@ -16,7 +16,7 @@ export async function requestNotificationPermission(): Promise<{
       id: "medication-reminders",
       name: "Lembretes de Medicamentos",
       vibration: true,
-      vibrationPattern: [0, 250, 250, 250],
+      vibrationPattern: [250, 250, 250, 250],
     });
   }
 
