@@ -1,47 +1,4 @@
 {
-  "expo": {
-    "name": "MedMinder",
-    "slug": "medminder",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.miguel.medminder"
-    },
-    "android": {
-      "package": "com.miguel.medminder",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM",
-        "POST_NOTIFICATIONS"
-      ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-sqlite",
-      [
-        "expo-notifications",
-        {
-          "color": "#2563EB",
-          "defaultChannel": "medication-reminders"
-        }
-      ],
-      "expo-status-bar"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "0779efb0-7854-4f0c-bdc8-689c68e9c5dd"
-      }
-    },
-    "owner": "monteiromiguels-team"
-  }
+  "name": "MedMinder",
+  "displayName": "MedMinder"
 }

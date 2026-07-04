@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { NativeDB } from "../nativeDb";
 import { ReminderSettings } from "../../types/domain";
 
 const DEFAULT_SETTINGS: ReminderSettings = {
@@ -6,7 +6,7 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   defaultSnoozeMinutes: 5,
 };
 
-export function createSettingsRepository(db: SQLiteDatabase) {
+export function createSettingsRepository(db: NativeDB) {
   async function get(): Promise<ReminderSettings> {
     const rows = await db.getAllAsync<{ key: string; value: string }>(
       "SELECT * FROM app_settings"
