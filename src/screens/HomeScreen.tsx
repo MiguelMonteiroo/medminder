@@ -1,245 +1,210 @@
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { CompositeScreenProps } from "@react-navigation/native";
+import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Pill, Plus } from "lucide-react-native";
 import { MedicationCard } from "../components/MedicationCard";
 import { MedicationSummary } from "../components/MedicationSummary";
+import { EmptyState } from "../components/ui/EmptyState";
+import { IconButton } from "../components/ui/IconButton";
+import { Screen } from "../components/ui/Screen";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { AppText } from "../components/ui/AppText";
 import { useAppData } from "../services/appDataProvider";
-import { RootStackParamList } from "../navigation/types";
+import { RootStackParamList, RootTabParamList } from "../navigation/types";
 import { DoseOccurrence } from "../types/domain";
+import { colors } from "../theme/colors";
+import { spacing } from "../theme/spacing";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Home">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<RootTabParamList, "Home">,
+  NativeStackScreenProps<RootStackParamList>
+>;
+
+function getOccurrenceTime(occurrence: DoseOccurrence) {
+  return occurrence.scheduledAt.split("T")[1]?.substring(0, 5) || "--:--";
+}
 
 export function HomeScreen({ navigation }: Props) {
   const {
     medications,
+    schedules,
     todayOccurrences,
     todaySummary,
     loading,
     error,
-    removeMedication,
     setDoseTaken,
+    skipDose,
+    snoozeDose,
   } = useAppData();
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Carregando...</Text>
-      </View>
+      <Screen style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <AppText muted style={styles.loadingText}>
+          Carregando sua rotina...
+        </AppText>
+      </Screen>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.errorHint}>Reinicie o aplicativo.</Text>
-      </View>
+      <Screen style={styles.center}>
+        <AppText variant="subheading" style={styles.errorText}>
+          Não foi possível carregar seus dados.
+        </AppText>
+        <AppText muted style={styles.centerText}>
+          {error}
+        </AppText>
+      </Screen>
     );
   }
 
   const pendingOccurrences = todayOccurrences.filter(
-    (o) => o.status === "pending" || o.status === "snoozed"
+    (occurrence) => occurrence.status === "pending" || occurrence.status === "snoozed"
   );
   const completedOccurrences = todayOccurrences.filter(
-    (o) => o.status === "taken" || o.status === "skipped"
+    (occurrence) => occurrence.status === "taken" || occurrence.status === "skipped"
   );
+  const nextDoseTime = pendingOccurrences[0]
+    ? getOccurrenceTime(pendingOccurrences[0])
+    : undefined;
 
-  function renderOccurrence({ item }: { item: DoseOccurrence }) {
-    const medication = medications.find((m) => m.id === item.medicationId);
+  function renderOccurrence(occurrence: DoseOccurrence) {
+    const medication = medications.find((m) => m.id === occurrence.medicationId);
+    const schedule = schedules.find((s) => s.id === occurrence.scheduleId);
     if (!medication) return null;
 
     return (
       <MedicationCard
+        key={occurrence.id}
         name={medication.name}
-        dosage=""
-        time={item.scheduledAt.split("T")[1]?.substring(0, 5) || ""}
-        frequency=""
-        taken={item.status === "taken"}
-        notes={
-          item.status === "snoozed"
-            ? "Adiado"
-            : item.status === "skipped"
-            ? "Pulado"
-            : undefined
+        dosage={medication.dosage}
+        time={getOccurrenceTime(occurrence)}
+        frequency={
+          schedule?.kind === "intervalHours"
+            ? `A cada ${schedule.intervalHours}h`
+            : schedule?.kind === "weekdays"
+            ? "Dias selecionados"
+            : "Diária"
         }
-        onToggleTaken={() =>
+        notes={occurrence.status === "snoozed" ? "Dose adiada" : medication.notes}
+        status={occurrence.status}
+        onTake={() =>
           setDoseTaken(
-            item.id,
-            item.medicationId,
-            item.scheduleId,
-            item.status === "taken"
+            occurrence.id,
+            occurrence.medicationId,
+            occurrence.scheduleId,
+            occurrence.status === "taken"
           )
         }
-        onDelete={() => removeMedication(item.medicationId)}
+        onSkip={() =>
+          skipDose(occurrence.id, occurrence.medicationId, occurrence.scheduleId)
+        }
+        onSnooze={() =>
+          snoozeDose(occurrence.id, occurrence.medicationId, occurrence.scheduleId)
+        }
         onPress={() =>
-          navigation.navigate("MedicationDetail", { medicationId: item.medicationId })
+          navigation.navigate("MedicationDetail", {
+            medicationId: occurrence.medicationId,
+          })
         }
       />
     );
   }
 
   return (
-    <View style={styles.container}>
-      <MedicationSummary
-        takenCount={todaySummary.taken}
-        totalCount={todaySummary.total}
-      />
+    <Screen>
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <AppText variant="caption" muted>
+            Bom te ver por aqui
+          </AppText>
+          <AppText variant="title">Hoje</AppText>
+        </View>
+        <IconButton
+          icon={Plus}
+          label="Adicionar medicamento"
+          onPress={() => navigation.navigate("AddMedication")}
+          accessibilityHint="Abre o cadastro de medicamento"
+        />
+      </View>
 
-      <Pressable
-        style={styles.addButton}
-        onPress={() => navigation.navigate("AddMedication")}
-        accessibilityLabel="Adicionar novo medicamento"
-        accessibilityHint="Abre o formulário para cadastrar um novo medicamento"
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
       >
-        <Text style={styles.addButtonText}>+ Adicionar Medicamento</Text>
-      </Pressable>
-
-      <View style={styles.list}>
-        {pendingOccurrences.length > 0 && (
-          <Text style={styles.sectionTitle}>Pendentes</Text>
-        )}
-        <FlatList
-          data={pendingOccurrences}
-          keyExtractor={(item) => item.id}
-          renderItem={renderOccurrence}
-          ListEmptyComponent={
-            todayOccurrences.length === 0 ? (
-              <Text style={styles.emptyText}>Nenhum medicamento cadastrado.</Text>
-            ) : (
-              <Text style={styles.emptyText}>Nenhuma dose pendente.</Text>
-            )
-          }
-          contentContainerStyle={styles.listContent}
+        <MedicationSummary
+          takenCount={todaySummary.taken}
+          totalCount={todaySummary.total}
+          nextDoseTime={nextDoseTime}
         />
 
-        {completedOccurrences.length > 0 && (
+        {todayOccurrences.length === 0 ? (
+          <EmptyState
+            icon={Pill}
+            title="Sua rotina ainda está vazia"
+            message="Cadastre seu primeiro medicamento para acompanhar as doses de hoje."
+          />
+        ) : (
           <>
-            <Text style={[styles.sectionTitle, styles.completedTitle]}>
-              Concluídas
-            </Text>
-            <FlatList
-              data={completedOccurrences}
-              keyExtractor={(item) => item.id}
-              renderItem={renderOccurrence}
-              scrollEnabled={false}
+            <SectionHeader
+              title="Pendentes"
+              meta={`${pendingOccurrences.length} dose${pendingOccurrences.length === 1 ? "" : "s"}`}
             />
+            {pendingOccurrences.length > 0 ? (
+              pendingOccurrences.map(renderOccurrence)
+            ) : (
+              <EmptyState
+                icon={Pill}
+                title="Nada pendente agora"
+                message="Quando uma nova dose estiver prevista, ela aparecerá aqui."
+              />
+            )}
+
+            {completedOccurrences.length > 0 ? (
+              <>
+                <SectionHeader
+                  title="Concluídas"
+                  meta={`${completedOccurrences.length} dose${completedOccurrences.length === 1 ? "" : "s"}`}
+                />
+                {completedOccurrences.map(renderOccurrence)}
+              </>
+            ) : null}
           </>
         )}
-      </View>
-
-      <View style={styles.bottomButtons}>
-        <Pressable
-          style={styles.historyButton}
-          onPress={() => navigation.navigate("History")}
-          accessibilityLabel="Histórico"
-          accessibilityHint="Abre o histórico e estatísticas"
-        >
-          <Text style={styles.bottomButtonText}>Histórico</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate("Settings")}
-          accessibilityLabel="Configurações"
-          accessibilityHint="Abre a tela de configurações do aplicativo"
-        >
-          <Text style={styles.bottomButtonText}>Configurações</Text>
-        </Pressable>
-      </View>
-    </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 24,
-    paddingTop: 16,
-  },
   center: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    padding: 24,
+    justifyContent: "center",
+  },
+  centerText: {
+    marginTop: spacing.sm,
+    textAlign: "center",
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6B7280",
+    marginTop: spacing.md,
   },
   errorText: {
-    fontSize: 16,
-    color: "#DC2626",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  errorHint: {
-    fontSize: 14,
-    color: "#6B7280",
+    color: colors.danger,
     textAlign: "center",
   },
-  list: {
-    flex: 1,
-    marginTop: 8,
-  },
-  listContent: {
-    paddingBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#777",
-    textAlign: "center",
-    marginTop: 48,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  completedTitle: {
-    marginTop: 24,
-  },
-  addButton: {
-    backgroundColor: "#14ce68",
-    padding: 14,
-    borderRadius: 8,
+  header: {
     alignItems: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  addButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  bottomButtons: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
-  historyButton: {
-    backgroundColor: "#2563EB",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
+  headerText: {
     flex: 1,
   },
-  settingsButton: {
-    backgroundColor: "#6B7280",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    flex: 1,
-  },
-  bottomButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-    fontSize: 14,
+  content: {
+    paddingBottom: spacing.xxl,
   },
 });

@@ -1,0 +1,30 @@
+export const ptBR = {
+  appName: "MedMinder",
+  tabs: {
+    today: "Hoje",
+    history: "Histórico",
+    settings: "Configurações",
+  },
+  actions: {
+    addMedication: "Adicionar medicamento",
+    take: "Tomar",
+    undo: "Desfazer",
+    skip: "Pular",
+    snooze: "Adiar",
+    details: "Detalhes",
+    edit: "Editar",
+    delete: "Remover",
+    pause: "Pausar medicamento",
+    resume: "Reativar medicamento",
+    save: "Salvar",
+  },
+  status: {
+    pending: "Pendente",
+    taken: "Tomada",
+    skipped: "Pulada",
+    snoozed: "Adiada",
+    missed: "Perdida",
+    active: "Ativo",
+    paused: "Pausado",
+  },
+};

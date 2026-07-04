@@ -1,6 +1,10 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { AppButton } from "../components/ui/AppButton";
+import { AppCard } from "../components/ui/AppCard";
+import { AppText } from "../components/ui/AppText";
+import { Screen } from "../components/ui/Screen";
 import { RootStackParamList } from "../navigation/types";
 import { useAppData } from "../services/appDataProvider";
 import {
@@ -9,14 +13,19 @@ import {
   normalizeMedicationInput,
 } from "../utils/validation";
 import { ScheduleKind } from "../types/domain";
+import { colors } from "../theme/colors";
+import { radii } from "../theme/radii";
+import { spacing } from "../theme/spacing";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddMedication">;
 
-const SCHEDULE_KINDS: { key: ScheduleKind; label: string }[] = [
-  { key: "dailyTimes", label: "Horários Fixos" },
-  { key: "intervalHours", label: "A Cada N Horas" },
-  { key: "weekdays", label: "Dias da Semana" },
+const SCHEDULE_KINDS: { key: ScheduleKind; label: string; hint: string }[] = [
+  { key: "dailyTimes", label: "Diário", hint: "Uma dose por dia" },
+  { key: "intervalHours", label: "Intervalo", hint: "A cada N horas" },
+  { key: "weekdays", label: "Semana", hint: "Dias específicos" },
 ];
+
+const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export function AddMedicationScreen({ navigation }: Props) {
   const { addMedication } = useAppData();
@@ -28,8 +37,6 @@ export function AddMedicationScreen({ navigation }: Props) {
   const [intervalHours, setIntervalHours] = useState("8");
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [error, setError] = useState("");
-
-  const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   function toggleWeekday(day: number) {
     setWeekdays((prev) =>
@@ -44,28 +51,19 @@ export function AddMedicationScreen({ navigation }: Props) {
       return;
     }
 
-    if (scheduleKind === "dailyTimes" || scheduleKind === "weekdays") {
-      const timeError = validateTimeHHMM(time);
-      if (timeError) {
-        setError(timeError);
-        return;
-      }
+    const timeError = validateTimeHHMM(time);
+    if (timeError) {
+      setError(
+        scheduleKind === "intervalHours"
+          ? "Informe o horário inicial no formato 08:00."
+          : timeError
+      );
+      return;
     }
 
-    if (scheduleKind === "intervalHours") {
-      if (!time) {
-        setError("Informe o horário inicial.");
-        return;
-      }
-      const timeError = validateTimeHHMM(time);
-      if (timeError) {
-        setError(timeError);
-        return;
-      }
-      if (!intervalHours || parseInt(intervalHours, 10) < 1) {
-        setError("O intervalo deve ser de pelo menos 1 hora.");
-        return;
-      }
+    if (scheduleKind === "intervalHours" && parseInt(intervalHours, 10) < 1) {
+      setError("O intervalo deve ser de pelo menos 1 hora.");
+      return;
     }
 
     if (scheduleKind === "weekdays" && weekdays.length === 0) {
@@ -74,7 +72,6 @@ export function AddMedicationScreen({ navigation }: Props) {
     }
 
     setError("");
-
     const normalized = normalizeMedicationInput({ name, dosage, notes });
 
     await addMedication(
@@ -87,210 +84,206 @@ export function AddMedicationScreen({ navigation }: Props) {
       weekdays
     );
 
-    setName("");
-    setDosage("");
-    setTime("");
-    setNotes("");
     navigation.goBack();
   }
 
-  function handleNameChange(text: string) {
-    setName(text);
-    if (error) setError("");
-  }
-
-  function handleTimeChange(text: string) {
-    setTime(text);
+  function clearError() {
     if (error) setError("");
   }
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        value={name}
-        onChangeText={handleNameChange}
-        placeholder="Nome do medicamento"
-        style={styles.input}
-      />
+    <Screen>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        <AppText variant="caption" muted>
+          Nova rotina
+        </AppText>
+        <AppText variant="title" style={styles.title}>
+          Adicionar medicamento
+        </AppText>
 
-      <TextInput
-        value={dosage}
-        onChangeText={setDosage}
-        placeholder="Dosagem do medicamento"
-        style={styles.input}
-      />
+        <AppCard style={styles.section}>
+          <AppText variant="subheading">Medicamento</AppText>
+          <AppText muted style={styles.sectionHint}>
+            Comece com o nome e a dosagem que você reconhece no dia a dia.
+          </AppText>
+          <TextInput
+            value={name}
+            onChangeText={(text) => {
+              setName(text);
+              clearError();
+            }}
+            placeholder="Nome do medicamento"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+          />
+          <TextInput
+            value={dosage}
+            onChangeText={setDosage}
+            placeholder="Dosagem, ex: 50mg"
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+          />
+        </AppCard>
 
-      <Text style={styles.label}>Tipo de Agendamento</Text>
-      <View style={styles.kindRow}>
-        {SCHEDULE_KINDS.map((kind) => (
-          <Pressable
-            key={kind.key}
-            style={[
-              styles.kindButton,
-              scheduleKind === kind.key && styles.kindButtonActive,
-            ]}
-            onPress={() => setScheduleKind(kind.key)}
-          >
-            <Text
-              style={[
-                styles.kindButtonText,
-                scheduleKind === kind.key && styles.kindButtonTextActive,
-              ]}
-            >
-              {kind.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <AppCard style={styles.section}>
+          <AppText variant="subheading">Agendamento</AppText>
+          <AppText muted style={styles.sectionHint}>
+            Escolha como esta dose entra na sua rotina.
+          </AppText>
 
-      <TextInput
-        value={time}
-        onChangeText={handleTimeChange}
-        placeholder={
-          scheduleKind === "intervalHours"
-            ? "Horário inicial: (ex: 08:00)"
-            : "Horário: (ex: 08:00)"
-        }
-        style={styles.input}
-      />
+          <View style={styles.segmented}>
+            {SCHEDULE_KINDS.map((kind) => {
+              const active = scheduleKind === kind.key;
+              return (
+                <AppButton
+                  key={kind.key}
+                  title={kind.label}
+                  variant={active ? "primary" : "ghost"}
+                  compact
+                  style={styles.segmentButton}
+                  onPress={() => setScheduleKind(kind.key)}
+                  accessibilityLabel={`Agendamento ${kind.label}`}
+                  accessibilityHint={kind.hint}
+                />
+              );
+            })}
+          </View>
 
-      {scheduleKind === "intervalHours" && (
-        <TextInput
-          value={intervalHours}
-          onChangeText={setIntervalHours}
-          placeholder="Intervalo em horas"
-          keyboardType="numeric"
-          style={styles.input}
+          <TextInput
+            value={time}
+            onChangeText={(text) => {
+              setTime(text);
+              clearError();
+            }}
+            placeholder={
+              scheduleKind === "intervalHours"
+                ? "Horário inicial, ex: 08:00"
+                : "Horário, ex: 08:00"
+            }
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+          />
+          <AppText variant="caption" muted style={styles.helperText}>
+            Use sempre dois dígitos para hora e minuto.
+          </AppText>
+
+          {scheduleKind === "intervalHours" ? (
+            <TextInput
+              value={intervalHours}
+              onChangeText={setIntervalHours}
+              placeholder="Intervalo em horas"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+          ) : null}
+
+          {scheduleKind === "weekdays" ? (
+            <View style={styles.weekdayRow}>
+              {WEEKDAY_LABELS.map((label, index) => {
+                const active = weekdays.includes(index);
+                return (
+                  <AppButton
+                    key={label}
+                    title={label}
+                    variant={active ? "primary" : "ghost"}
+                    compact
+                    style={styles.weekdayButton}
+                    onPress={() => toggleWeekday(index)}
+                    accessibilityLabel={`${active ? "Remover" : "Adicionar"} ${label}`}
+                  />
+                );
+              })}
+            </View>
+          ) : null}
+        </AppCard>
+
+        <AppCard style={styles.section}>
+          <AppText variant="subheading">Notas</AppText>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Ex: tomar após o café"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            style={[styles.input, styles.notesInput]}
+          />
+        </AppCard>
+
+        {error ? (
+          <AppText style={styles.errorText} accessibilityLiveRegion="polite">
+            {error}
+          </AppText>
+        ) : null}
+
+        <AppButton
+          title="Salvar medicamento"
+          variant="secondary"
+          onPress={handleAdd}
+          accessibilityLabel="Salvar medicamento"
         />
-      )}
-
-      {scheduleKind === "weekdays" && (
-        <View style={styles.weekdayRow}>
-          {WEEKDAY_LABELS.map((label, index) => (
-            <Pressable
-              key={index}
-              style={[
-                styles.weekdayButton,
-                weekdays.includes(index) && styles.weekdayButtonActive,
-              ]}
-              onPress={() => toggleWeekday(index)}
-            >
-              <Text
-                style={[
-                  styles.weekdayText,
-                  weekdays.includes(index) && styles.weekdayTextActive,
-                ]}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      <TextInput
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Notas"
-        style={styles.input}
-      />
-
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      <Pressable style={styles.addButton} onPress={handleAdd}>
-        <Text style={styles.addButtonText}>Adicionar</Text>
-      </Pressable>
-    </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 24,
+  content: {
+    paddingBottom: spacing.xxl,
+  },
+  title: {
+    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
+  },
+  section: {
+    marginBottom: spacing.md,
+  },
+  sectionHint: {
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
   },
   input: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: "#DDD",
-    backgroundColor: "#FFF",
-    padding: 12,
-    marginBottom: 10,
-    borderRadius: 8,
+    color: colors.text,
+    fontSize: 16,
+    marginTop: spacing.md,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#6B7280",
-    marginBottom: 8,
-    textTransform: "uppercase",
+  notesInput: {
+    minHeight: 88,
+    textAlignVertical: "top",
   },
-  kindRow: {
+  segmented: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  kindButton: {
+  segmentButton: {
     flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#DDD",
-    backgroundColor: "#FFF",
-    alignItems: "center",
   },
-  kindButtonActive: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
-  },
-  kindButtonText: {
-    fontSize: 11,
-    color: "#555",
-    fontWeight: "500",
-  },
-  kindButtonTextActive: {
-    color: "#FFF",
+  helperText: {
+    marginTop: spacing.xs,
   },
   weekdayRow: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 12,
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   weekdayButton: {
-    flex: 1,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#DDD",
-    backgroundColor: "#FFF",
-    alignItems: "center",
-  },
-  weekdayButtonActive: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
-  },
-  weekdayText: {
-    fontSize: 11,
-    color: "#555",
-  },
-  weekdayTextActive: {
-    color: "#FFF",
-  },
-  addButton: {
-    backgroundColor: "#14ce68",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  addButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-    fontSize: 16,
+    minWidth: 56,
   },
   errorText: {
-    color: "#DC2626",
-    marginBottom: 10,
-    fontWeight: "500",
+    color: colors.danger,
+    fontWeight: "700",
+    marginBottom: spacing.md,
   },
 });

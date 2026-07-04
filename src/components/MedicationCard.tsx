@@ -1,14 +1,24 @@
-import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Clock3, Info, RotateCcw } from "lucide-react-native";
+import { AppButton } from "./ui/AppButton";
+import { AppCard } from "./ui/AppCard";
+import { AppText } from "./ui/AppText";
+import { StatusBadge } from "./ui/StatusBadge";
+import { colors } from "../theme/colors";
+import { radii } from "../theme/radii";
+import { spacing } from "../theme/spacing";
+import { DoseStatus } from "../types/domain";
 
 type Props = {
   name: string;
-  dosage: string;
+  dosage?: string;
   time: string;
-  frequency: string;
+  frequency?: string;
   notes?: string;
-  taken: boolean;
-  onToggleTaken: () => void;
-  onDelete: () => void;
+  status: DoseStatus;
+  onTake: () => void;
+  onSkip?: () => void;
+  onSnooze?: () => void;
   onPress?: () => void;
 };
 
@@ -18,142 +28,152 @@ export function MedicationCard({
   time,
   frequency,
   notes,
-  taken,
-  onToggleTaken,
-  onDelete,
+  status,
+  onTake,
+  onSkip,
+  onSnooze,
   onPress,
 }: Props) {
-  function handleDelete() {
-    Alert.alert(
-      "Remover Medicamento",
-      `Tem certeza que deseja remover ${name}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Remover", style: "destructive", onPress: onDelete },
-      ]
-    );
-  }
+  const isTaken = status === "taken";
+  const isComplete = status === "taken" || status === "skipped";
 
   return (
     <Pressable
-      style={[styles.card, taken && styles.takenCard]}
       onPress={onPress}
-      accessibilityLabel={`${name}, ${taken ? "tomado" : "pendente"}`}
-      accessibilityHint="Toque para ver detalhes do medicamento"
+      accessibilityLabel={`${name}, ${status}`}
+      accessibilityHint="Abre os detalhes do medicamento"
     >
-      <Text
-        style={taken ? styles.takenName : styles.pendingName}
-        accessibilityRole="header"
-      >
-        {name}
-      </Text>
-      {dosage ? <Text style={styles.detail}>Dosagem: {dosage}</Text> : null}
-      <Text style={styles.detail}>Horário: {time}</Text>
-      {frequency ? (
-        <Text style={styles.detail}>Frequência: {frequency}</Text>
-      ) : null}
-      {notes ? <Text style={styles.notes}>{notes}</Text> : null}
-      <Text
-        style={taken ? styles.takenText : styles.pendingText}
-        accessibilityLiveRegion="polite"
-      >
-        {taken ? "Tomado" : "Pendente"}
-      </Text>
+      <AppCard style={[styles.card, isComplete && styles.completedCard]}>
+        <View style={styles.header}>
+          <View style={styles.titleBlock}>
+            <AppText variant="subheading" style={isTaken && styles.takenName}>
+              {name}
+            </AppText>
+            <View style={styles.timeRow}>
+              <Clock3 color={colors.textMuted} size={16} />
+              <AppText variant="small" muted>
+                {time}
+              </AppText>
+              {dosage ? (
+                <AppText variant="small" muted>
+                  · {dosage}
+                </AppText>
+              ) : null}
+            </View>
+          </View>
+          <StatusBadge status={status} />
+        </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={styles.takenButton}
-          onPress={onToggleTaken}
-          accessibilityLabel={taken ? "Desfazer" : "Marcar como tomado"}
-          accessibilityHint={
-            taken
-              ? "Reverte o medicamento para pendente"
-              : "Registra o medicamento como tomado"
-          }
-        >
-          <Text style={styles.buttonText}>
-            {taken ? "Desfazer" : "Tomado"}
-          </Text>
-        </Pressable>
+        {frequency ? (
+          <AppText variant="small" muted style={styles.detail}>
+            Frequência: {frequency}
+          </AppText>
+        ) : null}
+        {notes ? (
+          <AppText variant="small" muted style={styles.notes}>
+            {notes}
+          </AppText>
+        ) : null}
 
-        <Pressable
-          style={styles.deleteButton}
-          onPress={handleDelete}
-          accessibilityLabel="Remover medicamento"
-          accessibilityHint="Remove este medicamento da lista"
-        >
-          <Text style={styles.buttonText}>Remover</Text>
-        </Pressable>
-      </View>
+        <View style={styles.actions}>
+          <AppButton
+            title={isTaken ? "Desfazer" : "Tomar"}
+            variant={isTaken ? "ghost" : "success"}
+            compact
+            onPress={onTake}
+            accessibilityLabel={isTaken ? "Desfazer dose tomada" : "Marcar dose como tomada"}
+          />
+          {!isComplete ? (
+            <>
+              <AppButton
+                title="Adiar"
+                variant="ghost"
+                compact
+                onPress={onSnooze}
+                accessibilityLabel="Adiar dose por alguns minutos"
+              />
+              <AppButton
+                title="Pular"
+                variant="ghost"
+                compact
+                onPress={onSkip}
+                accessibilityLabel="Registrar dose como pulada"
+              />
+            </>
+          ) : null}
+          <AppButton
+            title="Detalhes"
+            variant="ghost"
+            compact
+            onPress={onPress}
+            accessibilityLabel="Ver detalhes do medicamento"
+          />
+        </View>
+
+        {!isComplete ? (
+          <View style={styles.hintRow}>
+            <Info color={colors.textMuted} size={14} />
+            <AppText variant="caption" muted>
+              Ação rápida para a dose de hoje
+            </AppText>
+          </View>
+        ) : (
+          <View style={styles.hintRow}>
+            <RotateCcw color={colors.textMuted} size={14} />
+            <AppText variant="caption" muted>
+              Você pode desfazer se registrou por engano
+            </AppText>
+          </View>
+        )}
+      </AppCard>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 8,
-    marginTop: 12,
-    width: "100%",
+    marginBottom: spacing.md,
   },
-  takenCard: {
-    borderWidth: 1,
-    borderColor: "#16A34A",
+  completedCard: {
+    opacity: 0.82,
+  },
+  header: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+  },
+  titleBlock: {
+    flex: 1,
+    marginRight: spacing.md,
   },
   takenName: {
-    color: "#16A34A",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: colors.success,
   },
-  pendingName: {
-    color: "#DC2626",
-    fontSize: 18,
-    fontWeight: "bold",
+  timeRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
   detail: {
-    color: "#555",
-    marginTop: 4,
+    marginTop: spacing.sm,
   },
   notes: {
-    color: "#777",
-    marginTop: 4,
-    fontStyle: "italic",
-  },
-  takenText: {
-    color: "#16A34A",
-    fontWeight: "bold",
-    marginTop: 8,
-  },
-  pendingText: {
-    color: "#DC2626",
-    fontWeight: "bold",
-    marginTop: 8,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
   },
   actions: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
-  takenButton: {
-    backgroundColor: "#2563EB",
-    padding: 10,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
+  hintRow: {
     alignItems: "center",
-  },
-  deleteButton: {
-    backgroundColor: "#DC2626",
-    padding: 10,
-    borderRadius: 8,
-    flex: 1,
-    marginLeft: 8,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-    fontSize: 12,
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginTop: spacing.md,
   },
 });

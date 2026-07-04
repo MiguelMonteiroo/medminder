@@ -1,11 +1,20 @@
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from "react-native";
-import { useState, useEffect, useCallback } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { useState, useEffect } from "react";
 import { useSQLiteContext } from "expo-sqlite";
+import { BarChart3 } from "lucide-react-native";
+import { AppCard } from "../components/ui/AppCard";
+import { AppText } from "../components/ui/AppText";
+import { EmptyState } from "../components/ui/EmptyState";
+import { Screen } from "../components/ui/Screen";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import { useAppData } from "../services/appDataProvider";
 import { createDoseLogRepository } from "../database/repositories/doseLogRepository";
 import { calculateAdherence, getLast7Days } from "../utils/stats";
-import { DoseLog } from "../types/domain";
+import { DoseLog, DoseStatus } from "../types/domain";
 import { generateDoseOccurrencesForDate } from "../utils/doseEngine";
+import { colors } from "../theme/colors";
+import { spacing } from "../theme/spacing";
 
 export function HistoryScreen() {
   const { medications, schedules } = useAppData();
@@ -29,155 +38,138 @@ export function HistoryScreen() {
   let totalDoses = 0;
   for (const med of medications) {
     for (const sched of schedules.filter((s) => s.medicationId === med.id)) {
-      const occs = generateDoseOccurrencesForDate(med, sched, todayStr);
-      totalDoses += occs.length;
+      totalDoses += generateDoseOccurrencesForDate(med, sched, todayStr).length;
     }
   }
 
   const adherence = calculateAdherence(logs, totalDoses);
   const last7Days = getLast7Days();
+  const recentLogs = logs.slice(0, 10);
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-      </View>
+      <Screen style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Histórico e Estatísticas</Text>
+    <Screen>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        <AppText variant="caption" muted>
+          Acompanhamento
+        </AppText>
+        <AppText variant="title" style={styles.title}>
+          Histórico
+        </AppText>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Adesão de Hoje</Text>
-        <Text style={styles.percentage}>{adherence.percentage}%</Text>
-        <Text style={styles.subtext}>
-          {adherence.taken} de {adherence.total} doses tomadas
-        </Text>
-      </View>
+        <AppCard style={styles.heroCard}>
+          <AppText variant="caption" muted>
+            Adesão de hoje
+          </AppText>
+          <AppText variant="title" style={styles.percentage}>
+            {adherence.percentage}%
+          </AppText>
+          <AppText muted>
+            {adherence.taken} de {adherence.total} doses tomadas
+          </AppText>
+        </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Últimos 7 Dias</Text>
-        {last7Days.map((day) => (
-          <View key={day} style={styles.dayRow}>
-            <Text style={styles.dayText}>{day}</Text>
-          </View>
-        ))}
-      </View>
+        <SectionHeader title="Últimos 7 dias" />
+        <AppCard style={styles.card}>
+          {last7Days.map((day) => (
+            <View key={day} style={styles.dayRow}>
+              <AppText>{day}</AppText>
+              <AppText muted>Resumo em breve</AppText>
+            </View>
+          ))}
+        </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Últimas Ações</Text>
-        {logs.length === 0 ? (
-          <Text style={styles.emptyText}>Nenhuma ação registrada.</Text>
+        <SectionHeader title="Últimas ações" />
+        {recentLogs.length === 0 ? (
+          <EmptyState
+            icon={BarChart3}
+            title="Sem histórico ainda"
+            message="As doses tomadas, puladas ou adiadas aparecerão aqui."
+          />
         ) : (
-          logs
-            .filter((_, i) => i < 10)
-            .map((log) => {
+          <AppCard style={styles.card}>
+            {recentLogs.map((log) => {
               const med = medications.find((m) => m.id === log.medicationId);
               return (
                 <View key={log.id} style={styles.logRow}>
-                  <Text style={styles.logAction}>
-                    {log.action === "taken"
-                      ? "Tomado"
-                      : log.action === "skipped"
-                      ? "Pulado"
-                      : log.action === "snoozed"
-                      ? "Adiado"
-                      : "Desfeito"}
-                  </Text>
-                  <Text style={styles.logMed}>
-                    {med?.name || "Desconhecido"}
-                  </Text>
-                  <Text style={styles.logTime}>
-                    {log.actionAt.substring(11, 16)}
-                  </Text>
+                  <View style={styles.logInfo}>
+                    <AppText style={styles.logMed}>
+                      {med?.name || "Medicamento removido"}
+                    </AppText>
+                    <AppText variant="caption" muted>
+                      {log.actionAt.substring(11, 16)}
+                    </AppText>
+                  </View>
+                  <StatusBadge status={actionToStatus(log.action)} />
                 </View>
               );
-            })
+            })}
+          </AppCard>
         )}
-      </View>
-    </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
+function actionToStatus(action: DoseLog["action"]): DoseStatus {
+  if (action === "taken") return "taken";
+  if (action === "skipped") return "skipped";
+  if (action === "snoozed") return "snoozed";
+  return "pending";
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 24,
-  },
   center: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    paddingBottom: spacing.xxl,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 20,
+    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
   },
-  card: {
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    marginBottom: 8,
+  heroCard: {
+    marginBottom: spacing.md,
   },
   percentage: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#16A34A",
+    color: colors.success,
+    marginVertical: spacing.xs,
   },
-  subtext: {
-    fontSize: 14,
-    color: "#6B7280",
-    marginTop: 4,
+  card: {
+    marginBottom: spacing.md,
   },
   dayRow: {
-    marginBottom: 4,
-  },
-  dayText: {
-    fontSize: 14,
-    color: "#555",
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-  },
-  logRow: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingVertical: spacing.md,
   },
-  logAction: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#111827",
+  logRow: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingVertical: spacing.md,
+  },
+  logInfo: {
     flex: 1,
+    marginRight: spacing.md,
   },
   logMed: {
-    fontSize: 14,
-    color: "#555",
-    flex: 2,
-    textAlign: "center",
-  },
-  logTime: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    flex: 1,
-    textAlign: "right",
+    fontWeight: "700",
   },
 });

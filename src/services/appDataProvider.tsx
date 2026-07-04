@@ -20,6 +20,8 @@ interface AppDataContextValue {
   addMedication: (name: string, dosage: string, time: string, notes: string, scheduleKind?: string, intervalHours?: number, weekdays?: number[]) => Promise<void>;
   removeMedication: (id: string) => Promise<void>;
   setDoseTaken: (occurrenceId: string, medicationId: string, scheduleId: string, isTaken: boolean) => Promise<void>;
+  skipDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
+  snoozeDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
   doseService: DoseService | null;
   setMedicationPaused: (medicationId: string, paused: boolean) => Promise<void>;
 }
@@ -34,6 +36,8 @@ const AppDataContext = createContext<AppDataContextValue>({
   addMedication: async () => {},
   removeMedication: async () => {},
   setDoseTaken: async () => {},
+  skipDose: async () => {},
+  snoozeDose: async () => {},
   doseService: null,
   setMedicationPaused: async () => {},
 });
@@ -159,6 +163,33 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const skipDose = useCallback(
+    async (occurrenceId: string, medicationId: string, scheduleId: string) => {
+      const now = new Date().toISOString();
+      await doseSvc.skipDose(occurrenceId, medicationId, scheduleId, now);
+      const doseLogs = await repos.doseLogs.getAll();
+      setLogs(doseLogs);
+    },
+    []
+  );
+
+  const snoozeDose = useCallback(
+    async (occurrenceId: string, medicationId: string, scheduleId: string) => {
+      const now = new Date();
+      const snoozedUntil = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+      await doseSvc.snoozeDose(
+        occurrenceId,
+        medicationId,
+        scheduleId,
+        now.toISOString(),
+        snoozedUntil
+      );
+      const doseLogs = await repos.doseLogs.getAll();
+      setLogs(doseLogs);
+    },
+    []
+  );
+
   return (
     <AppDataContext.Provider
       value={{
@@ -171,6 +202,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         addMedication,
         removeMedication,
         setDoseTaken,
+        skipDose,
+        snoozeDose,
         setMedicationPaused,
         doseService: doseSvc,
       }}

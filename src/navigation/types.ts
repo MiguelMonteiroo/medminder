@@ -1,7 +1,11 @@
 export type RootStackParamList = {
-  Home: undefined;
+  MainTabs: undefined;
   AddMedication: undefined;
   MedicationDetail: { medicationId: string };
+};
+
+export type RootTabParamList = {
+  Home: undefined;
   History: undefined;
   Settings: undefined;
 };

@@ -1,9 +1,16 @@
-import { View, Text, StyleSheet, Switch, Pressable } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { useState, useEffect } from "react";
+import { Bell, Info } from "lucide-react-native";
+import { AppCard } from "../components/ui/AppCard";
+import { AppText } from "../components/ui/AppText";
+import { Screen } from "../components/ui/Screen";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import {
   getNotificationPermissionStatus,
   requestNotificationPermission,
 } from "../services/notificationPermissionService";
+import { colors } from "../theme/colors";
+import { spacing } from "../theme/spacing";
 
 export function SettingsScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -28,90 +35,116 @@ export function SettingsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Configurações</Text>
+    <Screen>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        <AppText variant="caption" muted>
+          Preferências
+        </AppText>
+        <AppText variant="title" style={styles.title}>
+          Configurações
+        </AppText>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notificações</Text>
-
-        <View style={styles.row}>
-          <View style={styles.rowInfo}>
-            <Text style={styles.label}>Lembretes</Text>
-            <Text style={styles.hint}>
-              {notificationsEnabled
-                ? "Notificações ativadas"
-                : "Ative para receber lembretes dos medicamentos"}
-            </Text>
+        <AppCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrap}>
+              <Bell color={colors.primary} size={22} />
+            </View>
+            <View style={styles.headerText}>
+              <AppText variant="subheading">Notificações</AppText>
+              <AppText muted style={styles.hint}>
+                Receba lembretes locais no seu aparelho.
+              </AppText>
+            </View>
+            <StatusBadge status={notificationsEnabled ? "active" : "paused"} />
           </View>
-          <Switch
-            value={notificationsEnabled}
-            onValueChange={handleToggle}
-            disabled={loading}
-            accessibilityLabel="Ativar notificações"
-          />
-        </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sobre</Text>
-        <Text style={styles.aboutText}>MedMinder v1.0.0</Text>
-        <Text style={styles.aboutText}>
-          Aplicativo offline para lembrete de medicamentos.
-        </Text>
-      </View>
-    </View>
+          <View style={styles.row}>
+            <View style={styles.rowInfo}>
+              <AppText style={styles.label}>Lembretes</AppText>
+              <AppText variant="small" muted style={styles.hint}>
+                {notificationsEnabled
+                  ? "Notificações ativadas para a rotina."
+                  : "Ative para receber lembretes dos medicamentos."}
+              </AppText>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleToggle}
+              disabled={loading}
+              accessibilityLabel="Ativar notificações"
+            />
+          </View>
+        </AppCard>
+
+        <AppCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrap}>
+              <Info color={colors.accent} size={22} />
+            </View>
+            <View style={styles.headerText}>
+              <AppText variant="subheading">Sobre</AppText>
+              <AppText muted style={styles.hint}>
+                MedMinder v1.0.0
+              </AppText>
+            </View>
+          </View>
+          <AppText muted>
+            Aplicativo offline para lembrete de medicamentos, feito para acompanhar
+            sua rotina diária com calma e clareza.
+          </AppText>
+        </AppCard>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    padding: 24,
+  content: {
+    paddingBottom: spacing.xxl,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 24,
+    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
   },
-  section: {
-    marginBottom: 24,
+  card: {
+    marginBottom: spacing.md,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    marginBottom: 8,
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginBottom: spacing.lg,
+  },
+  iconWrap: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: 8,
+    height: 44,
+    justifyContent: "center",
+    marginRight: spacing.md,
+    width: 44,
+  },
+  headerText: {
+    flex: 1,
+    marginRight: spacing.md,
   },
   row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    paddingTop: spacing.lg,
   },
   rowInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   label: {
-    fontSize: 16,
-    color: "#111827",
-    fontWeight: "500",
+    fontWeight: "700",
   },
   hint: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginTop: 4,
-  },
-  aboutText: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 4,
+    marginTop: spacing.xs,
   },
 });
