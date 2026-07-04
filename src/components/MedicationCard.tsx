@@ -1,109 +1,159 @@
-import { View, Text, Pressable, StyleSheet } from "react-native"
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 
 type Props = {
-    name: string;
-    dosage: string;
-    time: string;
-    frequency: string;
-    notes?: string;
-    taken: boolean;
-    onToggleTaken: () => void;
-    onDelete: () => void;
-}
+  name: string;
+  dosage: string;
+  time: string;
+  frequency: string;
+  notes?: string;
+  taken: boolean;
+  onToggleTaken: () => void;
+  onDelete: () => void;
+  onPress?: () => void;
+};
 
-export function MedicationCard({name, dosage, time, frequency, notes, taken, onToggleTaken, onDelete} : Props){
-    return(
-        <View style={[styles.card, taken && styles.takenCard]}>
-            <Text style={taken ? styles.takenName : styles.pendingName}>{name}</Text>
-            <Text style={styles.dosage}>Dosagem: {dosage}</Text>
-            <Text style={styles.time}>Horario: {time}</Text>
-            {frequency ? <Text style={styles.frequency}>Frequencia: {frequency}</Text> : null}
-            {notes ? <Text style={styles.notes}>Notas: {notes}</Text> : null}
-            <Text style={taken ? styles.takenText : styles.pendingText}>{taken ? "Tomado" : "Pendente"}</Text>
-
-            <Pressable style={styles.takenButton} onPress={onToggleTaken}>
-                <Text style={styles.takenButtonText}>{taken ? "Desfazer" : "Marcar como tomado"}</Text>
-            </Pressable>
-
-            <Pressable style={styles.deleteButton} onPress={onDelete}>
-                <Text style={styles.deleteButtonText}>Remover</Text>
-            </Pressable>
-        </View>
+export function MedicationCard({
+  name,
+  dosage,
+  time,
+  frequency,
+  notes,
+  taken,
+  onToggleTaken,
+  onDelete,
+  onPress,
+}: Props) {
+  function handleDelete() {
+    Alert.alert(
+      "Remover Medicamento",
+      `Tem certeza que deseja remover ${name}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Remover", style: "destructive", onPress: onDelete },
+      ]
     );
+  }
+
+  return (
+    <Pressable
+      style={[styles.card, taken && styles.takenCard]}
+      onPress={onPress}
+      accessibilityLabel={`${name}, ${taken ? "tomado" : "pendente"}`}
+      accessibilityHint="Toque para ver detalhes do medicamento"
+    >
+      <Text
+        style={taken ? styles.takenName : styles.pendingName}
+        accessibilityRole="header"
+      >
+        {name}
+      </Text>
+      {dosage ? <Text style={styles.detail}>Dosagem: {dosage}</Text> : null}
+      <Text style={styles.detail}>Horário: {time}</Text>
+      {frequency ? (
+        <Text style={styles.detail}>Frequência: {frequency}</Text>
+      ) : null}
+      {notes ? <Text style={styles.notes}>{notes}</Text> : null}
+      <Text
+        style={taken ? styles.takenText : styles.pendingText}
+        accessibilityLiveRegion="polite"
+      >
+        {taken ? "Tomado" : "Pendente"}
+      </Text>
+
+      <View style={styles.actions}>
+        <Pressable
+          style={styles.takenButton}
+          onPress={onToggleTaken}
+          accessibilityLabel={taken ? "Desfazer" : "Marcar como tomado"}
+          accessibilityHint={
+            taken
+              ? "Reverte o medicamento para pendente"
+              : "Registra o medicamento como tomado"
+          }
+        >
+          <Text style={styles.buttonText}>
+            {taken ? "Desfazer" : "Tomado"}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.deleteButton}
+          onPress={handleDelete}
+          accessibilityLabel="Remover medicamento"
+          accessibilityHint="Remove este medicamento da lista"
+        >
+          <Text style={styles.buttonText}>Remover</Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
-    card: {
-        backgroundColor: "#FFF",
-        padding: 16,
-        borderRadius: 8,
-        marginTop: 12,
-        width: "100%"
-    },
-    takenCard: {
-        borderWidth: 1,
-        borderColor: "#16A34A",
-    },
-    takenName: {
-        color: "#16A34A",
-        fontSize: 18,
-        fontWeight: "bold",
-    },
-    pendingName: {
-        color: "#DC2626",
-        fontSize: 18,
-        fontWeight: "bold",
-    },
-    dosage: {
-        color: "#555",
-        marginTop: 4,
-    },
-    time: {
-        color: "#555",
-        marginTop: 4,
-    },
-    frequency: {
-        color: "#555",
-        marginTop: 4,
-    },
-    notes: {
-        color: "#777",
-        marginTop: 4,
-    },
-    takenText: {
-        color: "#16A34A",
-        fontWeight: "bold",
-        marginTop: 8,
-    },
-    pendingText: {
-        color: "#DC2626",
-        fontWeight: "bold",
-        marginTop: 8,
-    },
-
-    takenButton: {
-        marginTop: 12,
-        backgroundColor: "#2563EB",
-        padding: 10,
-        borderRadius: 8,
-        alignItems: "center",
-    },
-    takenButtonText: {
-        color: "#FFF",
-        fontWeight: "bold",
-        fontSize: 12,
-    },
-    deleteButton: {
-        marginTop: 12,
-        backgroundColor: "#DC2626",
-        padding: 10,
-        borderRadius: 8,
-        alignSelf: "flex-end",
-        paddingHorizontal: 12
-    },
-    deleteButtonText: {
-        color: "#FFF",
-        fontWeight: "bold",
-        fontSize: 12,
-    }
-})
+  card: {
+    backgroundColor: "#FFF",
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 12,
+    width: "100%",
+  },
+  takenCard: {
+    borderWidth: 1,
+    borderColor: "#16A34A",
+  },
+  takenName: {
+    color: "#16A34A",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  pendingName: {
+    color: "#DC2626",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  detail: {
+    color: "#555",
+    marginTop: 4,
+  },
+  notes: {
+    color: "#777",
+    marginTop: 4,
+    fontStyle: "italic",
+  },
+  takenText: {
+    color: "#16A34A",
+    fontWeight: "bold",
+    marginTop: 8,
+  },
+  pendingText: {
+    color: "#DC2626",
+    fontWeight: "bold",
+    marginTop: 8,
+  },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  takenButton: {
+    backgroundColor: "#2563EB",
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+    alignItems: "center",
+  },
+  deleteButton: {
+    backgroundColor: "#DC2626",
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 8,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#FFF",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+});
