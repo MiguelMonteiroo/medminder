@@ -23,7 +23,7 @@ export function IconButton({ icon: Icon, label, ...props }: Props) {
 const styles = StyleSheet.create({
   button: {
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primarySoft,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,

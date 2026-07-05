@@ -4,7 +4,14 @@ import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
 
-type Variant = "primary" | "secondary" | "success" | "warning" | "danger" | "ghost";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "success"
+  | "warning"
+  | "danger"
+  | "dangerSoft"
+  | "ghost";
 
 type Props = PressableProps & {
   title: string;
@@ -21,6 +28,7 @@ export function AppButton({
   ...props
 }: Props) {
   const isGhost = variant === "ghost";
+  const isDangerSoft = variant === "dangerSoft";
 
   return (
     <Pressable
@@ -35,7 +43,11 @@ export function AppButton({
     >
       <AppText
         variant="small"
-        style={[styles.text, isGhost && styles.ghostText]}
+        style={[
+          styles.text,
+          isGhost && styles.ghostText,
+          isDangerSoft && styles.dangerSoftText,
+        ]}
         numberOfLines={1}
         adjustsFontSizeToFit
       >
@@ -74,8 +86,15 @@ const styles = StyleSheet.create({
   danger: {
     backgroundColor: colors.danger,
   },
+  dangerSoft: {
+    backgroundColor: colors.dangerSoft,
+    borderColor: "#E9A39E",
+    borderWidth: 1,
+  },
   ghost: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
   },
   pressed: {
     opacity: 0.8,
@@ -85,6 +104,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   ghostText: {
-    color: colors.text,
+    color: colors.primary,
+  },
+  dangerSoftText: {
+    color: colors.danger,
   },
 });

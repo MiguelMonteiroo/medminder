@@ -2,8 +2,9 @@ export const ptBR = {
   appName: "MedMinder",
   tabs: {
     today: "Hoje",
+    medications: "Medicamentos",
     history: "Histórico",
-    settings: "Configurações",
+    profile: "Perfil",
   },
   actions: {
     addMedication: "Adicionar medicamento",

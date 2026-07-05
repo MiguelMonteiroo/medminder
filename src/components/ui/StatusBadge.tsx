@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { Circle, type LucideIcon } from "lucide-react-native";
 import { AppText } from "./AppText";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
@@ -21,9 +22,27 @@ const LABELS: Record<BadgeStatus, string> = {
   paused: "Pausado",
 };
 
+const ICON_COLORS: Record<BadgeStatus, string> = {
+  pending: colors.warning,
+  taken: colors.success,
+  skipped: colors.danger,
+  snoozed: colors.info,
+  missed: colors.danger,
+  active: colors.success,
+  paused: colors.warning,
+};
+
 export function StatusBadge({ status }: Props) {
+  const Icon: LucideIcon = Circle;
+
   return (
     <View style={[styles.badge, styles[status]]}>
+      <Icon
+        color={ICON_COLORS[status]}
+        fill={ICON_COLORS[status]}
+        size={8}
+        strokeWidth={0}
+      />
       <AppText variant="caption" style={[styles.text, styles[`${status}Text`]]}>
         {LABELS[status]}
       </AppText>
@@ -33,8 +52,11 @@ export function StatusBadge({ status }: Props) {
 
 const styles = StyleSheet.create({
   badge: {
+    alignItems: "center",
     alignSelf: "flex-start",
     borderRadius: radii.pill,
+    flexDirection: "row",
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
@@ -60,10 +82,10 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   snoozed: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.infoSoft,
   },
   snoozedText: {
-    color: colors.primary,
+    color: colors.info,
   },
   missed: {
     backgroundColor: colors.dangerSoft,

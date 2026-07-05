@@ -10,6 +10,7 @@ import {
   requestNotificationPermission,
 } from "../services/notificationPermissionService";
 import { colors } from "../theme/colors";
+import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 
 export function SettingsScreen() {
@@ -41,10 +42,10 @@ export function SettingsScreen() {
         contentContainerStyle={styles.content}
       >
         <AppText variant="caption" muted>
-          Preferências
+          Perfil
         </AppText>
         <AppText variant="title" style={styles.title}>
-          Configurações
+          Seu cuidado
         </AppText>
 
         <AppCard style={styles.card}>
@@ -55,7 +56,7 @@ export function SettingsScreen() {
             <View style={styles.headerText}>
               <AppText variant="subheading">Notificações</AppText>
               <AppText muted style={styles.hint}>
-                Receba lembretes locais no seu aparelho.
+                Cuide da rotina com lembretes locais no seu aparelho.
               </AppText>
             </View>
             <StatusBadge status={notificationsEnabled ? "active" : "paused"} />
@@ -74,6 +75,11 @@ export function SettingsScreen() {
               value={notificationsEnabled}
               onValueChange={handleToggle}
               disabled={loading}
+              thumbColor={notificationsEnabled ? colors.primary : colors.surface}
+              trackColor={{
+                false: colors.surfaceMuted,
+                true: colors.primarySoft,
+              }}
               accessibilityLabel="Ativar notificações"
             />
           </View>
@@ -81,7 +87,7 @@ export function SettingsScreen() {
 
         <AppCard style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
+            <View style={[styles.iconWrap, styles.accentIcon]}>
               <Info color={colors.accent} size={22} />
             </View>
             <View style={styles.headerText}>
@@ -93,7 +99,7 @@ export function SettingsScreen() {
           </View>
           <AppText muted>
             Aplicativo offline para lembrete de medicamentos, feito para acompanhar
-            sua rotina diária com calma e clareza.
+            sua rotina diária com calma, clareza e carinho.
           </AppText>
         </AppCard>
       </ScrollView>
@@ -120,11 +126,14 @@ const styles = StyleSheet.create({
   iconWrap: {
     alignItems: "center",
     backgroundColor: colors.primarySoft,
-    borderRadius: 8,
+    borderRadius: radii.md,
     height: 44,
     justifyContent: "center",
     marginRight: spacing.md,
     width: 44,
+  },
+  accentIcon: {
+    backgroundColor: colors.accentSoft,
   },
   headerText: {
     flex: 1,
