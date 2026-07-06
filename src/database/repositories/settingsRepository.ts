@@ -4,6 +4,7 @@ import { ReminderSettings } from "../../types/domain";
 const DEFAULT_SETTINGS: ReminderSettings = {
   notificationsEnabled: false,
   defaultSnoozeMinutes: 5,
+  userName: "Maria",
 };
 
 export function createSettingsRepository(db: NativeDB) {
@@ -22,6 +23,7 @@ export function createSettingsRepository(db: NativeDB) {
       defaultSnoozeMinutes: map.defaultSnoozeMinutes
         ? parseInt(map.defaultSnoozeMinutes, 10)
         : DEFAULT_SETTINGS.defaultSnoozeMinutes,
+      userName: map.userName || DEFAULT_SETTINGS.userName,
     };
   }
 
@@ -35,6 +37,11 @@ export function createSettingsRepository(db: NativeDB) {
       `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
       "defaultSnoozeMinutes",
       settings.defaultSnoozeMinutes.toString()
+    );
+    await db.runAsync(
+      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
+      "userName",
+      settings.userName
     );
   }
 

@@ -90,12 +90,12 @@ export function AppNavigator() {
       <Stack.Screen
         name="AddMedication"
         component={AddMedicationScreen}
-        options={{ title: "Adicionar medicamento" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="MedicationDetail"
         component={MedicationDetailScreen}
-        options={{ title: "Detalhes" }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

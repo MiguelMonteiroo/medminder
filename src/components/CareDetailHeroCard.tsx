@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Pill } from "lucide-react-native";
 import { AppText } from "./ui/AppText";
 import { StatusBadge } from "./ui/StatusBadge";
@@ -11,9 +11,16 @@ type Props = {
   dosage: string;
   description?: string;
   paused: boolean;
+  onEdit?: () => void;
 };
 
-export function CareDetailHeroCard({ name, dosage, description, paused }: Props) {
+export function CareDetailHeroCard({
+  name,
+  dosage,
+  description,
+  paused,
+  onEdit,
+}: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.iconWrap}>
@@ -27,9 +34,23 @@ export function CareDetailHeroCard({ name, dosage, description, paused }: Props)
           <StatusBadge status={paused ? "paused" : "active"} />
         </View>
         <AppText style={styles.dosage}>{dosage}</AppText>
-        <AppText muted style={styles.description}>
-          {description || "Acompanhe este medicamento com lembretes e histórico."}
-        </AppText>
+        {onEdit ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Editar medicamento"
+            onPress={onEdit}
+            style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+          >
+            <AppText variant="small" style={styles.editText}>
+              Editar
+            </AppText>
+          </Pressable>
+        ) : null}
+        {description ? (
+          <AppText muted style={styles.description}>
+            {description}
+          </AppText>
+        ) : null}
       </View>
     </View>
   );
@@ -62,14 +83,27 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     alignItems: "flex-start",
+    flexDirection: "row",
     gap: spacing.sm,
   },
   name: {
     color: colors.primaryDark,
+    flex: 1,
   },
   dosage: {
     fontWeight: "700",
     marginTop: spacing.xs,
+  },
+  editButton: {
+    alignSelf: "flex-start",
+    marginTop: spacing.md,
+  },
+  editText: {
+    color: colors.primaryDark,
+    fontWeight: "800",
+  },
+  pressed: {
+    opacity: 0.75,
   },
   description: {
     marginTop: spacing.md,

@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -57,6 +57,10 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
     await setMedicationPaused(medicationId, !paused);
   }
 
+  function handleEdit() {
+    Alert.alert("Editar medicamento", "A edição entrará na próxima etapa.");
+  }
+
   function handleDelete() {
     Alert.alert(
       "Remover medicamento",
@@ -87,22 +91,18 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
             label="Voltar"
             onPress={() => navigation.goBack()}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Editar medicamento"
-            onPress={() =>
-              Alert.alert("Editar medicamento", "A edição entrará na próxima etapa.")
-            }
-          >
-            <AppText style={styles.editText}>Editar</AppText>
-          </Pressable>
+          <View style={styles.headerText}>
+            <AppText variant="title" style={styles.title}>
+              Detalhes
+            </AppText>
+          </View>
         </View>
 
         <CareDetailHeroCard
           name={medication.name}
           dosage={medication.dosage}
-          description={medication.notes || "Usado para proteger sua rotina de cuidado."}
           paused={paused}
+          onEdit={handleEdit}
         />
 
         <InfoCard
@@ -236,14 +236,19 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   header: {
-    alignItems: "center",
+    alignItems: "flex-start",
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: spacing.lg,
   },
-  editText: {
+  headerText: {
+    flex: 1,
+    marginLeft: spacing.md,
+    marginRight: spacing.md,
+  },
+  title: {
     color: colors.primaryDark,
-    fontWeight: "800",
+    marginBottom: spacing.xs,
   },
   card: {
     marginBottom: spacing.md,

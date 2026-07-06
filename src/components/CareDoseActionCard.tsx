@@ -26,18 +26,25 @@ export function CareDoseActionCard({
 }: Props) {
   return (
     <View style={styles.container}>
-      <Pressable onPress={onPress} style={styles.main}>
-        <View style={styles.timePane}>
-          <AppText variant="subheading" style={styles.time}>
-            {time}
-          </AppText>
-        </View>
-        <View style={styles.info}>
-          <AppText style={styles.name}>{name}</AppText>
-          <AppText variant="small" muted>
-            {dosage || "Dose programada"}
-          </AppText>
-        </View>
+      <View style={styles.main}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Ver detalhes de ${name}`}
+          onPress={onPress}
+          style={styles.detailsArea}
+        >
+          <View style={styles.timePane}>
+            <AppText variant="subheading" style={styles.time}>
+              {time}
+            </AppText>
+          </View>
+          <View style={styles.info}>
+            <AppText style={styles.name}>{name}</AppText>
+            <AppText variant="small" muted>
+              {dosage || "Dose programada"}
+            </AppText>
+          </View>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Marcar dose como tomada"
@@ -46,7 +53,7 @@ export function CareDoseActionCard({
         >
           <AppText style={styles.takeText}>Tomar</AppText>
         </Pressable>
-      </Pressable>
+      </View>
 
       <View style={styles.secondaryActions}>
         <Pressable
@@ -88,6 +95,12 @@ const styles = StyleSheet.create({
   },
   main: {
     alignItems: "center",
+    flexDirection: "row",
+    minHeight: 72,
+  },
+  detailsArea: {
+    alignItems: "center",
+    flex: 1,
     flexDirection: "row",
     minHeight: 72,
   },

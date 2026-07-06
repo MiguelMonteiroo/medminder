@@ -1,7 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { Pause, Play, Trash2 } from "lucide-react-native";
 import { AppButton } from "./ui/AppButton";
-import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 
 type Props = {
@@ -18,19 +17,19 @@ export function CareBottomActionBar({ paused, onTogglePause, onDelete }: Props) 
       <AppButton
         title={paused ? "Reativar" : "Pausar"}
         variant="ghost"
+        icon={PauseIcon}
         onPress={onTogglePause}
         style={styles.action}
         accessibilityLabel={paused ? "Reativar medicamento" : "Pausar medicamento"}
       />
-      <PauseIcon color={colors.info} size={20} style={styles.pauseIcon} />
       <AppButton
         title="Remover"
         variant="dangerSoft"
+        icon={Trash2}
         onPress={onDelete}
         style={styles.action}
         accessibilityLabel="Remover medicamento"
       />
-      <Trash2 color={colors.danger} size={20} style={styles.deleteIcon} />
     </View>
   );
 }
@@ -43,15 +42,5 @@ const styles = StyleSheet.create({
   },
   action: {
     flex: 1,
-  },
-  pauseIcon: {
-    left: spacing.lg,
-    position: "absolute",
-    top: 14,
-  },
-  deleteIcon: {
-    position: "absolute",
-    right: spacing.xl + spacing.lg,
-    top: 14,
   },
 });

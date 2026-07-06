@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "reac
 import { CompositeScreenProps } from "@react-navigation/native";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ChevronRight, Pill } from "lucide-react-native";
+import { CheckCircle2, ChevronRight, Pill } from "lucide-react-native";
 import { CareCompletedDoseRow } from "../components/CareCompletedDoseRow";
 import { CareDoseActionCard } from "../components/CareDoseActionCard";
 import { CareHeader } from "../components/CareHeader";
@@ -28,12 +28,54 @@ function getOccurrenceTime(occurrence: DoseOccurrence) {
   return occurrence.scheduledAt.split("T")[1]?.substring(0, 5) || "--:--";
 }
 
+function getEncouragement(summary: {
+  total: number;
+  taken: number;
+  pending: number;
+  skipped: number;
+  snoozed: number;
+}) {
+  if (summary.total === 0) {
+    return {
+      title: "Comece sua rotina",
+      message: "Cadastre um medicamento para acompanhar seu cuidado.",
+    };
+  }
+
+  if (summary.pending > 0 || summary.snoozed > 0) {
+    const waiting = summary.pending + summary.snoozed;
+    return {
+      title: "Ainda tem cuidado pendente",
+      message: `${waiting} dose${waiting === 1 ? "" : "s"} aguardando sua atenção.`,
+    };
+  }
+
+  if (summary.skipped > 0 && summary.taken === 0) {
+    return {
+      title: "Doses registradas",
+      message: "Você pulou as doses de hoje. A adesão fica em 0%.",
+    };
+  }
+
+  if (summary.skipped > 0) {
+    return {
+      title: "Dia registrado",
+      message: `${summary.taken} tomada${summary.taken === 1 ? "" : "s"} e ${summary.skipped} pulada${summary.skipped === 1 ? "" : "s"}.`,
+    };
+  }
+
+  return {
+    title: "Continue assim!",
+    message: "Sua rotina faz a diferença.",
+  };
+}
+
 export function HomeScreen({ navigation }: Props) {
   const {
     medications,
-    schedules,
     todayOccurrences,
     todaySummary,
+    settings,
     loading,
     error,
     setDoseTaken,
@@ -68,15 +110,17 @@ export function HomeScreen({ navigation }: Props) {
   const pendingOccurrences = todayOccurrences.filter(
     (occurrence) => occurrence.status === "pending" || occurrence.status === "snoozed"
   );
-  const completedOccurrences = todayOccurrences.filter(
+  const registeredOccurrences = todayOccurrences.filter(
     (occurrence) => occurrence.status === "taken" || occurrence.status === "skipped"
   );
   const nextOccurrence = pendingOccurrences[0];
   const nextMedication = nextOccurrence
     ? medications.find((m) => m.id === nextOccurrence.medicationId)
     : undefined;
-  const progress =
+  const registeredCount = todaySummary.taken + todaySummary.skipped;
+  const adherenceProgress =
     todaySummary.total === 0 ? 0 : todaySummary.taken / todaySummary.total;
+  const encouragement = getEncouragement(todaySummary);
 
   function getMedication(occurrence: DoseOccurrence) {
     return medications.find((m) => m.id === occurrence.medicationId);
@@ -115,7 +159,7 @@ export function HomeScreen({ navigation }: Props) {
     );
   }
 
-  function renderCompleted(occurrence: DoseOccurrence) {
+  function renderRegistered(occurrence: DoseOccurrence) {
     const medication = getMedication(occurrence);
     if (!medication) return null;
 
@@ -125,6 +169,7 @@ export function HomeScreen({ navigation }: Props) {
         time={getOccurrenceTime(occurrence)}
         name={medication.name}
         dosage={medication.dosage}
+        status={occurrence.status as "taken" | "skipped"}
         onPress={() =>
           navigation.navigate("MedicationDetail", {
             medicationId: occurrence.medicationId,
@@ -141,45 +186,53 @@ export function HomeScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
       >
         <CareHeader
-          title="Bom dia, Maria!"
+          title={`Bom dia, ${settings.userName}!`}
           subtitle="Estamos aqui para ajudar você."
-          initials="M"
+          initials={settings.userName.trim().charAt(0).toUpperCase() || "M"}
         />
 
         <View style={styles.progressPanel}>
-          <CareProgressRing progress={progress} />
+          <CareProgressRing progress={adherenceProgress} />
           <View style={styles.progressCopy}>
             <AppText variant="heading" style={styles.progressTitle}>
               Hoje
             </AppText>
             <AppText>
-              {todaySummary.taken} de {todaySummary.total} doses concluídas
+              {todaySummary.taken} de {todaySummary.total} doses tomadas
             </AppText>
+            {todaySummary.skipped > 0 ? (
+              <AppText variant="small" muted style={styles.secondarySummary}>
+                {registeredCount} de {todaySummary.total} doses registradas,
+                incluindo {todaySummary.skipped} pulada
+                {todaySummary.skipped === 1 ? "" : "s"}.
+              </AppText>
+            ) : null}
             <View style={styles.encouragement}>
               <Pill color={colors.primary} size={18} />
-              <View>
-                <AppText style={styles.encouragementTitle}>Continue assim!</AppText>
+              <View style={styles.encouragementCopy}>
+                <AppText style={styles.encouragementTitle}>
+                  {encouragement.title}
+                </AppText>
                 <AppText variant="small" muted>
-                  Sua rotina faz a diferença.
+                  {encouragement.message}
                 </AppText>
               </View>
             </View>
           </View>
         </View>
 
-        <CareNextDoseCard
-          time={nextOccurrence ? getOccurrenceTime(nextOccurrence) : "--:--"}
-          name={nextMedication?.name}
-          dosage={nextMedication?.dosage}
-          onPress={
-            nextOccurrence
-              ? () =>
-                  navigation.navigate("MedicationDetail", {
-                    medicationId: nextOccurrence.medicationId,
-                  })
-              : undefined
-          }
-        />
+        {nextOccurrence ? (
+          <CareNextDoseCard
+            time={getOccurrenceTime(nextOccurrence)}
+            name={nextMedication?.name}
+            dosage={nextMedication?.dosage}
+            onPress={() =>
+              navigation.navigate("MedicationDetail", {
+                medicationId: nextOccurrence.medicationId,
+              })
+            }
+          />
+        ) : null}
 
         {todayOccurrences.length === 0 ? (
           <EmptyState
@@ -189,32 +242,42 @@ export function HomeScreen({ navigation }: Props) {
           />
         ) : (
           <>
-            <SectionHeader
-              title="Pendentes"
-              meta={`${pendingOccurrences.length}`}
-            />
+            <SectionHeader title="Pendentes" meta={`${pendingOccurrences.length}`} />
             {pendingOccurrences.length > 0 ? (
               pendingOccurrences.map(renderPending)
             ) : (
-              <EmptyState
-                icon={Pill}
-                title="Nada pendente agora"
-                message="Quando uma nova dose estiver prevista, ela aparecerá aqui."
-              />
+              <View style={styles.noPendingCard}>
+                <View style={styles.noPendingIcon}>
+                  <CheckCircle2 color={colors.success} size={24} />
+                </View>
+                <View style={styles.noPendingCopy}>
+                  <AppText variant="subheading" style={styles.noPendingTitle}>
+                    Nada pendente agora
+                  </AppText>
+                  <AppText variant="small" style={styles.noPendingText}>
+                    As doses previstas já foram registradas.
+                  </AppText>
+                </View>
+              </View>
             )}
 
-            {completedOccurrences.length > 0 ? (
+            {registeredOccurrences.length > 0 ? (
               <>
                 <SectionHeader
-                  title="Concluídas"
-                  meta={`${completedOccurrences.length}`}
+                  title="Registradas"
+                  meta={`${registeredOccurrences.length}`}
                 />
-                <View style={styles.completedPanel}>
-                  {completedOccurrences.slice(0, 3).map(renderCompleted)}
-                  {completedOccurrences.length > 3 ? (
-                    <Pressable style={styles.moreCompleted}>
-                      <AppText style={styles.moreCompletedText}>
-                        Ver todas as concluídas
+                <View style={styles.registeredPanel}>
+                  {registeredOccurrences.slice(0, 3).map(renderRegistered)}
+                  {registeredOccurrences.length > 3 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Ver todas as doses registradas no histórico"
+                      onPress={() => navigation.navigate("History")}
+                      style={styles.moreRegistered}
+                    >
+                      <AppText style={styles.moreRegisteredText}>
+                        Ver todas as registradas
                       </AppText>
                       <ChevronRight color={colors.primaryDark} size={20} />
                     </Pressable>
@@ -264,6 +327,9 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     marginBottom: spacing.xs,
   },
+  secondarySummary: {
+    marginTop: spacing.xs,
+  },
   encouragement: {
     alignItems: "center",
     borderTopColor: colors.border,
@@ -273,11 +339,42 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
   },
+  encouragementCopy: {
+    flex: 1,
+  },
   encouragementTitle: {
     color: colors.primaryDark,
     fontWeight: "800",
   },
-  completedPanel: {
+  noPendingCard: {
+    alignItems: "center",
+    backgroundColor: colors.successSoft,
+    borderColor: "#B8DFC5",
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+  },
+  noPendingIcon: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.pill,
+    height: 44,
+    justifyContent: "center",
+    marginRight: spacing.md,
+    width: 44,
+  },
+  noPendingCopy: {
+    flex: 1,
+  },
+  noPendingTitle: {
+    color: colors.success,
+  },
+  noPendingText: {
+    color: colors.primaryDark,
+  },
+  registeredPanel: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radii.md,
@@ -286,13 +383,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingHorizontal: spacing.lg,
   },
-  moreCompleted: {
+  moreRegistered: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 52,
   },
-  moreCompletedText: {
+  moreRegisteredText: {
     color: colors.primaryDark,
     fontWeight: "700",
   },

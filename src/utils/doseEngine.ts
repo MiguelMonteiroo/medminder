@@ -91,7 +91,9 @@ export function resolveDoseStatus(
 
   if (relevantLogs.length === 0) return "pending";
 
-  const latestLog = relevantLogs[relevantLogs.length - 1];
+  const latestLog = [...relevantLogs].sort((a, b) =>
+    a.actionAt.localeCompare(b.actionAt)
+  )[relevantLogs.length - 1];
 
   if (latestLog.action === "undone") return "pending";
   if (latestLog.action === "snoozed") {

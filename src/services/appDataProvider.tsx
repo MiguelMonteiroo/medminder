@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useDatabase } from "../database/DatabaseProvider";
-import { Medication, MedicationSchedule, DoseLog, DoseOccurrence } from "../types/domain";
+import {
+  Medication,
+  MedicationSchedule,
+  DoseLog,
+  DoseOccurrence,
+  ReminderSettings,
+} from "../types/domain";
 import { createMedicationRepository, MedicationRepository } from "../database/repositories/medicationRepository";
 import { createScheduleRepository, ScheduleRepository } from "../database/repositories/scheduleRepository";
 import { createDoseLogRepository, DoseLogRepository } from "../database/repositories/doseLogRepository";
@@ -17,6 +23,7 @@ interface AppDataContextValue {
   todaySummary: AdherenceSummary;
   loading: boolean;
   error: string | null;
+  settings: ReminderSettings;
   addMedication: (name: string, dosage: string, time: string, notes: string, scheduleKind?: string, intervalHours?: number, weekdays?: number[]) => Promise<void>;
   removeMedication: (id: string) => Promise<void>;
   setDoseTaken: (occurrenceId: string, medicationId: string, scheduleId: string, isTaken: boolean) => Promise<void>;
@@ -24,7 +31,14 @@ interface AppDataContextValue {
   snoozeDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
   doseService: DoseService | null;
   setMedicationPaused: (medicationId: string, paused: boolean) => Promise<void>;
+  updateUserName: (name: string) => Promise<void>;
 }
+
+const DEFAULT_SETTINGS: ReminderSettings = {
+  notificationsEnabled: false,
+  defaultSnoozeMinutes: 5,
+  userName: "Maria",
+};
 
 const AppDataContext = createContext<AppDataContextValue>({
   medications: [],
@@ -33,6 +47,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   todaySummary: { total: 0, taken: 0, pending: 0, skipped: 0, missed: 0, snoozed: 0 },
   loading: true,
   error: null,
+  settings: DEFAULT_SETTINGS,
   addMedication: async () => {},
   removeMedication: async () => {},
   setDoseTaken: async () => {},
@@ -40,6 +55,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   snoozeDose: async () => {},
   doseService: null,
   setMedicationPaused: async () => {},
+  updateUserName: async () => {},
 });
 
 export function useAppData() {
@@ -56,6 +72,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [logs, setLogs] = useState<DoseLog[]>([]);
+  const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,14 +82,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const loadData = useCallback(async () => {
     try {
-      const [meds, scheds, doseLogs] = await Promise.all([
+      const [meds, scheds, doseLogs, appSettings] = await Promise.all([
         repos.medications.getAll(),
         repos.schedules.getAll(),
         repos.doseLogs.getAll(),
+        repos.settings.get(),
       ]);
       setMedications(meds);
       setSchedules(scheds);
       setLogs(doseLogs);
+      setSettings(appSettings);
       setError(null);
     } catch (e: any) {
       setError(e?.message || "Erro ao carregar dados.");
@@ -190,6 +209,16 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateUserName = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim() || DEFAULT_SETTINGS.userName;
+      const updated = { ...settings, userName: trimmed };
+      await repos.settings.update(updated);
+      setSettings(updated);
+    },
+    [settings]
+  );
+
   return (
     <AppDataContext.Provider
       value={{
@@ -199,12 +228,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         todaySummary: todayData.summary,
         loading,
         error,
+        settings,
         addMedication,
         removeMedication,
         setDoseTaken,
         skipDose,
         snoozeDose,
         setMedicationPaused,
+        updateUserName,
         doseService: doseSvc,
       }}
     >

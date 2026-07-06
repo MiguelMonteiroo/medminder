@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react-native";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
 import { AppText } from "./ui/AppText";
 import { colors } from "../theme/colors";
@@ -9,6 +10,7 @@ import { spacing } from "../theme/spacing";
 type Props = {
   step: number;
   title: string;
+  icon?: LucideIcon;
   optional?: boolean;
   expanded: boolean;
   onPress: () => void;
@@ -18,6 +20,7 @@ type Props = {
 export function CareAccordionStepCard({
   step,
   title,
+  icon: StepIcon,
   optional,
   expanded,
   onPress,
@@ -33,7 +36,10 @@ export function CareAccordionStepCard({
         onPress={onPress}
         style={styles.header}
       >
-        <View style={styles.stepBadge}>
+        <View style={[styles.stepBadge, StepIcon && styles.stepBadgeWithIcon]}>
+          {StepIcon ? (
+            <StepIcon color={colors.white} size={15} strokeWidth={2.5} />
+          ) : null}
           <AppText style={styles.stepText}>{step}</AppText>
         </View>
         <AppText variant="subheading" style={styles.title}>
@@ -69,10 +75,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.primary,
     borderRadius: radii.pill,
+    flexDirection: "row",
     height: 34,
     justifyContent: "center",
     marginRight: spacing.md,
     width: 34,
+  },
+  stepBadgeWithIcon: {
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    width: 58,
   },
   stepText: {
     color: colors.white,

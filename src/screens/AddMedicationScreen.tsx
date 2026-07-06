@@ -1,11 +1,18 @@
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ArrowLeft } from "lucide-react-native";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CircleCheck,
+  NotebookPen,
+  Pill,
+} from "lucide-react-native";
 import { AppButton } from "../components/ui/AppButton";
 import { AppText } from "../components/ui/AppText";
 import { CareAccordionStepCard } from "../components/CareAccordionStepCard";
 import { CareInfoTip } from "../components/CareInfoTip";
+import { WheelTimePicker } from "../components/WheelTimePicker";
 import { IconButton } from "../components/ui/IconButton";
 import { Screen } from "../components/ui/Screen";
 import { RootStackParamList } from "../navigation/types";
@@ -35,7 +42,7 @@ export function AddMedicationScreen({ navigation }: Props) {
   const { addMedication } = useAppData();
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState("08:00");
   const [notes, setNotes] = useState("");
   const [scheduleKind, setScheduleKind] = useState<ScheduleKind>("dailyTimes");
   const [intervalHours, setIntervalHours] = useState("8");
@@ -142,6 +149,7 @@ export function AddMedicationScreen({ navigation }: Props) {
         <CareAccordionStepCard
           step={1}
           title="Medicamento"
+          icon={Pill}
           expanded={step === 1}
           onPress={() => setStep(1)}
         >
@@ -170,6 +178,7 @@ export function AddMedicationScreen({ navigation }: Props) {
         <CareAccordionStepCard
           step={2}
           title="Agendamento"
+          icon={CalendarClock}
           expanded={step === 2}
           onPress={() => setStep(2)}
         >
@@ -191,15 +200,13 @@ export function AddMedicationScreen({ navigation }: Props) {
             })}
           </View>
           <FieldLabel label={scheduleKind === "intervalHours" ? "Horário inicial" : "Horário"} />
-          <TextInput
+          <WheelTimePicker
             value={time}
-            onChangeText={(text) => {
-              setTime(text);
+            onChange={(nextTime) => {
+              setTime(nextTime);
               clearError();
             }}
-            placeholder="Ex.: 08:00"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
+            label={scheduleKind === "intervalHours" ? "Horário inicial" : "Horário"}
           />
           {scheduleKind === "intervalHours" ? (
             <>
@@ -238,6 +245,7 @@ export function AddMedicationScreen({ navigation }: Props) {
         <CareAccordionStepCard
           step={3}
           title="Notas"
+          icon={NotebookPen}
           optional
           expanded={step === 3}
           onPress={() => setStep(3)}
@@ -256,6 +264,7 @@ export function AddMedicationScreen({ navigation }: Props) {
         <CareAccordionStepCard
           step={4}
           title="Revisar e salvar"
+          icon={CircleCheck}
           expanded={step === 4}
           onPress={() => setStep(4)}
         >

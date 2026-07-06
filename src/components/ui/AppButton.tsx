@@ -1,4 +1,5 @@
-import { Pressable, PressableProps, StyleSheet, ViewStyle } from "react-native";
+import { Pressable, PressableProps, StyleSheet, View, ViewStyle } from "react-native";
+import type { LucideIcon } from "lucide-react-native";
 import { AppText } from "./AppText";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
@@ -17,6 +18,7 @@ type Props = PressableProps & {
   title: string;
   variant?: Variant;
   compact?: boolean;
+  icon?: LucideIcon;
   style?: ViewStyle;
 };
 
@@ -24,11 +26,17 @@ export function AppButton({
   title,
   variant = "primary",
   compact = false,
+  icon: Icon,
   style,
   ...props
 }: Props) {
   const isGhost = variant === "ghost";
   const isDangerSoft = variant === "dangerSoft";
+  const iconColor = isDangerSoft
+    ? colors.danger
+    : isGhost
+    ? colors.primary
+    : colors.white;
 
   return (
     <Pressable
@@ -41,18 +49,21 @@ export function AppButton({
         style,
       ]}
     >
-      <AppText
-        variant="small"
-        style={[
-          styles.text,
-          isGhost && styles.ghostText,
-          isDangerSoft && styles.dangerSoftText,
-        ]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {title}
-      </AppText>
+      <View style={styles.content}>
+        {Icon ? <Icon color={iconColor} size={18} strokeWidth={2.4} /> : null}
+        <AppText
+          variant="small"
+          style={[
+            styles.text,
+            isGhost && styles.ghostText,
+            isDangerSoft && styles.dangerSoftText,
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {title}
+        </AppText>
+      </View>
     </Pressable>
   );
 }
@@ -70,6 +81,12 @@ const styles = StyleSheet.create({
     minHeight: 40,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  content: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "center",
   },
   primary: {
     backgroundColor: colors.primary,
