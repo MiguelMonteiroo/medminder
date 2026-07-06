@@ -1,10 +1,11 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { CalendarCheck, History, Settings } from "lucide-react-native";
+import { CalendarCheck, History, PillBottle, UserRound } from "lucide-react-native";
 import { HomeScreen } from "../screens/HomeScreen";
 import { AddMedicationScreen } from "../screens/AddMedicationScreen";
 import { MedicationDetailScreen } from "../screens/MedicationDetailScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
+import { MedicationsScreen } from "../screens/MedicationsScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { RootStackParamList, RootTabParamList } from "./types";
 import { colors } from "../theme/colors";
@@ -23,9 +24,9 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 64,
-          paddingBottom: 10,
-          paddingTop: 8,
+          height: 68,
+          paddingBottom: 9,
+          paddingTop: 9,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -44,6 +45,14 @@ function MainTabs() {
         }}
       />
       <Tabs.Screen
+        name="Medications"
+        component={MedicationsScreen}
+        options={{
+          title: ptBR.tabs.medications,
+          tabBarIcon: ({ color, size }) => <PillBottle color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="History"
         component={HistoryScreen}
         options={{
@@ -52,11 +61,11 @@ function MainTabs() {
         }}
       />
       <Tabs.Screen
-        name="Settings"
+        name="Profile"
         component={SettingsScreen}
         options={{
-          title: ptBR.tabs.settings,
-          tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />,
+          title: ptBR.tabs.profile,
+          tabBarIcon: ({ color, size }) => <UserRound color={color} size={size} />,
         }}
       />
     </Tabs.Navigator>
@@ -81,12 +90,12 @@ export function AppNavigator() {
       <Stack.Screen
         name="AddMedication"
         component={AddMedicationScreen}
-        options={{ title: "Adicionar medicamento" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="MedicationDetail"
         component={MedicationDetailScreen}
-        options={{ title: "Detalhes" }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

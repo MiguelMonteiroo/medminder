@@ -205,6 +205,31 @@ describe("resolveDoseStatus", () => {
     expect(resolveDoseStatus("occ-1", logs)).toBe("pending");
   });
 
+  it("uses the most recent log even when logs are not sorted ascending", () => {
+    const logs: DoseLog[] = [
+      {
+        id: "log-2",
+        doseOccurrenceId: "occ-1",
+        medicationId: "med-1",
+        scheduleId: "sched-1",
+        action: "taken",
+        actionAt: "2026-07-03T08:10:00",
+        snoozedUntil: "",
+      },
+      {
+        id: "log-1",
+        doseOccurrenceId: "occ-1",
+        medicationId: "med-1",
+        scheduleId: "sched-1",
+        action: "undone",
+        actionAt: "2026-07-03T08:05:00",
+        snoozedUntil: "",
+      },
+    ];
+
+    expect(resolveDoseStatus("occ-1", logs)).toBe("taken");
+  });
+
   it("returns pending when no logs exist", () => {
     expect(resolveDoseStatus("occ-1", [])).toBe("pending");
   });

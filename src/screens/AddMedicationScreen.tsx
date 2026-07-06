@@ -1,9 +1,19 @@
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CircleCheck,
+  NotebookPen,
+  Pill,
+} from "lucide-react-native";
 import { AppButton } from "../components/ui/AppButton";
-import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
+import { CareAccordionStepCard } from "../components/CareAccordionStepCard";
+import { CareInfoTip } from "../components/CareInfoTip";
+import { WheelTimePicker } from "../components/WheelTimePicker";
+import { IconButton } from "../components/ui/IconButton";
 import { Screen } from "../components/ui/Screen";
 import { RootStackParamList } from "../navigation/types";
 import { useAppData } from "../services/appDataProvider";
@@ -18,6 +28,7 @@ import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AddMedication">;
+type Step = 1 | 2 | 3 | 4;
 
 const SCHEDULE_KINDS: { key: ScheduleKind; label: string; hint: string }[] = [
   { key: "dailyTimes", label: "Diário", hint: "Uma dose por dia" },
@@ -31,12 +42,13 @@ export function AddMedicationScreen({ navigation }: Props) {
   const { addMedication } = useAppData();
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState("08:00");
   const [notes, setNotes] = useState("");
   const [scheduleKind, setScheduleKind] = useState<ScheduleKind>("dailyTimes");
   const [intervalHours, setIntervalHours] = useState("8");
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [error, setError] = useState("");
+  const [step, setStep] = useState<Step>(1);
 
   function toggleWeekday(day: number) {
     setWeekdays((prev) =>
@@ -44,34 +56,57 @@ export function AddMedicationScreen({ navigation }: Props) {
     );
   }
 
-  async function handleAdd() {
-    const nameError = validateMedicationName(name);
-    if (nameError) {
-      setError(nameError);
-      return;
+  function validateStep(currentStep: Step): boolean {
+    if (currentStep >= 1) {
+      const nameError = validateMedicationName(name);
+      if (nameError) {
+        setError(nameError);
+        setStep(1);
+        return false;
+      }
     }
 
-    const timeError = validateTimeHHMM(time);
-    if (timeError) {
-      setError(
-        scheduleKind === "intervalHours"
-          ? "Informe o horário inicial no formato 08:00."
-          : timeError
-      );
-      return;
-    }
+    if (currentStep >= 2) {
+      const timeError = validateTimeHHMM(time);
+      if (timeError) {
+        setError(
+          scheduleKind === "intervalHours"
+            ? "Informe o horário inicial no formato 08:00."
+            : timeError
+        );
+        setStep(2);
+        return false;
+      }
 
-    if (scheduleKind === "intervalHours" && parseInt(intervalHours, 10) < 1) {
-      setError("O intervalo deve ser de pelo menos 1 hora.");
-      return;
-    }
+      if (scheduleKind === "intervalHours" && parseInt(intervalHours, 10) < 1) {
+        setError("O intervalo deve ser de pelo menos 1 hora.");
+        setStep(2);
+        return false;
+      }
 
-    if (scheduleKind === "weekdays" && weekdays.length === 0) {
-      setError("Selecione pelo menos um dia da semana.");
-      return;
+      if (scheduleKind === "weekdays" && weekdays.length === 0) {
+        setError("Selecione pelo menos um dia da semana.");
+        setStep(2);
+        return false;
+      }
     }
 
     setError("");
+    return true;
+  }
+
+  function handleContinue() {
+    if (!validateStep(step)) return;
+    if (step < 4) {
+      setStep((step + 1) as Step);
+      return;
+    }
+    handleAdd();
+  }
+
+  async function handleAdd() {
+    if (!validateStep(4)) return;
+
     const normalized = normalizeMedicationInput({ name, dosage, notes });
 
     await addMedication(
@@ -97,43 +132,56 @@ export function AddMedicationScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <AppText variant="caption" muted>
-          Nova rotina
-        </AppText>
-        <AppText variant="title" style={styles.title}>
-          Adicionar medicamento
-        </AppText>
+        <View style={styles.header}>
+          <IconButton
+            icon={ArrowLeft}
+            label="Voltar"
+            onPress={() => navigation.goBack()}
+          />
+          <View style={styles.headerText}>
+            <AppText variant="title" style={styles.title}>
+              Adicionar medicamento
+            </AppText>
+            <AppText muted>Vamos cadastrar juntos. É rápido e simples.</AppText>
+          </View>
+        </View>
 
-        <AppCard style={styles.section}>
-          <AppText variant="subheading">Medicamento</AppText>
-          <AppText muted style={styles.sectionHint}>
-            Comece com o nome e a dosagem que você reconhece no dia a dia.
-          </AppText>
+        <CareAccordionStepCard
+          step={1}
+          title="Medicamento"
+          icon={Pill}
+          expanded={step === 1}
+          onPress={() => setStep(1)}
+        >
+          <FieldLabel label="Nome do medicamento" />
           <TextInput
             value={name}
             onChangeText={(text) => {
               setName(text);
               clearError();
             }}
-            placeholder="Nome do medicamento"
+            placeholder="Ex.: Losartana"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
+          <FieldLabel label="Apresentação" />
           <TextInput
             value={dosage}
             onChangeText={setDosage}
-            placeholder="Dosagem, ex: 50mg"
+            placeholder="Ex.: 50 mg"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
-        </AppCard>
+          {error && step === 1 ? <AppText style={styles.errorText}>{error}</AppText> : null}
+        </CareAccordionStepCard>
 
-        <AppCard style={styles.section}>
-          <AppText variant="subheading">Agendamento</AppText>
-          <AppText muted style={styles.sectionHint}>
-            Escolha como esta dose entra na sua rotina.
-          </AppText>
-
+        <CareAccordionStepCard
+          step={2}
+          title="Agendamento"
+          icon={CalendarClock}
+          expanded={step === 2}
+          onPress={() => setStep(2)}
+        >
           <View style={styles.segmented}>
             {SCHEDULE_KINDS.map((kind) => {
               const active = scheduleKind === kind.key;
@@ -151,36 +199,28 @@ export function AddMedicationScreen({ navigation }: Props) {
               );
             })}
           </View>
-
-          <TextInput
+          <FieldLabel label={scheduleKind === "intervalHours" ? "Horário inicial" : "Horário"} />
+          <WheelTimePicker
             value={time}
-            onChangeText={(text) => {
-              setTime(text);
+            onChange={(nextTime) => {
+              setTime(nextTime);
               clearError();
             }}
-            placeholder={
-              scheduleKind === "intervalHours"
-                ? "Horário inicial, ex: 08:00"
-                : "Horário, ex: 08:00"
-            }
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
+            label={scheduleKind === "intervalHours" ? "Horário inicial" : "Horário"}
           />
-          <AppText variant="caption" muted style={styles.helperText}>
-            Use sempre dois dígitos para hora e minuto.
-          </AppText>
-
           {scheduleKind === "intervalHours" ? (
-            <TextInput
-              value={intervalHours}
-              onChangeText={setIntervalHours}
-              placeholder="Intervalo em horas"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="numeric"
-              style={styles.input}
-            />
+            <>
+              <FieldLabel label="Intervalo em horas" />
+              <TextInput
+                value={intervalHours}
+                onChangeText={setIntervalHours}
+                placeholder="Ex.: 8"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </>
           ) : null}
-
           {scheduleKind === "weekdays" ? (
             <View style={styles.weekdayRow}>
               {WEEKDAY_LABELS.map((label, index) => {
@@ -199,34 +239,63 @@ export function AddMedicationScreen({ navigation }: Props) {
               })}
             </View>
           ) : null}
-        </AppCard>
+          {error && step === 2 ? <AppText style={styles.errorText}>{error}</AppText> : null}
+        </CareAccordionStepCard>
 
-        <AppCard style={styles.section}>
-          <AppText variant="subheading">Notas</AppText>
+        <CareAccordionStepCard
+          step={3}
+          title="Notas"
+          icon={NotebookPen}
+          optional
+          expanded={step === 3}
+          onPress={() => setStep(3)}
+        >
+          <FieldLabel label="Notas do cuidador" />
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Ex: tomar após o café"
+            placeholder="Ex.: tomar após o café"
             placeholderTextColor={colors.textMuted}
             multiline
             style={[styles.input, styles.notesInput]}
           />
-        </AppCard>
+        </CareAccordionStepCard>
 
-        {error ? (
-          <AppText style={styles.errorText} accessibilityLiveRegion="polite">
-            {error}
-          </AppText>
-        ) : null}
+        <CareAccordionStepCard
+          step={4}
+          title="Revisar e salvar"
+          icon={CircleCheck}
+          expanded={step === 4}
+          onPress={() => setStep(4)}
+        >
+          <SummaryLine label="Medicamento" value={name || "Não informado"} />
+          <SummaryLine label="Dosagem" value={dosage || "Sem dosagem"} />
+          <SummaryLine label="Horário" value={time || "--:--"} />
+        </CareAccordionStepCard>
+
+        <CareInfoTip text="Dica: você pode adicionar mais detalhes sobre o uso na etapa de notas." />
 
         <AppButton
-          title="Salvar medicamento"
-          variant="secondary"
-          onPress={handleAdd}
-          accessibilityLabel="Salvar medicamento"
+          title={step === 4 ? "Salvar medicamento" : "Continuar"}
+          variant="primary"
+          onPress={handleContinue}
+          accessibilityLabel={step === 4 ? "Salvar medicamento" : "Continuar cadastro"}
         />
       </ScrollView>
     </Screen>
+  );
+}
+
+function FieldLabel({ label }: { label: string }) {
+  return <AppText style={styles.label}>{label}</AppText>;
+}
+
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryLine}>
+      <AppText muted>{label}</AppText>
+      <AppText style={styles.summaryValue}>{value}</AppText>
+    </View>
   );
 }
 
@@ -234,43 +303,47 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: spacing.xxl,
   },
-  title: {
+  header: {
+    alignItems: "flex-start",
+    flexDirection: "row",
     marginBottom: spacing.lg,
-    marginTop: spacing.xs,
   },
-  section: {
-    marginBottom: spacing.md,
+  headerText: {
+    flex: 1,
+    marginLeft: spacing.md,
   },
-  sectionHint: {
-    marginBottom: spacing.md,
-    marginTop: spacing.xs,
+  title: {
+    color: colors.primaryDark,
+    marginBottom: spacing.xs,
+  },
+  label: {
+    fontWeight: "600",
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
   },
   input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    backgroundColor: colors.white,
+    borderColor: "#BFB5A8",
+    borderRadius: radii.sm,
     borderWidth: 1,
     color: colors.text,
     fontSize: 16,
-    marginTop: spacing.md,
     minHeight: 48,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
   notesInput: {
-    minHeight: 88,
+    minHeight: 96,
     textAlignVertical: "top",
   },
   segmented: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
-    marginTop: spacing.md,
   },
   segmentButton: {
-    flex: 1,
-  },
-  helperText: {
-    marginTop: spacing.xs,
+    flexGrow: 1,
+    minWidth: 92,
   },
   weekdayRow: {
     flexDirection: "row",
@@ -281,9 +354,18 @@ const styles = StyleSheet.create({
   weekdayButton: {
     minWidth: 56,
   },
+  summaryLine: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingVertical: spacing.md,
+  },
+  summaryValue: {
+    fontWeight: "800",
+    marginTop: spacing.xs,
+  },
   errorText: {
     color: colors.danger,
     fontWeight: "700",
-    marginBottom: spacing.md,
+    marginTop: spacing.md,
   },
 });

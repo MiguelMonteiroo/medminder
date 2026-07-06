@@ -57,4 +57,5 @@ export type ReminderNotification = {
 export type ReminderSettings = {
   notificationsEnabled: boolean;
   defaultSnoozeMinutes: number;
+  userName: string;
 };

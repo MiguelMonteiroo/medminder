@@ -36,6 +36,7 @@ export function MedicationCard({
 }: Props) {
   const isTaken = status === "taken";
   const isComplete = status === "taken" || status === "skipped";
+  const isPending = status === "pending" || status === "snoozed";
 
   return (
     <Pressable
@@ -43,7 +44,13 @@ export function MedicationCard({
       accessibilityLabel={`${name}, ${status}`}
       accessibilityHint="Abre os detalhes do medicamento"
     >
-      <AppCard style={[styles.card, isComplete && styles.completedCard]}>
+      <AppCard
+        style={[
+          styles.card,
+          isPending && styles.pendingCard,
+          isComplete && styles.completedCard,
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.titleBlock}>
             <AppText variant="subheading" style={isTaken && styles.takenName}>
@@ -80,8 +87,11 @@ export function MedicationCard({
             title={isTaken ? "Desfazer" : "Tomar"}
             variant={isTaken ? "ghost" : "success"}
             compact
+            style={styles.primaryAction}
             onPress={onTake}
-            accessibilityLabel={isTaken ? "Desfazer dose tomada" : "Marcar dose como tomada"}
+            accessibilityLabel={
+              isTaken ? "Desfazer dose tomada" : "Marcar dose como tomada"
+            }
           />
           {!isComplete ? (
             <>
@@ -134,6 +144,9 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.md,
   },
+  pendingCard: {
+    borderColor: colors.primary,
+  },
   completedCard: {
     opacity: 0.82,
   },
@@ -169,6 +182,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.sm,
     marginTop: spacing.lg,
+  },
+  primaryAction: {
+    minWidth: 104,
   },
   hintRow: {
     alignItems: "center",

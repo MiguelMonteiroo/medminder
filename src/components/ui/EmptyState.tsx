@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { LucideIcon } from "lucide-react-native";
 import { AppText } from "./AppText";
 import { colors } from "../../theme/colors";
+import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
 
 type Props = {
@@ -29,13 +30,17 @@ export function EmptyState({ icon: Icon, title, message }: Props) {
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxl,
   },
   iconWrap: {
     alignItems: "center",
     backgroundColor: colors.primarySoft,
-    borderRadius: 8,
+    borderRadius: radii.md,
     height: 56,
     justifyContent: "center",
     marginBottom: spacing.md,
