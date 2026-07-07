@@ -58,7 +58,7 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
   }
 
   function handleEdit() {
-    Alert.alert("Editar medicamento", "A edição entrará na próxima etapa.");
+    navigation.navigate("EditMedication", { medicationId });
   }
 
   function handleDelete() {

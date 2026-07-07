@@ -31,6 +31,16 @@ interface AppDataContextValue {
   snoozeDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
   doseService: DoseService | null;
   setMedicationPaused: (medicationId: string, paused: boolean) => Promise<void>;
+  updateMedicationWithSchedule: (
+    medicationId: string,
+    name: string,
+    dosage: string,
+    notes: string,
+    scheduleKind?: string,
+    time?: string,
+    intervalHours?: number,
+    weekdays?: number[]
+  ) => Promise<void>;
   updateUserName: (name: string) => Promise<void>;
 }
 
@@ -55,6 +65,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   snoozeDose: async () => {},
   doseService: null,
   setMedicationPaused: async () => {},
+  updateMedicationWithSchedule: async () => {},
   updateUserName: async () => {},
 });
 
@@ -209,6 +220,53 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateMedicationWithSchedule = useCallback(
+    async (
+      medicationId: string,
+      name: string,
+      dosage: string,
+      notes: string,
+      scheduleKind?: string,
+      time?: string,
+      intervalHours?: number,
+      weekdays?: number[]
+    ) => {
+      const medication = medications.find((m) => m.id === medicationId);
+      if (!medication) return;
+
+      const now = new Date().toISOString();
+
+      const updated: Medication = {
+        ...medication,
+        name,
+        dosage: dosage || "Sem dosagem",
+        notes,
+        updatedAt: now,
+      };
+
+      await repos.medications.update(updated);
+      setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
+
+      const existingSchedule = schedules.find(
+        (s) => s.medicationId === medicationId
+      );
+      const kind = (scheduleKind as MedicationSchedule["kind"]) || existingSchedule?.kind || "dailyTimes";
+
+      if (existingSchedule) {
+        const updatedSchedule: MedicationSchedule = {
+          ...existingSchedule,
+          kind,
+          times: time ? [time] : existingSchedule.times,
+          intervalHours: kind === "intervalHours" ? (intervalHours || existingSchedule.intervalHours) : existingSchedule.intervalHours,
+          weekdays: kind === "weekdays" ? (weekdays || existingSchedule.weekdays) : existingSchedule.weekdays,
+        };
+        await repos.schedules.update(updatedSchedule);
+        setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
+      }
+    },
+    [medications, schedules]
+  );
+
   const updateUserName = useCallback(
     async (name: string) => {
       const trimmed = name.trim() || DEFAULT_SETTINGS.userName;
@@ -235,6 +293,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         skipDose,
         snoozeDose,
         setMedicationPaused,
+        updateMedicationWithSchedule,
         updateUserName,
         doseService: doseSvc,
       }}

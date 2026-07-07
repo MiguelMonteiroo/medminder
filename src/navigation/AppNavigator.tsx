@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { CalendarCheck, History, PillBottle, UserRound } from "lucide-react-native";
 import { HomeScreen } from "../screens/HomeScreen";
 import { AddMedicationScreen } from "../screens/AddMedicationScreen";
+import { EditMedicationScreen } from "../screens/EditMedicationScreen";
 import { MedicationDetailScreen } from "../screens/MedicationDetailScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { MedicationsScreen } from "../screens/MedicationsScreen";
@@ -90,6 +91,11 @@ export function AppNavigator() {
       <Stack.Screen
         name="AddMedication"
         component={AddMedicationScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EditMedication"
+        component={EditMedicationScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
