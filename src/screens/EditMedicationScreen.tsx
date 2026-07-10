@@ -11,6 +11,7 @@ import {
 import { AppButton } from "../components/ui/AppButton";
 import { AppText } from "../components/ui/AppText";
 import { CareAccordionStepCard } from "../components/CareAccordionStepCard";
+import { IntervalHoursPicker } from "../components/IntervalHoursPicker";
 import { WheelTimePicker } from "../components/WheelTimePicker";
 import { IconButton } from "../components/ui/IconButton";
 import { Screen } from "../components/ui/Screen";
@@ -52,7 +53,7 @@ export function EditMedicationScreen({ route, navigation }: Props) {
     (existingSchedule?.kind as ScheduleKind) ?? "dailyTimes"
   );
   const [intervalHours, setIntervalHours] = useState(
-    existingSchedule?.intervalHours ? String(existingSchedule.intervalHours) : "8"
+    existingSchedule?.intervalHours || 8
   );
   const [weekdays, setWeekdays] = useState<number[]>(
     existingSchedule?.weekdays ?? [1, 2, 3, 4, 5]
@@ -88,7 +89,7 @@ export function EditMedicationScreen({ route, navigation }: Props) {
         return false;
       }
 
-      if (scheduleKind === "intervalHours" && parseInt(intervalHours, 10) < 1) {
+      if (scheduleKind === "intervalHours" && intervalHours < 1) {
         setError("O intervalo deve ser de pelo menos 1 hora.");
         setStep(2);
         return false;
@@ -126,7 +127,7 @@ export function EditMedicationScreen({ route, navigation }: Props) {
       normalized.notes,
       scheduleKind,
       time.trim(),
-      parseInt(intervalHours, 10) || 8,
+      intervalHours,
       weekdays
     );
 
@@ -232,13 +233,12 @@ export function EditMedicationScreen({ route, navigation }: Props) {
           {scheduleKind === "intervalHours" ? (
             <>
               <FieldLabel label="Intervalo em horas" />
-              <TextInput
+              <IntervalHoursPicker
                 value={intervalHours}
-                onChangeText={setIntervalHours}
-                placeholder="Ex.: 8"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                style={styles.input}
+                onChange={(nextInterval) => {
+                  setIntervalHours(nextInterval);
+                  clearError();
+                }}
               />
             </>
           ) : null}
@@ -292,6 +292,9 @@ export function EditMedicationScreen({ route, navigation }: Props) {
           <SummaryLine label="Medicamento" value={name || "Não informado"} />
           <SummaryLine label="Dosagem" value={dosage || "Sem dosagem"} />
           <SummaryLine label="Horário" value={time || "--:--"} />
+          {scheduleKind === "intervalHours" ? (
+            <SummaryLine label="Intervalo" value={`A cada ${intervalHours}h`} />
+          ) : null}
         </CareAccordionStepCard>
 
         <AppButton
