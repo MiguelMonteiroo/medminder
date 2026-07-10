@@ -11,7 +11,6 @@ import {
 import { AppButton } from "../components/ui/AppButton";
 import { AppText } from "../components/ui/AppText";
 import { CareAccordionStepCard } from "../components/CareAccordionStepCard";
-import { CareInfoTip } from "../components/CareInfoTip";
 import { IntervalHoursPicker } from "../components/IntervalHoursPicker";
 import { WheelTimePicker } from "../components/WheelTimePicker";
 import { IconButton } from "../components/ui/IconButton";
@@ -28,7 +27,7 @@ import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 
-type Props = NativeStackScreenProps<RootStackParamList, "AddMedication">;
+type Props = NativeStackScreenProps<RootStackParamList, "EditMedication">;
 type Step = 1 | 2 | 3 | 4;
 
 const SCHEDULE_KINDS: { key: ScheduleKind; label: string; hint: string }[] = [
@@ -39,15 +38,26 @@ const SCHEDULE_KINDS: { key: ScheduleKind; label: string; hint: string }[] = [
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-export function AddMedicationScreen({ navigation }: Props) {
-  const { addMedication } = useAppData();
-  const [name, setName] = useState("");
-  const [dosage, setDosage] = useState("");
-  const [time, setTime] = useState("08:00");
-  const [notes, setNotes] = useState("");
-  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>("dailyTimes");
-  const [intervalHours, setIntervalHours] = useState(8);
-  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+export function EditMedicationScreen({ route, navigation }: Props) {
+  const { medicationId } = route.params;
+  const { medications, schedules, updateMedicationWithSchedule } = useAppData();
+
+  const medication = medications.find((m) => m.id === medicationId);
+  const existingSchedule = schedules.find((s) => s.medicationId === medicationId);
+
+  const [name, setName] = useState(medication?.name ?? "");
+  const [dosage, setDosage] = useState(medication?.dosage === "Sem dosagem" ? "" : (medication?.dosage ?? ""));
+  const [time, setTime] = useState(existingSchedule?.times[0] ?? "08:00");
+  const [notes, setNotes] = useState(medication?.notes ?? "");
+  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>(
+    (existingSchedule?.kind as ScheduleKind) ?? "dailyTimes"
+  );
+  const [intervalHours, setIntervalHours] = useState(
+    existingSchedule?.intervalHours || 8
+  );
+  const [weekdays, setWeekdays] = useState<number[]>(
+    existingSchedule?.weekdays ?? [1, 2, 3, 4, 5]
+  );
   const [error, setError] = useState("");
   const [step, setStep] = useState<Step>(1);
 
@@ -102,20 +112,21 @@ export function AddMedicationScreen({ navigation }: Props) {
       setStep((step + 1) as Step);
       return;
     }
-    handleAdd();
+    handleSave();
   }
 
-  async function handleAdd() {
+  async function handleSave() {
     if (!validateStep(4)) return;
 
     const normalized = normalizeMedicationInput({ name, dosage, notes });
 
-    await addMedication(
+    await updateMedicationWithSchedule(
+      medicationId,
       normalized.name,
       normalized.dosage,
-      time.trim(),
       normalized.notes,
       scheduleKind,
+      time.trim(),
       intervalHours,
       weekdays
     );
@@ -125,6 +136,16 @@ export function AddMedicationScreen({ navigation }: Props) {
 
   function clearError() {
     if (error) setError("");
+  }
+
+  if (!medication) {
+    return (
+      <Screen style={styles.center}>
+        <AppText variant="subheading" style={styles.errorText}>
+          Medicamento não encontrado.
+        </AppText>
+      </Screen>
+    );
   }
 
   return (
@@ -141,9 +162,9 @@ export function AddMedicationScreen({ navigation }: Props) {
           />
           <View style={styles.headerText}>
             <AppText variant="title" style={styles.title}>
-              Adicionar medicamento
+              Editar medicamento
             </AppText>
-            <AppText muted>Vamos cadastrar juntos. É rápido e simples.</AppText>
+            <AppText muted>Altere os dados do cadastro.</AppText>
           </View>
         </View>
 
@@ -276,13 +297,11 @@ export function AddMedicationScreen({ navigation }: Props) {
           ) : null}
         </CareAccordionStepCard>
 
-        <CareInfoTip text="Dica: você pode adicionar mais detalhes sobre o uso na etapa de notas." />
-
         <AppButton
-          title={step === 4 ? "Salvar medicamento" : "Continuar"}
+          title={step === 4 ? "Salvar alterações" : "Continuar"}
           variant="primary"
           onPress={handleContinue}
-          accessibilityLabel={step === 4 ? "Salvar medicamento" : "Continuar cadastro"}
+          accessibilityLabel={step === 4 ? "Salvar alterações" : "Continuar edição"}
         />
       </ScrollView>
     </Screen>
@@ -303,8 +322,17 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   content: {
     paddingBottom: spacing.xxl,
+  },
+  errorText: {
+    color: colors.danger,
+    fontWeight: "700",
+    marginTop: spacing.md,
   },
   header: {
     alignItems: "flex-start",
@@ -365,10 +393,5 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontWeight: "800",
     marginTop: spacing.xs,
-  },
-  errorText: {
-    color: colors.danger,
-    fontWeight: "700",
-    marginTop: spacing.md,
   },
 });

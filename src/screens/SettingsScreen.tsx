@@ -16,7 +16,7 @@ import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 
 export function SettingsScreen() {
-  const { settings, updateUserName } = useAppData();
+  const { settings, updateUserName, updateNotificationsEnabled } = useAppData();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
@@ -29,19 +29,27 @@ export function SettingsScreen() {
   useEffect(() => {
     async function check() {
       const { granted } = await getNotificationPermissionStatus();
-      setNotificationsEnabled(granted);
+      const enabled = settings.notificationsEnabled && granted;
+      setNotificationsEnabled(enabled);
+      if (!granted && settings.notificationsEnabled) {
+        await updateNotificationsEnabled(false);
+      }
       setLoading(false);
     }
     check();
-  }, []);
+  }, [settings.notificationsEnabled, updateNotificationsEnabled]);
 
   async function handleToggle(value: boolean) {
+    setLoading(true);
     if (value) {
       const { granted } = await requestNotificationPermission();
       setNotificationsEnabled(granted);
+      await updateNotificationsEnabled(granted);
     } else {
       setNotificationsEnabled(false);
+      await updateNotificationsEnabled(false);
     }
+    setLoading(false);
   }
 
   async function handleSaveName() {

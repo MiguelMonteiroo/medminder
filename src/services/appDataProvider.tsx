@@ -12,8 +12,14 @@ import { createScheduleRepository, ScheduleRepository } from "../database/reposi
 import { createDoseLogRepository, DoseLogRepository } from "../database/repositories/doseLogRepository";
 import { createSettingsRepository, SettingsRepository } from "../database/repositories/settingsRepository";
 import { createDoseService, DoseService } from "./doseService";
+import { createReminderScheduler } from "./reminderScheduler";
+import { getNotificationPermissionStatus } from "./notificationPermissionService";
 import { createRepositories } from "../database/db";
-import { getTodayDoseViewModel, AdherenceSummary } from "../utils/doseEngine";
+import {
+  generateDoseOccurrencesForDate,
+  getTodayDoseViewModel,
+  AdherenceSummary,
+} from "../utils/doseEngine";
 import { validateMedicationName, validateTimeHHMM, normalizeMedicationInput } from "../utils/validation";
 
 interface AppDataContextValue {
@@ -31,7 +37,19 @@ interface AppDataContextValue {
   snoozeDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
   doseService: DoseService | null;
   setMedicationPaused: (medicationId: string, paused: boolean) => Promise<void>;
+  updateMedicationWithSchedule: (
+    medicationId: string,
+    name: string,
+    dosage: string,
+    notes: string,
+    scheduleKind?: string,
+    time?: string,
+    intervalHours?: number,
+    weekdays?: number[]
+  ) => Promise<void>;
   updateUserName: (name: string) => Promise<void>;
+  updateNotificationsEnabled: (enabled: boolean) => Promise<void>;
+  rescheduleMedicationNotifications: () => Promise<void>;
 }
 
 const DEFAULT_SETTINGS: ReminderSettings = {
@@ -55,7 +73,10 @@ const AppDataContext = createContext<AppDataContextValue>({
   snoozeDose: async () => {},
   doseService: null,
   setMedicationPaused: async () => {},
+  updateMedicationWithSchedule: async () => {},
   updateUserName: async () => {},
+  updateNotificationsEnabled: async () => {},
+  rescheduleMedicationNotifications: async () => {},
 });
 
 export function useAppData() {
@@ -65,6 +86,16 @@ export function useAppData() {
 function getTodayString(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function formatDateString(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
@@ -78,6 +109,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const repos = createRepositories(db);
   const doseSvc = createDoseService(repos.doseLogs);
+  const reminderScheduler = createReminderScheduler(repos.notifications);
   const today = getTodayString();
 
   const loadData = useCallback(async () => {
@@ -105,6 +137,53 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, [loadData]);
 
   const todayData = getTodayDoseViewModel(today, medications, schedules, logs);
+
+  const scheduleMedicationNotifications = useCallback(
+    async (
+      medication: Medication,
+      schedule: MedicationSchedule,
+      forceEnabled = false
+    ) => {
+      if (medication.isPaused || !schedule.isActive) return;
+      if (!forceEnabled && !settings.notificationsEnabled) return;
+
+      const { granted } = await getNotificationPermissionStatus();
+      if (!granted) return;
+
+      const now = Date.now();
+      const start = new Date();
+      const nextOccurrences = Array.from({ length: 14 }, (_, index) =>
+        generateDoseOccurrencesForDate(
+          medication,
+          schedule,
+          formatDateString(addDays(start, index))
+        )
+      )
+        .flat()
+        .filter((occurrence) => new Date(occurrence.scheduledAt).getTime() > now);
+
+      for (const occurrence of nextOccurrences) {
+        await reminderScheduler.scheduleForOccurrence(
+          occurrence,
+          medication,
+          schedule
+        );
+      }
+    },
+    [settings.notificationsEnabled]
+  );
+
+  const rescheduleMedicationNotifications = useCallback(async (forceEnabled = false) => {
+    await reminderScheduler.cancelAll();
+    for (const medication of medications) {
+      const medicationSchedules = schedules.filter(
+        (schedule) => schedule.medicationId === medication.id
+      );
+      for (const schedule of medicationSchedules) {
+        await scheduleMedicationNotifications(medication, schedule, forceEnabled);
+      }
+    }
+  }, [medications, schedules, scheduleMedicationNotifications]);
 
   const addMedication = useCallback(
     async (name: string, dosage: string, time: string, notes: string, scheduleKind?: string, intervalHours?: number, weekdays?: number[]) => {
@@ -144,11 +223,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
       setMedications((prev) => [...prev, medication]);
       setSchedules((prev) => [...prev, schedule]);
+      await scheduleMedicationNotifications(medication, schedule);
     },
-    []
+    [scheduleMedicationNotifications]
   );
 
   const removeMedication = useCallback(async (id: string) => {
+    await reminderScheduler.cancelForMedication(id);
     await Promise.all([
       repos.schedules.removeByMedicationId(id),
       repos.medications.remove(id),
@@ -162,10 +243,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const medication = medications.find((m) => m.id === medicationId);
       if (!medication) return;
       const updated = { ...medication, isPaused: paused, updatedAt: new Date().toISOString() };
+      await reminderScheduler.cancelForMedication(medicationId);
       await repos.medications.update(updated);
       setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
+      if (!paused) {
+        const schedule = schedules.find((s) => s.medicationId === medicationId);
+        if (schedule) await scheduleMedicationNotifications(updated, schedule);
+      }
     },
-    [medications]
+    [medications, schedules, scheduleMedicationNotifications]
   );
 
   const setDoseTaken = useCallback(
@@ -209,6 +295,71 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateMedicationWithSchedule = useCallback(
+    async (
+      medicationId: string,
+      name: string,
+      dosage: string,
+      notes: string,
+      scheduleKind?: string,
+      time?: string,
+      intervalHours?: number,
+      weekdays?: number[]
+    ) => {
+      const medication = medications.find((m) => m.id === medicationId);
+      if (!medication) return;
+
+      const now = new Date().toISOString();
+
+      const updated: Medication = {
+        ...medication,
+        name,
+        dosage: dosage || "Sem dosagem",
+        notes,
+        updatedAt: now,
+      };
+
+      await reminderScheduler.cancelForMedication(medicationId);
+      await repos.medications.update(updated);
+      setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
+
+      const existingSchedule = schedules.find(
+        (s) => s.medicationId === medicationId
+      );
+      const kind = (scheduleKind as MedicationSchedule["kind"]) || existingSchedule?.kind || "dailyTimes";
+
+      if (existingSchedule) {
+        const updatedSchedule: MedicationSchedule = {
+          ...existingSchedule,
+          kind,
+          times: time ? [time] : existingSchedule.times,
+          intervalHours: kind === "intervalHours" ? (intervalHours || existingSchedule.intervalHours || 8) : 0,
+          weekdays: kind === "weekdays" ? (weekdays || existingSchedule.weekdays) : [],
+        };
+        await repos.schedules.update(updatedSchedule);
+        setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
+        await scheduleMedicationNotifications(updated, updatedSchedule);
+      } else {
+        const newSchedule: MedicationSchedule = {
+          id: `sched-${Date.now()}`,
+          medicationId,
+          kind,
+          times: [time || "08:00"],
+          intervalHours: kind === "intervalHours" ? (intervalHours || 8) : 0,
+          weekdays: kind === "weekdays" ? (weekdays || []) : [],
+          startDate: "",
+          endDate: "",
+          snoozeMinutes: 5,
+          isActive: true,
+        };
+        await repos.schedules.create(newSchedule);
+        setSchedules((prev) => [...prev, newSchedule]);
+        await scheduleMedicationNotifications(updated, newSchedule);
+      }
+    },
+    [medications, schedules, scheduleMedicationNotifications]
+  );
+
   const updateUserName = useCallback(
     async (name: string) => {
       const trimmed = name.trim() || DEFAULT_SETTINGS.userName;
@@ -217,6 +368,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setSettings(updated);
     },
     [settings]
+  );
+
+  const updateNotificationsEnabled = useCallback(
+    async (enabled: boolean) => {
+      const updated = { ...settings, notificationsEnabled: enabled };
+      await repos.settings.update(updated);
+      setSettings(updated);
+      if (enabled) {
+        await rescheduleMedicationNotifications(true);
+      } else {
+        await reminderScheduler.cancelAll();
+      }
+    },
+    [settings, rescheduleMedicationNotifications]
   );
 
   return (
@@ -235,7 +400,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         skipDose,
         snoozeDose,
         setMedicationPaused,
+        updateMedicationWithSchedule,
         updateUserName,
+        updateNotificationsEnabled,
+        rescheduleMedicationNotifications,
         doseService: doseSvc,
       }}
     >

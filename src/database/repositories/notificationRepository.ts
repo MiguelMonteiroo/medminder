@@ -61,7 +61,18 @@ export function createNotificationRepository(db: NativeDB) {
     );
   }
 
-  return { getAll, getByMedicationId, create, remove, removeByMedicationId };
+  async function removeAll(): Promise<void> {
+    await db.runAsync("DELETE FROM notification_mappings");
+  }
+
+  return {
+    getAll,
+    getByMedicationId,
+    create,
+    remove,
+    removeByMedicationId,
+    removeAll,
+  };
 }
 
 export type NotificationRepository = ReturnType<

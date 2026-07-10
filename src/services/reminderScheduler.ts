@@ -59,6 +59,7 @@ export function createReminderScheduler(
 
   async function cancelAll(): Promise<void> {
     await notifee.cancelAllNotifications();
+    await notificationRepo.removeAll();
   }
 
   return { scheduleForOccurrence, cancelForMedication, cancelAll };
