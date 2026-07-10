@@ -124,7 +124,6 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
         <InfoCard
           icon={<FileText color={colors.info} size={22} />}
           title="Notas do cuidador"
-          action="Editar"
         >
           <AppText>
             {medication.notes ||
@@ -135,7 +134,6 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
         <InfoCard
           icon={<CheckCircle2 color={colors.success} size={22} />}
           title="Histórico recente"
-          action="Ver tudo"
         >
           {logs.length === 0 ? (
             <AppText muted>Nenhum registro recente.</AppText>
