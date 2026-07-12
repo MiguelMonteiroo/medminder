@@ -99,6 +99,7 @@ export function normalizeScheduleInput(
     weekdays: input.weekdays ?? [],
     startDate: input.startDate ?? "",
     endDate: input.endDate ?? "",
+    anchorAt: "",
     snoozeMinutes: input.snoozeMinutes ?? 5,
     isActive: input.isActive ?? true,
   };

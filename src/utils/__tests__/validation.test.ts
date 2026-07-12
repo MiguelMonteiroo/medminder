@@ -133,6 +133,7 @@ describe("normalizeScheduleInput", () => {
       weekdays: [],
       startDate: "",
       endDate: "",
+      anchorAt: "",
       snoozeMinutes: 5,
       isActive: true,
     });

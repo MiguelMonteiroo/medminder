@@ -20,7 +20,7 @@ export function CareDoseActionCard({
   time,
   name,
   dosage,
-  snoozeMinutes = 30,
+  snoozeMinutes = 5,
   onTake,
   onSnooze,
   onSkip,

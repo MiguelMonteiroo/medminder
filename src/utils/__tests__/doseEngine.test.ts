@@ -30,6 +30,7 @@ function makeSchedule(
     weekdays: [],
     startDate: "",
     endDate: "",
+    anchorAt: "",
     snoozeMinutes: 5,
     isActive: true,
     ...overrides,
@@ -95,6 +96,36 @@ describe("generateDoseOccurrencesForDate", () => {
     expect(result[0].scheduledAt).toBe("2026-07-03T08:00:00");
     const times = result.map((o) => o.scheduledAt);
     expect(times).toContain("2026-07-03T14:00:00");
+  });
+
+  it("keeps interval schedules continuous across midnight", () => {
+    const schedule = makeSchedule({
+      kind: "intervalHours",
+      times: ["08:00"],
+      intervalHours: 8,
+      anchorAt: "2026-07-03T08:00:00",
+    });
+
+    const firstDay = generateDoseOccurrencesForDate(
+      makeMed(),
+      schedule,
+      "2026-07-03"
+    );
+    const secondDay = generateDoseOccurrencesForDate(
+      makeMed(),
+      schedule,
+      "2026-07-04"
+    );
+
+    expect(firstDay.map((dose) => dose.scheduledAt)).toEqual([
+      "2026-07-03T08:00:00",
+      "2026-07-03T16:00:00",
+    ]);
+    expect(secondDay.map((dose) => dose.scheduledAt)).toEqual([
+      "2026-07-04T00:00:00",
+      "2026-07-04T08:00:00",
+      "2026-07-04T16:00:00",
+    ]);
   });
 
   it("generates occurrences only on selected weekdays", () => {
@@ -262,6 +293,28 @@ describe("resolveDoseStatus", () => {
   it("returns pending when no logs exist", () => {
     expect(resolveDoseStatus("occ-1", [])).toBe("pending");
   });
+
+  it("returns unrecorded for a previous-day dose without an action", () => {
+    expect(
+      resolveDoseStatus(
+        "occ-1",
+        [],
+        "2026-07-03T20:00:00",
+        new Date("2026-07-04T00:01:00")
+      )
+    ).toBe("unrecorded");
+  });
+
+  it("keeps a same-day dose pending after its scheduled time", () => {
+    expect(
+      resolveDoseStatus(
+        "occ-1",
+        [],
+        "2026-07-03T08:00:00",
+        new Date("2026-07-03T23:59:00")
+      )
+    ).toBe("pending");
+  });
 });
 
 describe("getAdherenceSummary", () => {
@@ -270,7 +323,7 @@ describe("getAdherenceSummary", () => {
     expect(summary.total).toBe(0);
     expect(summary.taken).toBe(0);
     expect(summary.pending).toBe(0);
-    expect(summary.missed).toBe(0);
+    expect(summary.unrecorded).toBe(0);
     expect(summary.skipped).toBe(0);
     expect(summary.snoozed).toBe(0);
   });

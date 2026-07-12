@@ -11,6 +11,7 @@ function rowToSchedule(row: any): MedicationSchedule {
     weekdays: JSON.parse(row.weekdays || "[]"),
     startDate: row.start_date,
     endDate: row.end_date,
+    anchorAt: row.anchor_at || "",
     snoozeMinutes: row.snooze_minutes,
     isActive: row.is_active === 1,
   };
@@ -44,8 +45,8 @@ export function createScheduleRepository(db: NativeDB) {
 
   async function create(schedule: MedicationSchedule): Promise<void> {
     await db.runAsync(
-      `INSERT INTO medication_schedules (id, medication_id, kind, times, interval_hours, weekdays, start_date, end_date, snooze_minutes, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO medication_schedules (id, medication_id, kind, times, interval_hours, weekdays, start_date, end_date, anchor_at, snooze_minutes, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       schedule.id,
       schedule.medicationId,
       schedule.kind,
@@ -54,6 +55,7 @@ export function createScheduleRepository(db: NativeDB) {
       JSON.stringify(schedule.weekdays),
       schedule.startDate,
       schedule.endDate,
+      schedule.anchorAt,
       schedule.snoozeMinutes,
       schedule.isActive ? 1 : 0
     );
@@ -61,7 +63,7 @@ export function createScheduleRepository(db: NativeDB) {
 
   async function update(schedule: MedicationSchedule): Promise<void> {
     await db.runAsync(
-      `UPDATE medication_schedules SET kind = ?, times = ?, interval_hours = ?, weekdays = ?, start_date = ?, end_date = ?, snooze_minutes = ?, is_active = ?
+      `UPDATE medication_schedules SET kind = ?, times = ?, interval_hours = ?, weekdays = ?, start_date = ?, end_date = ?, anchor_at = ?, snooze_minutes = ?, is_active = ?
        WHERE id = ?`,
       schedule.kind,
       JSON.stringify(schedule.times),
@@ -69,6 +71,7 @@ export function createScheduleRepository(db: NativeDB) {
       JSON.stringify(schedule.weekdays),
       schedule.startDate,
       schedule.endDate,
+      schedule.anchorAt,
       schedule.snoozeMinutes,
       schedule.isActive ? 1 : 0,
       schedule.id

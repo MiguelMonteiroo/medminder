@@ -6,6 +6,10 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 class MainApplication : Application(), ReactApplication {
 
@@ -15,7 +19,7 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
+          add(ReminderPermissionsPackage())
         },
     )
   }
@@ -23,5 +27,13 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
+    val reconcileWork =
+        PeriodicWorkRequestBuilder<ReminderReconcileWorker>(12, TimeUnit.HOURS).build()
+    WorkManager.getInstance(this)
+        .enqueueUniquePeriodicWork(
+            "medminder-reminder-reconcile",
+            ExistingPeriodicWorkPolicy.KEEP,
+            reconcileWork,
+        )
   }
 }

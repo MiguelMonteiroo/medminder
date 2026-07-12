@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { AppState } from "react-native";
 import { useDatabase } from "../database/DatabaseProvider";
 import {
   Medication,
@@ -50,21 +51,26 @@ interface AppDataContextValue {
   ) => Promise<void>;
   updateUserName: (name: string) => Promise<void>;
   updateNotificationsEnabled: (enabled: boolean) => Promise<void>;
+  updateReminderSettings: (patch: Partial<ReminderSettings>) => Promise<void>;
   rescheduleMedicationNotifications: () => Promise<void>;
+  runAlarmTest: () => Promise<void>;
   snoozeMinutes: number;
 }
 
 const DEFAULT_SETTINGS: ReminderSettings = {
   notificationsEnabled: false,
-  defaultSnoozeMinutes: 30,
+  defaultSnoozeMinutes: 5,
   userName: "Maria",
+  fullScreenAlarmEnabled: false,
+  showLockScreenDetails: false,
+  reminderSetupCompleted: false,
 };
 
 const AppDataContext = createContext<AppDataContextValue>({
   medications: [],
   schedules: [],
   todayOccurrences: [],
-  todaySummary: { total: 0, taken: 0, pending: 0, skipped: 0, missed: 0, snoozed: 0 },
+  todaySummary: { total: 0, taken: 0, pending: 0, skipped: 0, unrecorded: 0, snoozed: 0 },
   loading: true,
   error: null,
   settings: DEFAULT_SETTINGS,
@@ -78,8 +84,10 @@ const AppDataContext = createContext<AppDataContextValue>({
   updateMedicationWithSchedule: async () => {},
   updateUserName: async () => {},
   updateNotificationsEnabled: async () => {},
+  updateReminderSettings: async () => {},
   rescheduleMedicationNotifications: async () => {},
-  snoozeMinutes: 30,
+  runAlarmTest: async () => {},
+  snoozeMinutes: 5,
 });
 
 export function useAppData() {
@@ -112,7 +120,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const repos = createRepositories(db);
   const doseSvc = createDoseService(repos.doseLogs);
-  const reminderScheduler = createReminderScheduler(repos.notifications);
+  const reminderScheduler = createReminderScheduler(repos.reminderArtifacts);
   const today = getTodayString();
 
   const loadData = useCallback(async () => {
@@ -130,10 +138,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setSettings(appSettings);
       setError(null);
 
+      const legacyMappings = await repos.notifications.getAll();
+      if (legacyMappings.length > 0) {
+        await reminderScheduler.cancelAll();
+        await repos.notifications.removeAll();
+      }
+
       await reconcileNotifications(
-        repos.notifications,
+        repos.reminderArtifacts,
         repos.medications,
         repos.schedules,
+        repos.settings,
         reminderScheduler
       );
     } catch (e: any) {
@@ -147,23 +162,32 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") loadData();
+    });
+    return () => subscription.remove();
+  }, [loadData]);
+
   const todayData = getTodayDoseViewModel(today, medications, schedules, logs);
 
   const scheduleMedicationNotifications = useCallback(
     async (
       medication: Medication,
       schedule: MedicationSchedule,
-      forceEnabled = false
+      forceEnabled = false,
+      reminderSettings = settings
     ) => {
       if (medication.isPaused || !schedule.isActive) return;
-      if (!forceEnabled && !settings.notificationsEnabled) return;
+      if (!forceEnabled && !reminderSettings.notificationsEnabled) return;
 
       const { granted } = await getNotificationPermissionStatus();
       if (!granted) return;
 
       const now = Date.now();
       const start = new Date();
-      const nextOccurrences = Array.from({ length: 14 }, (_, index) =>
+      const horizon = now + 48 * 60 * 60 * 1000;
+      const nextOccurrences = Array.from({ length: 3 }, (_, index) =>
         generateDoseOccurrencesForDate(
           medication,
           schedule,
@@ -171,27 +195,42 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         )
       )
         .flat()
-        .filter((occurrence) => new Date(occurrence.scheduledAt).getTime() > now);
+        .filter((occurrence) => {
+          const timestamp = new Date(occurrence.scheduledAt).getTime();
+          return timestamp > now && timestamp <= horizon;
+        });
 
       for (const occurrence of nextOccurrences) {
         await reminderScheduler.scheduleForOccurrence(
           occurrence,
           medication,
-          schedule
+          schedule,
+          {
+            showLockScreenDetails: reminderSettings.showLockScreenDetails,
+            fullScreenAlarmEnabled: reminderSettings.fullScreenAlarmEnabled,
+          }
         );
       }
     },
-    [settings.notificationsEnabled]
+    [settings]
   );
 
-  const rescheduleMedicationNotifications = useCallback(async (forceEnabled = false) => {
+  const rescheduleMedicationNotifications = useCallback(async (
+    forceEnabled = false,
+    reminderSettings = settings
+  ) => {
     await reminderScheduler.cancelAll();
     for (const medication of medications) {
       const medicationSchedules = schedules.filter(
         (schedule) => schedule.medicationId === medication.id
       );
       for (const schedule of medicationSchedules) {
-        await scheduleMedicationNotifications(medication, schedule, forceEnabled);
+        await scheduleMedicationNotifications(
+          medication,
+          schedule,
+          forceEnabled,
+          reminderSettings
+        );
       }
     }
   }, [medications, schedules, scheduleMedicationNotifications]);
@@ -223,6 +262,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         weekdays: kind === "weekdays" ? (weekdays || []) : [],
         startDate: "",
         endDate: "",
+        anchorAt: kind === "intervalHours" ? `${getTodayString()}T${time}:00` : "",
         snoozeMinutes: settings.defaultSnoozeMinutes,
         isActive: true,
       };
@@ -272,6 +312,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         await doseSvc.undoDoseAction(occurrenceId, medicationId, scheduleId, now);
       } else {
         await doseSvc.markDoseTaken(occurrenceId, medicationId, scheduleId, now);
+        await reminderScheduler.cancelSingle(occurrenceId);
       }
       const doseLogs = await repos.doseLogs.getAll();
       setLogs(doseLogs);
@@ -283,6 +324,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     async (occurrenceId: string, medicationId: string, scheduleId: string) => {
       const now = new Date().toISOString();
       await doseSvc.skipDose(occurrenceId, medicationId, scheduleId, now);
+      await reminderScheduler.cancelSingle(occurrenceId);
       const doseLogs = await repos.doseLogs.getAll();
       setLogs(doseLogs);
     },
@@ -291,8 +333,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const snoozeDose = useCallback(
     async (occurrenceId: string, medicationId: string, scheduleId: string) => {
+      const snoozeCount = await repos.doseLogs.countSnoozes(occurrenceId);
+      if (snoozeCount >= 3) return;
       const now = new Date();
-      const snoozeMs = (settings.defaultSnoozeMinutes || 30) * 60 * 1000;
+      const snoozeMs = 5 * 60 * 1000;
       const snoozedUntil = new Date(now.getTime() + snoozeMs);
 
       await reminderScheduler.cancelSingle(occurrenceId);
@@ -312,7 +356,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         await reminderScheduler.scheduleForOccurrence(
           occurrence,
           medication,
-          schedule
+          schedule,
+          {
+            showLockScreenDetails: settings.showLockScreenDetails,
+            fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+            snoozed: true,
+            alarmAt: snoozedUntil,
+          }
         );
       }
 
@@ -370,6 +420,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           times: time ? [time] : existingSchedule.times,
           intervalHours: kind === "intervalHours" ? (intervalHours || existingSchedule.intervalHours || 8) : 0,
           weekdays: kind === "weekdays" ? (weekdays || existingSchedule.weekdays) : [],
+          anchorAt:
+            kind === "intervalHours" && time
+              ? `${getTodayString()}T${time}:00`
+              : kind === "intervalHours"
+                ? existingSchedule.anchorAt
+                : "",
         };
         await repos.schedules.update(updatedSchedule);
         setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
@@ -384,6 +440,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           weekdays: kind === "weekdays" ? (weekdays || []) : [],
           startDate: "",
           endDate: "",
+          anchorAt: kind === "intervalHours" ? `${getTodayString()}T${time || "08:00"}:00` : "",
           snoozeMinutes: settings.defaultSnoozeMinutes,
           isActive: true,
         };
@@ -411,13 +468,34 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       await repos.settings.update(updated);
       setSettings(updated);
       if (enabled) {
-        await rescheduleMedicationNotifications(true);
+        await rescheduleMedicationNotifications(true, updated);
       } else {
         await reminderScheduler.cancelAll();
       }
     },
     [settings, rescheduleMedicationNotifications]
   );
+
+  const updateReminderSettings = useCallback(
+    async (patch: Partial<ReminderSettings>) => {
+      const updated = {
+        ...settings,
+        ...patch,
+        defaultSnoozeMinutes: 5,
+      };
+      await repos.settings.update(updated);
+      setSettings(updated);
+      if (updated.notificationsEnabled) {
+        await rescheduleMedicationNotifications(true, updated);
+      }
+    },
+    [settings, rescheduleMedicationNotifications]
+  );
+
+  const runAlarmTest = useCallback(async () => {
+    await ensureChannelCreated();
+    await reminderScheduler.runAlarmTest();
+  }, []);
 
   return (
     <AppDataContext.Provider
@@ -438,7 +516,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         updateMedicationWithSchedule,
         updateUserName,
         updateNotificationsEnabled,
+        updateReminderSettings,
         rescheduleMedicationNotifications,
+        runAlarmTest,
         doseService: doseSvc,
         snoozeMinutes: settings.defaultSnoozeMinutes,
       }}

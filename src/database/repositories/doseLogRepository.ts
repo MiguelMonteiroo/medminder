@@ -10,6 +10,7 @@ function rowToDoseLog(row: any): DoseLog {
     action: row.action,
     actionAt: row.action_at,
     snoozedUntil: row.snoozed_until || "",
+    commandId: row.command_id || "",
   };
 }
 
@@ -40,25 +41,53 @@ export function createDoseLogRepository(db: NativeDB) {
     return rows.map(rowToDoseLog);
   }
 
-  async function create(log: DoseLog): Promise<void> {
-    await db.runAsync(
-      `INSERT INTO dose_logs (id, dose_occurrence_id, medication_id, schedule_id, action, action_at, snoozed_until)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  async function create(log: DoseLog): Promise<boolean> {
+    const result = await db.runAsync(
+      `INSERT OR IGNORE INTO dose_logs (id, dose_occurrence_id, medication_id, schedule_id, action, action_at, snoozed_until, command_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       log.id,
       log.doseOccurrenceId,
       log.medicationId,
       log.scheduleId,
       log.action,
       log.actionAt,
-      log.snoozedUntil || ""
+      log.snoozedUntil || "",
+      log.commandId || ""
     );
+    return result.changes > 0;
+  }
+
+  async function getByDoseOccurrenceId(
+    doseOccurrenceId: string
+  ): Promise<DoseLog[]> {
+    const rows = await db.getAllAsync(
+      "SELECT * FROM dose_logs WHERE dose_occurrence_id = ? ORDER BY action_at ASC",
+      doseOccurrenceId
+    );
+    return rows.map(rowToDoseLog);
+  }
+
+  async function countSnoozes(doseOccurrenceId: string): Promise<number> {
+    const row = await db.getFirstAsync<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM dose_logs WHERE dose_occurrence_id = ? AND action = 'snoozed'",
+      doseOccurrenceId
+    );
+    return row?.count ?? 0;
   }
 
   async function remove(id: string): Promise<void> {
     await db.runAsync("DELETE FROM dose_logs WHERE id = ?", id);
   }
 
-  return { getAll, getByMedicationId, getByDate, create, remove };
+  return {
+    getAll,
+    getByMedicationId,
+    getByDoseOccurrenceId,
+    getByDate,
+    countSnoozes,
+    create,
+    remove,
+  };
 }
 
 export type DoseLogRepository = ReturnType<typeof createDoseLogRepository>;

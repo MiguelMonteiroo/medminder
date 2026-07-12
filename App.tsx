@@ -3,6 +3,8 @@ import { DatabaseProvider } from "./src/database/DatabaseProvider";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AppDataProvider } from "./src/services/appDataProvider";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { NotificationEventBridge } from "./src/components/reminders/NotificationEventBridge";
+import { ReminderSetupGuide } from "./src/components/reminders/ReminderSetupGuide";
 
 function LoadingFallback() {
   return (
@@ -19,6 +21,8 @@ export default function App() {
       <NavigationContainer>
         <AppDataProvider>
           <AppNavigator />
+          <NotificationEventBridge />
+          <ReminderSetupGuide />
         </AppDataProvider>
       </NavigationContainer>
     </DatabaseProvider>

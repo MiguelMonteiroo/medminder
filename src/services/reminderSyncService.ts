@@ -1,13 +1,17 @@
 import notifee from "@notifee/react-native";
-import { NotificationRepository } from "../database/repositories/notificationRepository";
-import { MedicationRepository } from "../database/repositories/medicationRepository";
-import { ScheduleRepository } from "../database/repositories/scheduleRepository";
+import type { ReminderArtifactRepository } from "../database/repositories/reminderArtifactRepository";
+import type { MedicationRepository } from "../database/repositories/medicationRepository";
+import type { ScheduleRepository } from "../database/repositories/scheduleRepository";
+import type { SettingsRepository } from "../database/repositories/settingsRepository";
 import { generateDoseOccurrencesForDate } from "../utils/doseEngine";
-import { ReminderScheduler } from "./reminderScheduler";
+import type { ReminderScheduler } from "./reminderScheduler";
 import { getNotificationPermissionStatus } from "./notificationPermissionService";
+import { planOccurrenceReminders } from "./reminders/reminderPlanner";
 
 function formatDateString(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
 }
 
 function addDays(date: Date, days: number): Date {
@@ -17,75 +21,85 @@ function addDays(date: Date, days: number): Date {
 }
 
 export async function reconcileNotifications(
-  notificationRepo: NotificationRepository,
+  artifactRepo: ReminderArtifactRepository,
   medicationRepo: MedicationRepository,
   scheduleRepo: ScheduleRepository,
+  settingsRepo: SettingsRepository,
   reminderScheduler: ReminderScheduler
 ): Promise<{ removed: number; recreated: number }> {
   const { granted } = await getNotificationPermissionStatus();
-
-  const scheduledIds = await notifee.getTriggerNotificationIds();
-  const scheduledSet = new Set(scheduledIds);
-
-  const storedMappings = await notificationRepo.getAll();
+  const settings = await settingsRepo.get();
+  const activeIds = new Set(await notifee.getTriggerNotificationIds());
+  const storedArtifacts = await artifactRepo.getAll();
+  const staleBefore = Date.now() - 15 * 60 * 1000;
   let removed = 0;
-  const stale: typeof storedMappings = [];
 
-  for (const mapping of storedMappings) {
-    if (!scheduledSet.has(mapping.notificationId)) {
-      stale.push(mapping);
-      await notificationRepo.remove(mapping.id);
+  for (const artifact of storedArtifacts) {
+    if (
+      !activeIds.has(artifact.notificationId) &&
+      new Date(artifact.scheduledFor).getTime() < staleBefore
+    ) {
+      await artifactRepo.remove(artifact.id);
       removed++;
     }
   }
 
-  let recreated = 0;
-
-  if (!granted) {
-    return { removed, recreated };
+  if (!granted || !settings.notificationsEnabled) {
+    return { removed, recreated: 0 };
   }
-
-  const remainingMappings = await notificationRepo.getAll();
-  const existingDoseOccurrenceIds = new Set(
-    remainingMappings.map((m) => m.doseOccurrenceId)
-  );
 
   const medications = await medicationRepo.getAll();
   const schedules = await scheduleRepo.getAll();
   const now = Date.now();
+  const horizon = now + 48 * 60 * 60 * 1000;
+  let recreated = 0;
 
   for (const medication of medications) {
     if (medication.isPaused) continue;
-
-    const medSchedules = schedules.filter(
-      (s) => s.medicationId === medication.id && s.isActive
+    const medicationSchedules = schedules.filter(
+      (schedule) => schedule.medicationId === medication.id && schedule.isActive
     );
 
-    for (const schedule of medSchedules) {
-      const start = new Date();
-      const nextOccurrences = Array.from({ length: 14 }, (_, index) =>
+    for (const schedule of medicationSchedules) {
+      const occurrences = Array.from({ length: 3 }, (_, index) =>
         generateDoseOccurrencesForDate(
           medication,
           schedule,
-          formatDateString(addDays(start, index))
+          formatDateString(addDays(new Date(), index))
         )
       )
         .flat()
-        .filter(
-          (occurrence) =>
-            new Date(occurrence.scheduledAt).getTime() > now &&
-            !existingDoseOccurrenceIds.has(occurrence.id)
-        );
+        .filter((occurrence) => {
+          const timestamp = new Date(occurrence.scheduledAt).getTime();
+          return timestamp > now && timestamp <= horizon;
+        });
 
-      for (const occurrence of nextOccurrences) {
-        const savedNotificationId = await reminderScheduler.scheduleForOccurrence(
+      for (const occurrence of occurrences) {
+        const artifacts = await artifactRepo.getByDoseOccurrenceId(occurrence.id);
+        const windowArtifacts = await artifactRepo.getByWindowKey(
+          occurrence.scheduledAt.slice(0, 16)
+        );
+        const expectedKinds = planOccurrenceReminders(occurrence).map(
+          (plan) => plan.kind
+        );
+        const existingKinds = new Set(artifacts.map((artifact) => artifact.kind));
+        if (windowArtifacts.some((artifact) => artifact.kind === "preAlert")) {
+          existingKinds.add("preAlert");
+        }
+        if (expectedKinds.every((kind) => existingKinds.has(kind))) continue;
+        if (artifacts.length > 0) {
+          await reminderScheduler.cancelSingle(occurrence.id);
+        }
+        const ids = await reminderScheduler.scheduleForOccurrence(
           occurrence,
           medication,
-          schedule
+          schedule,
+          {
+            showLockScreenDetails: settings.showLockScreenDetails,
+            fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+          }
         );
-        if (savedNotificationId) {
-          recreated++;
-        }
+        recreated += ids.length;
       }
     }
   }
@@ -94,8 +108,7 @@ export async function reconcileNotifications(
 }
 
 export async function getActiveNotificationCount(
-  notificationRepo: NotificationRepository
+  artifactRepo: ReminderArtifactRepository
 ): Promise<number> {
-  const mappings = await notificationRepo.getAll();
-  return mappings.length;
+  return (await artifactRepo.getAll()).length;
 }

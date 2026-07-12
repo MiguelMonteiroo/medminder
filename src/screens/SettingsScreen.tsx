@@ -1,6 +1,24 @@
-import { ScrollView, StyleSheet, Switch, TextInput, View } from "react-native";
+import {
+  Alert,
+  AppState,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from "react-native";
 import { useState, useEffect } from "react";
-import { Bell, Info, Settings, UserRound } from "lucide-react-native";
+import {
+  AlarmClockCheck,
+  BatteryCharging,
+  Bell,
+  Info,
+  LockKeyhole,
+  Maximize2,
+  Settings,
+  TestTube2,
+  UserRound,
+} from "lucide-react-native";
 import { AppButton } from "../components/ui/AppButton";
 import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
@@ -9,20 +27,33 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { useAppData } from "../services/appDataProvider";
 import {
   getNotificationPermissionStatus,
+  getReminderPermissionState,
+  openBatterySettings,
+  openExactAlarmSettings,
+  openFullScreenAlarmSettings,
   requestNotificationPermission,
   openNotificationSettings,
 } from "../services/notificationPermissionService";
+import type { ReminderPermissionState } from "../types/domain";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 
 export function SettingsScreen() {
-  const { settings, updateUserName, updateNotificationsEnabled } = useAppData();
+  const {
+    settings,
+    updateUserName,
+    updateNotificationsEnabled,
+    updateReminderSettings,
+    runAlarmTest,
+  } = useAppData();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(settings.userName);
+  const [permissionState, setPermissionState] =
+    useState<ReminderPermissionState | null>(null);
 
   useEffect(() => {
     setNameDraft(settings.userName);
@@ -30,17 +61,25 @@ export function SettingsScreen() {
 
   useEffect(() => {
     async function check() {
-      const { granted, denied } = await getNotificationPermissionStatus();
+      const [{ granted }, readiness] = await Promise.all([
+        getNotificationPermissionStatus(),
+        getReminderPermissionState(),
+      ]);
       const enabled = settings.notificationsEnabled && granted;
       setNotificationsEnabled(enabled);
       setPermissionDenied(!granted);
-      if (!granted && settings.notificationsEnabled) {
-        await updateNotificationsEnabled(false);
-      }
+      setPermissionState(readiness);
       setLoading(false);
     }
     check();
   }, [settings.notificationsEnabled, updateNotificationsEnabled]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshPermissions();
+    });
+    return () => subscription.remove();
+  }, []);
 
   async function handleToggle(value: boolean) {
     setLoading(true);
@@ -61,6 +100,40 @@ export function SettingsScreen() {
 
   async function handleOpenSettings() {
     await openNotificationSettings();
+  }
+
+  async function refreshPermissions() {
+    setPermissionState(await getReminderPermissionState());
+  }
+
+  async function handleExactAlarm() {
+    await openExactAlarmSettings();
+    await refreshPermissions();
+  }
+
+  async function handleFullScreenToggle(value: boolean) {
+    await updateReminderSettings({ fullScreenAlarmEnabled: value });
+    if (value && permissionState?.fullScreen === "denied") {
+      await openFullScreenAlarmSettings();
+    }
+    await refreshPermissions();
+  }
+
+  async function handleAlarmTest() {
+    const readiness = await getReminderPermissionState();
+    setPermissionState(readiness);
+    if (readiness.notifications !== "granted") {
+      Alert.alert(
+        "Ative os lembretes primeiro",
+        "O Android precisa permitir notificações antes de testar o alarme."
+      );
+      return;
+    }
+    await runAlarmTest();
+    Alert.alert(
+      "Teste agendado",
+      "O alarme de teste será exibido em cinco segundos."
+    );
   }
 
   async function handleSaveName() {
@@ -141,6 +214,119 @@ export function SettingsScreen() {
             </AppText>
           )}
         </AppCard>
+
+        <AppCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrap}>
+              <AlarmClockCheck color={colors.primary} size={22} />
+            </View>
+            <View style={styles.headerText}>
+              <AppText variant="subheading">Avisar no horário exato</AppText>
+              <AppText muted style={styles.hint}>
+                Evita que o Android atrase os lembretes.
+              </AppText>
+            </View>
+            <StatusBadge
+              status={
+                permissionState?.exactAlarms === "denied" ? "paused" : "active"
+              }
+            />
+          </View>
+          {permissionState?.exactAlarms === "denied" ? (
+            <AppButton
+              accessibilityLabel="Ativar avisos no horário exato"
+              icon={Settings}
+              onPress={handleExactAlarm}
+              title="Ativar"
+              variant="ghost"
+            />
+          ) : (
+            <AppText variant="small" muted>
+              O aparelho está preparado para avisar no horário escolhido.
+            </AppText>
+          )}
+        </AppCard>
+
+        <AppCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrap}>
+              <Maximize2 color={colors.primary} size={22} />
+            </View>
+            <View style={styles.headerText}>
+              <AppText variant="subheading">Alarme em tela cheia</AppText>
+              <AppText muted style={styles.hint}>
+                Abre uma tela de alarme quando o Android permitir.
+              </AppText>
+            </View>
+            <Switch
+              accessibilityLabel="Ativar alarme em tela cheia"
+              onValueChange={handleFullScreenToggle}
+              value={settings.fullScreenAlarmEnabled}
+            />
+          </View>
+          {settings.fullScreenAlarmEnabled && permissionState?.fullScreen === "denied" ? (
+            <AppButton
+              accessibilityLabel="Abrir configuração de alarme em tela cheia"
+              icon={Settings}
+              onPress={openFullScreenAlarmSettings}
+              title="Abrir configuração"
+              variant="ghost"
+            />
+          ) : null}
+        </AppCard>
+
+        <AppCard style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.iconWrap}>
+              <LockKeyhole color={colors.primary} size={22} />
+            </View>
+            <View style={styles.headerText}>
+              <AppText variant="subheading">Detalhes na tela bloqueada</AppText>
+              <AppText muted style={styles.hint}>
+                Mostra nome, dosagem e notas sem desbloquear o aparelho.
+              </AppText>
+            </View>
+            <Switch
+              accessibilityLabel="Mostrar detalhes na tela bloqueada"
+              onValueChange={(value) =>
+                updateReminderSettings({ showLockScreenDetails: value })
+              }
+              value={settings.showLockScreenDetails}
+            />
+          </View>
+        </AppCard>
+
+        {permissionState?.batteryOptimization === "optimized" ? (
+          <AppCard style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.iconWrap}>
+                <BatteryCharging color={colors.primary} size={22} />
+              </View>
+              <View style={styles.headerText}>
+                <AppText variant="subheading">Funcionamento em segundo plano</AppText>
+                <AppText muted style={styles.hint}>
+                  A economia de bateria pode atrasar lembretes neste aparelho.
+                </AppText>
+              </View>
+            </View>
+            <AppButton
+              accessibilityLabel="Abrir configuração de economia de bateria"
+              icon={Settings}
+              onPress={openBatterySettings}
+              title="Revisar configuração"
+              variant="ghost"
+            />
+          </AppCard>
+        ) : null}
+
+        <AppButton
+          accessibilityLabel="Testar alarme em cinco segundos"
+          icon={TestTube2}
+          onPress={handleAlarmTest}
+          style={styles.testButton}
+          title="Testar alarme"
+          variant="secondary"
+        />
 
         <AppCard style={styles.card}>
           <View style={styles.cardHeader}>
@@ -307,5 +493,8 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     alignSelf: "flex-start",
+  },
+  testButton: {
+    marginBottom: spacing.lg,
   },
 });

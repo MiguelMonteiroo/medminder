@@ -24,7 +24,7 @@ export const ptBR = {
     taken: "Tomada",
     skipped: "Pulada",
     snoozed: "Adiada",
-    missed: "Perdida",
+    unrecorded: "Não registrada",
     active: "Ativo",
     paused: "Pausado",
   },
