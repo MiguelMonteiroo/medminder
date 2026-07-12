@@ -13,7 +13,8 @@ import { createDoseLogRepository, DoseLogRepository } from "../database/reposito
 import { createSettingsRepository, SettingsRepository } from "../database/repositories/settingsRepository";
 import { createDoseService, DoseService } from "./doseService";
 import { createReminderScheduler } from "./reminderScheduler";
-import { getNotificationPermissionStatus } from "./notificationPermissionService";
+import { getNotificationPermissionStatus, ensureChannelCreated } from "./notificationPermissionService";
+import { reconcileNotifications } from "./reminderSyncService";
 import { createRepositories } from "../database/db";
 import {
   generateDoseOccurrencesForDate,
@@ -50,11 +51,12 @@ interface AppDataContextValue {
   updateUserName: (name: string) => Promise<void>;
   updateNotificationsEnabled: (enabled: boolean) => Promise<void>;
   rescheduleMedicationNotifications: () => Promise<void>;
+  snoozeMinutes: number;
 }
 
 const DEFAULT_SETTINGS: ReminderSettings = {
   notificationsEnabled: false,
-  defaultSnoozeMinutes: 5,
+  defaultSnoozeMinutes: 30,
   userName: "Maria",
 };
 
@@ -77,6 +79,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   updateUserName: async () => {},
   updateNotificationsEnabled: async () => {},
   rescheduleMedicationNotifications: async () => {},
+  snoozeMinutes: 30,
 });
 
 export function useAppData() {
@@ -114,6 +117,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const loadData = useCallback(async () => {
     try {
+      await ensureChannelCreated();
       const [meds, scheds, doseLogs, appSettings] = await Promise.all([
         repos.medications.getAll(),
         repos.schedules.getAll(),
@@ -125,6 +129,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setLogs(doseLogs);
       setSettings(appSettings);
       setError(null);
+
+      await reconcileNotifications(
+        repos.notifications,
+        repos.medications,
+        repos.schedules,
+        reminderScheduler
+      );
     } catch (e: any) {
       setError(e?.message || "Erro ao carregar dados.");
     } finally {
@@ -212,7 +223,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         weekdays: kind === "weekdays" ? (weekdays || []) : [],
         startDate: "",
         endDate: "",
-        snoozeMinutes: 5,
+        snoozeMinutes: settings.defaultSnoozeMinutes,
         isActive: true,
       };
 
@@ -225,7 +236,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setSchedules((prev) => [...prev, schedule]);
       await scheduleMedicationNotifications(medication, schedule);
     },
-    [scheduleMedicationNotifications]
+    [scheduleMedicationNotifications, settings.defaultSnoozeMinutes]
   );
 
   const removeMedication = useCallback(async (id: string) => {
@@ -281,18 +292,42 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const snoozeDose = useCallback(
     async (occurrenceId: string, medicationId: string, scheduleId: string) => {
       const now = new Date();
-      const snoozedUntil = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+      const snoozeMs = (settings.defaultSnoozeMinutes || 30) * 60 * 1000;
+      const snoozedUntil = new Date(now.getTime() + snoozeMs);
+
+      await reminderScheduler.cancelSingle(occurrenceId);
+
+      const occurrence: DoseOccurrence = {
+        id: occurrenceId,
+        medicationId,
+        scheduleId,
+        scheduledAt: snoozedUntil.toISOString(),
+        status: "pending",
+      };
+
+      const medication = medications.find((m) => m.id === medicationId);
+      const schedule = schedules.find((s) => s.id === scheduleId);
+
+      if (medication && schedule) {
+        await reminderScheduler.scheduleForOccurrence(
+          occurrence,
+          medication,
+          schedule
+        );
+      }
+
       await doseSvc.snoozeDose(
         occurrenceId,
         medicationId,
         scheduleId,
         now.toISOString(),
-        snoozedUntil
+        snoozedUntil.toISOString()
       );
+
       const doseLogs = await repos.doseLogs.getAll();
       setLogs(doseLogs);
     },
-    []
+    [settings.defaultSnoozeMinutes, medications, schedules]
   );
 
   const updateMedicationWithSchedule = useCallback(
@@ -349,7 +384,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           weekdays: kind === "weekdays" ? (weekdays || []) : [],
           startDate: "",
           endDate: "",
-          snoozeMinutes: 5,
+          snoozeMinutes: settings.defaultSnoozeMinutes,
           isActive: true,
         };
         await repos.schedules.create(newSchedule);
@@ -357,7 +392,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         await scheduleMedicationNotifications(updated, newSchedule);
       }
     },
-    [medications, schedules, scheduleMedicationNotifications]
+    [medications, schedules, scheduleMedicationNotifications, settings.defaultSnoozeMinutes]
   );
 
   const updateUserName = useCallback(
@@ -405,6 +440,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         updateNotificationsEnabled,
         rescheduleMedicationNotifications,
         doseService: doseSvc,
+        snoozeMinutes: settings.defaultSnoozeMinutes,
       }}
     >
       {children}

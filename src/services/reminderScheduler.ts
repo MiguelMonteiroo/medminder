@@ -31,7 +31,7 @@ export function createReminderScheduler(
         type: TriggerType.TIMESTAMP,
         timestamp: triggerDate.getTime(),
         alarmManager: {
-          type: AlarmType.SET_EXACT,
+          type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE,
         },
       }
     );
@@ -49,6 +49,13 @@ export function createReminderScheduler(
     return notificationId;
   }
 
+  async function cancelSingle(occurrenceId: string): Promise<void> {
+    const mapping = await notificationRepo.getByDoseOccurrenceId(occurrenceId);
+    if (!mapping) return;
+    await notifee.cancelTriggerNotification(mapping.notificationId);
+    await notificationRepo.removeByDoseOccurrenceId(occurrenceId);
+  }
+
   async function cancelForMedication(medicationId: string): Promise<void> {
     const mappings = await notificationRepo.getByMedicationId(medicationId);
     for (const mapping of mappings) {
@@ -62,7 +69,7 @@ export function createReminderScheduler(
     await notificationRepo.removeAll();
   }
 
-  return { scheduleForOccurrence, cancelForMedication, cancelAll };
+  return { scheduleForOccurrence, cancelSingle, cancelForMedication, cancelAll };
 }
 
 export type ReminderScheduler = ReturnType<typeof createReminderScheduler>;

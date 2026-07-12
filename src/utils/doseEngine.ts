@@ -8,7 +8,7 @@ import {
 
 function getDayOfWeek(dateString: string): number {
   const date = new Date(dateString + "T12:00:00");
-  return date.getDay() === 0 ? 7 : date.getDay();
+  return date.getDay();
 }
 
 function isDateInRange(

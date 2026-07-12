@@ -125,6 +125,35 @@ describe("generateDoseOccurrencesForDate", () => {
     );
     expect(result).toHaveLength(0);
   });
+
+  it("generates occurrences on Sunday when weekdays includes 0", () => {
+    // Use a known Sunday. 2026-07-05 is a Sunday.
+    const result = generateDoseOccurrencesForDate(
+      makeMed(),
+      makeSchedule({
+        kind: "weekdays",
+        times: ["10:00"],
+        weekdays: [0],
+      }),
+      "2026-07-05"
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].scheduledAt).toBe("2026-07-05T10:00:00");
+  });
+
+  it("excludes Sunday when weekdays does not include 0", () => {
+    // 2026-07-05 is a Sunday, but schedule only has Monday (1)
+    const result = generateDoseOccurrencesForDate(
+      makeMed(),
+      makeSchedule({
+        kind: "weekdays",
+        times: ["10:00"],
+        weekdays: [1],
+      }),
+      "2026-07-05"
+    );
+    expect(result).toHaveLength(0);
+  });
 });
 
 describe("resolveDoseStatus", () => {
