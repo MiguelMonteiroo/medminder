@@ -9,6 +9,7 @@ type Props = {
   time: string;
   name: string;
   dosage?: string;
+  snoozeMinutes?: number;
   onTake: () => void;
   onSnooze?: () => void;
   onSkip?: () => void;
@@ -19,6 +20,7 @@ export function CareDoseActionCard({
   time,
   name,
   dosage,
+  snoozeMinutes = 5,
   onTake,
   onSnooze,
   onSkip,
@@ -58,13 +60,13 @@ export function CareDoseActionCard({
       <View style={styles.secondaryActions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Adiar dose por 30 minutos"
+          accessibilityLabel={`Adiar dose por ${snoozeMinutes} minutos`}
           onPress={onSnooze}
           style={styles.secondaryButton}
         >
           <Clock3 color={colors.primaryDark} size={17} />
           <AppText variant="small" style={styles.secondaryText}>
-            Adiar 30 min
+            Adiar {snoozeMinutes} min
           </AppText>
         </Pressable>
         <View style={styles.divider} />

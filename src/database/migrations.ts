@@ -1,6 +1,6 @@
 import type { NativeDB } from "./nativeDb";
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export async function migrateDbIfNeeded(db: NativeDB) {
   const result = await db.getFirstAsync<{ user_version: number }>(
@@ -71,6 +71,47 @@ export async function migrateDbIfNeeded(db: NativeDB) {
     `);
 
     currentVersion = 1;
+  }
+
+  if (currentVersion === 1) {
+    await db.execAsync(`
+      ALTER TABLE medication_schedules ADD COLUMN anchor_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE dose_logs ADD COLUMN command_id TEXT NOT NULL DEFAULT '';
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_dose_logs_command_id
+      ON dose_logs(command_id) WHERE command_id <> '';
+
+      CREATE TABLE IF NOT EXISTS reminder_artifacts (
+        id TEXT PRIMARY KEY NOT NULL,
+        kind TEXT NOT NULL,
+        notification_id TEXT NOT NULL,
+        dose_occurrence_id TEXT NOT NULL,
+        medication_id TEXT NOT NULL,
+        schedule_id TEXT NOT NULL,
+        dose_window_key TEXT NOT NULL,
+        scheduled_for TEXT NOT NULL,
+        expires_at TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE,
+        FOREIGN KEY (schedule_id) REFERENCES medication_schedules(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_reminder_artifacts_occurrence
+      ON reminder_artifacts(dose_occurrence_id);
+      CREATE INDEX IF NOT EXISTS idx_reminder_artifacts_medication
+      ON reminder_artifacts(medication_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_artifacts_notification
+      ON reminder_artifacts(notification_id);
+      CREATE INDEX IF NOT EXISTS idx_reminder_artifacts_scheduled
+      ON reminder_artifacts(scheduled_for);
+      CREATE INDEX IF NOT EXISTS idx_reminder_artifacts_window
+      ON reminder_artifacts(dose_window_key);
+
+      INSERT OR REPLACE INTO app_settings (key, value)
+      VALUES ('defaultSnoozeMinutes', '5');
+    `);
+
+    currentVersion = 2;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

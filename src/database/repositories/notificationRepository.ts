@@ -30,6 +30,36 @@ export function createNotificationRepository(db: NativeDB) {
     return rows.map(rowToNotification);
   }
 
+  async function getByDoseOccurrenceId(
+    doseOccurrenceId: string
+  ): Promise<ReminderNotification | null> {
+    const rows = await db.getAllAsync(
+      "SELECT * FROM notification_mappings WHERE dose_occurrence_id = ?",
+      doseOccurrenceId
+    );
+    return rows.length > 0 ? rowToNotification(rows[0]) : null;
+  }
+
+  async function removeByDoseOccurrenceId(
+    doseOccurrenceId: string
+  ): Promise<void> {
+    await db.runAsync(
+      "DELETE FROM notification_mappings WHERE dose_occurrence_id = ?",
+      doseOccurrenceId
+    );
+  }
+
+  async function update(
+    notification: ReminderNotification
+  ): Promise<void> {
+    await db.runAsync(
+      `UPDATE notification_mappings SET notification_id = ?, scheduled_for = ? WHERE id = ?`,
+      notification.notificationId,
+      notification.scheduledFor,
+      notification.id
+    );
+  }
+
   async function create(
     notification: ReminderNotification
   ): Promise<void> {
@@ -68,8 +98,11 @@ export function createNotificationRepository(db: NativeDB) {
   return {
     getAll,
     getByMedicationId,
+    getByDoseOccurrenceId,
+    removeByDoseOccurrenceId,
     create,
     remove,
+    update,
     removeByMedicationId,
     removeAll,
   };

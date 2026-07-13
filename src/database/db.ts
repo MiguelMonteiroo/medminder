@@ -3,6 +3,7 @@ import { createScheduleRepository } from "./repositories/scheduleRepository";
 import { createDoseLogRepository } from "./repositories/doseLogRepository";
 import { createNotificationRepository } from "./repositories/notificationRepository";
 import { createSettingsRepository } from "./repositories/settingsRepository";
+import { createReminderArtifactRepository } from "./repositories/reminderArtifactRepository";
 import type { NativeDB } from "./nativeDb";
 
 export function createRepositories(db: NativeDB) {
@@ -12,6 +13,7 @@ export function createRepositories(db: NativeDB) {
     doseLogs: createDoseLogRepository(db),
     notifications: createNotificationRepository(db),
     settings: createSettingsRepository(db),
+    reminderArtifacts: createReminderArtifactRepository(db),
   };
 }
 

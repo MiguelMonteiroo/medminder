@@ -8,7 +8,7 @@ import {
 
 function getDayOfWeek(dateString: string): number {
   const date = new Date(dateString + "T12:00:00");
-  return date.getDay() === 0 ? 7 : date.getDay();
+  return date.getDay();
 }
 
 function isDateInRange(
@@ -27,28 +27,44 @@ function generateIntervalOccurrences(
   date: string
 ): DoseOccurrence[] {
   const occurrences: DoseOccurrence[] = [];
-  const startTimeParts = schedule.times[0]?.split(":").map(Number) || [8, 0];
-  const startMinutes = startTimeParts[0] * 60 + startTimeParts[1];
-  const intervalMinutes = schedule.intervalHours * 60;
-  const dayMinutes = 24 * 60;
+  const fallbackAnchorDate = schedule.startDate || date;
+  const anchor = new Date(
+    schedule.anchorAt || `${fallbackAnchorDate}T${schedule.times[0] || "08:00"}:00`
+  );
+  const intervalMs = schedule.intervalHours * 60 * 60 * 1000;
+  const dayStart = new Date(`${date}T00:00:00`);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
 
-  let currentMinute = startMinutes;
-  let index = 0;
+  if (!Number.isFinite(anchor.getTime()) || intervalMs <= 0) return [];
 
-  while (currentMinute < dayMinutes) {
-    const hours = Math.floor(currentMinute / 60)
-      .toString()
-      .padStart(2, "0");
-    const minutes = (currentMinute % 60).toString().padStart(2, "0");
+  const firstIndex = Math.max(
+    0,
+    Math.ceil((dayStart.getTime() - anchor.getTime()) / intervalMs)
+  );
+
+  for (
+    let sequence = firstIndex;
+    anchor.getTime() + sequence * intervalMs < dayEnd.getTime();
+    sequence++
+  ) {
+    const occurrenceDate = new Date(anchor.getTime() + sequence * intervalMs);
+    if (occurrenceDate.getTime() < dayStart.getTime()) continue;
+
+    const occurrenceDateString = `${occurrenceDate.getFullYear()}-${String(
+      occurrenceDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(occurrenceDate.getDate()).padStart(2, "0")}`;
+    if (occurrenceDateString !== date) continue;
+
+    const hours = String(occurrenceDate.getHours()).padStart(2, "0");
+    const minutes = String(occurrenceDate.getMinutes()).padStart(2, "0");
     occurrences.push({
-      id: `${medication.id}-${schedule.id}-${date}-${index}`,
+      id: `${medication.id}-${schedule.id}-${date}-${occurrences.length}`,
       medicationId: medication.id,
       scheduleId: schedule.id,
       scheduledAt: `${date}T${hours}:${minutes}:00`,
       status: "pending",
     });
-    currentMinute += intervalMinutes;
-    index++;
   }
 
   return occurrences;
@@ -83,23 +99,35 @@ export function generateDoseOccurrencesForDate(
 
 export function resolveDoseStatus(
   doseOccurrenceId: string,
-  logs: DoseLog[]
+  logs: DoseLog[],
+  scheduledAt?: string,
+  now = new Date()
 ): DoseStatus {
   const relevantLogs = logs.filter(
     (log) => log.doseOccurrenceId === doseOccurrenceId
   );
 
-  if (relevantLogs.length === 0) return "pending";
+  const unresolvedStatus = (): DoseStatus => {
+    if (!scheduledAt) return "pending";
+    const scheduledDate = scheduledAt.slice(0, 10);
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(now.getDate()).padStart(2, "0")}`;
+    return scheduledDate < today ? "unrecorded" : "pending";
+  };
+
+  if (relevantLogs.length === 0) return unresolvedStatus();
 
   const latestLog = [...relevantLogs].sort((a, b) =>
     a.actionAt.localeCompare(b.actionAt)
   )[relevantLogs.length - 1];
 
-  if (latestLog.action === "undone") return "pending";
+  if (latestLog.action === "undone") return unresolvedStatus();
   if (latestLog.action === "snoozed") {
     const snoozedUntil = new Date(latestLog.snoozedUntil).getTime();
     if (snoozedUntil > Date.now()) return "snoozed";
-    return "pending";
+    return unresolvedStatus();
   }
 
   if (latestLog.action === "taken") return "taken";
@@ -127,7 +155,7 @@ export function getTodayDoseViewModel(
         date
       );
       for (const occ of occurrences) {
-        occ.status = resolveDoseStatus(occ.id, logs);
+        occ.status = resolveDoseStatus(occ.id, logs, occ.scheduledAt);
       }
       allOccurrences.push(...occurrences);
     }
@@ -144,7 +172,7 @@ export interface AdherenceSummary {
   taken: number;
   pending: number;
   skipped: number;
-  missed: number;
+  unrecorded: number;
   snoozed: number;
 }
 
@@ -156,7 +184,7 @@ export function getAdherenceSummary(
     taken: 0,
     pending: 0,
     skipped: 0,
-    missed: 0,
+    unrecorded: 0,
     snoozed: 0,
   };
 
@@ -164,7 +192,7 @@ export function getAdherenceSummary(
     if (occ.status === "taken") summary.taken++;
     else if (occ.status === "pending") summary.pending++;
     else if (occ.status === "skipped") summary.skipped++;
-    else if (occ.status === "missed") summary.missed++;
+    else if (occ.status === "unrecorded") summary.unrecorded++;
     else if (occ.status === "snoozed") summary.snoozed++;
   }
 

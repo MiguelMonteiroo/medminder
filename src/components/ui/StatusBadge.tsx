@@ -17,7 +17,7 @@ const LABELS: Record<BadgeStatus, string> = {
   taken: "Tomada",
   skipped: "Pulada",
   snoozed: "Adiada",
-  missed: "Perdida",
+  unrecorded: "Não registrada",
   active: "Ativo",
   paused: "Pausado",
 };
@@ -27,7 +27,7 @@ const ICON_COLORS: Record<BadgeStatus, string> = {
   taken: colors.success,
   skipped: colors.danger,
   snoozed: colors.info,
-  missed: colors.danger,
+  unrecorded: colors.danger,
   active: colors.success,
   paused: colors.warning,
 };
@@ -87,10 +87,10 @@ const styles = StyleSheet.create({
   snoozedText: {
     color: colors.info,
   },
-  missed: {
+  unrecorded: {
     backgroundColor: colors.dangerSoft,
   },
-  missedText: {
+  unrecordedText: {
     color: colors.danger,
   },
   active: {

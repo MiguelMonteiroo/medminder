@@ -81,6 +81,7 @@ export function HomeScreen({ navigation }: Props) {
     setDoseTaken,
     skipDose,
     snoozeDose,
+    snoozeMinutes,
   } = useAppData();
 
   if (loading) {
@@ -136,6 +137,7 @@ export function HomeScreen({ navigation }: Props) {
         time={getOccurrenceTime(occurrence)}
         name={medication.name}
         dosage={medication.dosage}
+        snoozeMinutes={snoozeMinutes}
         onTake={() =>
           setDoseTaken(
             occurrence.id,

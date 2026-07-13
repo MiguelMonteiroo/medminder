@@ -7,8 +7,8 @@ import React, {
   useRef,
 } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { NativeDB, openDatabase } from "./nativeDb";
-import { migrateDbIfNeeded } from "./migrations";
+import { NativeDB } from "./nativeDb";
+import { openAppDatabase, resetAppDatabaseForRetry } from "./openAppDatabase";
 
 interface DatabaseContextValue {
   db: NativeDB | null;
@@ -45,8 +45,8 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const initialize = useCallback(async () => {
     try {
       setState({ db: null, initialized: false, error: null });
-      const db = await openDatabase("medminder.db");
-      await migrateDbIfNeeded(db);
+      resetAppDatabaseForRetry();
+      const db = await openAppDatabase();
       setState({ db, initialized: true, error: null });
     } catch (e: any) {
       setState({
