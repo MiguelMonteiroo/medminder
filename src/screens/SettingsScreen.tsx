@@ -52,12 +52,20 @@ export function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(settings.userName);
+  const [alarmTestMessage, setAlarmTestMessage] = useState("");
   const [permissionState, setPermissionState] =
     useState<ReminderPermissionState | null>(null);
 
   useEffect(() => {
     setNameDraft(settings.userName);
   }, [settings.userName]);
+
+  useEffect(() => {
+    if (!alarmTestMessage) return;
+
+    const timer = setTimeout(() => setAlarmTestMessage(""), 8_000);
+    return () => clearTimeout(timer);
+  }, [alarmTestMessage]);
 
   useEffect(() => {
     async function check() {
@@ -120,6 +128,7 @@ export function SettingsScreen() {
   }
 
   async function handleAlarmTest() {
+    setAlarmTestMessage("");
     const readiness = await getReminderPermissionState();
     setPermissionState(readiness);
     if (readiness.notifications !== "granted") {
@@ -130,9 +139,8 @@ export function SettingsScreen() {
       return;
     }
     await runAlarmTest();
-    Alert.alert(
-      "Teste agendado",
-      "O alarme de teste será exibido em cinco segundos."
+    setAlarmTestMessage(
+      "Teste agendado. Bloqueie a tela agora; o alarme aparecerá em cinco segundos."
     );
   }
 
@@ -273,6 +281,19 @@ export function SettingsScreen() {
               variant="ghost"
             />
           ) : null}
+          {settings.fullScreenAlarmEnabled ? (
+            <AppText variant="small" muted style={styles.permissionExplanation}>
+              {permissionState?.fullScreen === "denied"
+                ? "A preferência está ligada no MedMinder, mas o Android ainda precisa autorizar a tela cheia."
+                : permissionState?.fullScreen === "unsupported"
+                  ? "Este Android não exige uma autorização separada."
+                  : "Preferência e autorização do Android estão ativas."}
+            </AppText>
+          ) : (
+            <AppText variant="small" muted>
+              Ative para solicitar uma tela de alarme quando o aparelho estiver bloqueado.
+            </AppText>
+          )}
         </AppCard>
 
         <AppCard style={styles.card}>
@@ -327,6 +348,15 @@ export function SettingsScreen() {
           title="Testar alarme"
           variant="secondary"
         />
+        {alarmTestMessage ? (
+          <AppText
+            accessibilityLiveRegion="polite"
+            style={styles.alarmTestMessage}
+            variant="small"
+          >
+            {alarmTestMessage}
+          </AppText>
+        ) : null}
 
         <AppCard style={styles.card}>
           <View style={styles.cardHeader}>
@@ -478,6 +508,9 @@ const styles = StyleSheet.create({
   hint: {
     marginTop: spacing.xs,
   },
+  permissionExplanation: {
+    marginTop: spacing.sm,
+  },
   deniedState: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
@@ -495,6 +528,10 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   testButton: {
+    marginBottom: spacing.sm,
+  },
+  alarmTestMessage: {
+    color: colors.primaryDark,
     marginBottom: spacing.lg,
   },
 });

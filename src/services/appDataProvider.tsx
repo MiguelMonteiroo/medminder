@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { AppState } from "react-native";
 import { useDatabase } from "../database/DatabaseProvider";
 import {
@@ -14,8 +21,13 @@ import { createDoseLogRepository, DoseLogRepository } from "../database/reposito
 import { createSettingsRepository, SettingsRepository } from "../database/repositories/settingsRepository";
 import { createDoseService, DoseService } from "./doseService";
 import { createReminderScheduler } from "./reminderScheduler";
-import { getNotificationPermissionStatus, ensureChannelCreated } from "./notificationPermissionService";
+import {
+  ensureChannelCreated,
+  getNotificationPermissionStatus,
+  getReminderPermissionState,
+} from "./notificationPermissionService";
 import { reconcileNotifications } from "./reminderSyncService";
+import { createReminderPermissionMonitor } from "./reminders/reminderPermissionMonitor";
 import { createRepositories } from "../database/db";
 import {
   generateDoseOccurrencesForDate,
@@ -121,6 +133,24 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const repos = createRepositories(db);
   const doseSvc = createDoseService(repos.doseLogs);
   const reminderScheduler = createReminderScheduler(repos.reminderArtifacts);
+  const permissionMonitor = useRef<
+    ReturnType<typeof createReminderPermissionMonitor> | undefined
+  >(undefined);
+  if (!permissionMonitor.current) {
+    permissionMonitor.current = createReminderPermissionMonitor({
+      readState: getReminderPermissionState,
+      onCapabilitiesChanged: async () => {
+        await reminderScheduler.cancelAll();
+        await reconcileNotifications(
+          repos.reminderArtifacts,
+          repos.medications,
+          repos.schedules,
+          repos.settings,
+          reminderScheduler
+        );
+      },
+    });
+  }
   const today = getTodayString();
 
   const loadData = useCallback(async () => {
@@ -159,12 +189,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    permissionMonitor.current?.refresh().catch(() => undefined);
     loadData();
   }, [loadData]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") loadData();
+      if (state === "active") {
+        permissionMonitor.current
+          ?.refresh()
+          .catch(() => undefined)
+          .finally(loadData);
+      }
     });
     return () => subscription.remove();
   }, [loadData]);

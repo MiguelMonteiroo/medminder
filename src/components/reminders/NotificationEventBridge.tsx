@@ -6,6 +6,7 @@ import {
   type DoseAlarmPayload,
 } from "../../screens/DoseAlarmScreen";
 import { handleNotifeeEvent } from "../../services/reminders/notificationEventHandler";
+import { shouldPresentAlarmScreen } from "../../services/reminders/notificationPresentation";
 
 export function NotificationEventBridge() {
   const [alarm, setAlarm] = useState<DoseAlarmPayload | null>(null);
@@ -15,7 +16,7 @@ export function NotificationEventBridge() {
       if (event.type === EventType.DELIVERED && event.detail.notification) {
         const notification = event.detail.notification;
         const kind = notification.data?.artifactKind;
-        if (kind === "doseAlarm" || kind === "snoozedAlarm") {
+        if (shouldPresentAlarmScreen(kind)) {
           setAlarm({
             notificationId: notification.id || "",
             title: notification.title || "Hora do medicamento",

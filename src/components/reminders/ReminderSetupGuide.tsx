@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AppState, Modal, Pressable, StyleSheet, View } from "react-native";
 import { AlarmClockCheck, BellRing, Maximize2, X } from "lucide-react-native";
 import { useAppData } from "../../services/appDataProvider";
 import {
@@ -41,6 +41,8 @@ export function ReminderSetupGuide() {
   } = useAppData();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [awaitingSettings, setAwaitingSettings] = useState(false);
+  const [permissionMessage, setPermissionMessage] = useState("");
   const visible = medications.length > 0 && !settings.reminderSetupCompleted;
   const current = STEPS[step];
   const Icon = current.icon;
@@ -49,25 +51,83 @@ export function ReminderSetupGuide() {
     await updateReminderSettings({ reminderSetupCompleted: true });
   }
 
+  useEffect(() => {
+    if (!awaitingSettings) return;
+
+    const subscription = AppState.addEventListener("change", async (state) => {
+      if (state !== "active") return;
+
+      const permissions = await getReminderPermissionState();
+      if (
+        step === 1 &&
+        (permissions.exactAlarms === "granted" ||
+          permissions.exactAlarms === "notRequired")
+      ) {
+        setAwaitingSettings(false);
+        setPermissionMessage("");
+        setStep(2);
+      } else if (
+        step === 2 &&
+        (permissions.fullScreen === "granted" ||
+          permissions.fullScreen === "unsupported")
+      ) {
+        setAwaitingSettings(false);
+        setPermissionMessage("");
+        await finish();
+      } else {
+        setAwaitingSettings(false);
+        setPermissionMessage(
+          "A autorização ainda não foi ativada. Você pode tentar novamente ou continuar sem ela."
+        );
+      }
+    });
+
+    return () => subscription.remove();
+  }, [awaitingSettings, step]);
+
   async function activate() {
     setBusy(true);
     try {
       if (step === 0) {
         const result = await requestNotificationPermission();
         await updateNotificationsEnabled(result.granted);
+        if (result.granted) {
+          setPermissionMessage("");
+          setStep(1);
+        } else {
+          setPermissionMessage(
+            "As notificações continuam desativadas. Autorize para receber os lembretes."
+          );
+        }
       } else if (step === 1) {
         const permissions = await getReminderPermissionState();
-        if (permissions.exactAlarms === "denied") await openExactAlarmSettings();
+        if (
+          permissions.exactAlarms === "granted" ||
+          permissions.exactAlarms === "notRequired"
+        ) {
+          setPermissionMessage("");
+          setStep(2);
+        } else {
+          setAwaitingSettings(true);
+          setPermissionMessage(
+            "Na próxima tela, permita que o MedMinder defina alarmes e lembretes."
+          );
+          await openExactAlarmSettings();
+        }
       } else {
         await updateReminderSettings({ fullScreenAlarmEnabled: true });
         const permissions = await getReminderPermissionState();
         if (permissions.fullScreen === "denied") {
+          setAwaitingSettings(true);
+          setPermissionMessage(
+            "Na próxima tela, permita que o MedMinder abra alarmes em tela cheia."
+          );
           await openFullScreenAlarmSettings();
+        } else {
+          setPermissionMessage("");
+          await finish();
         }
       }
-
-      if (step < STEPS.length - 1) setStep((value) => value + 1);
-      else await finish();
     } finally {
       setBusy(false);
     }
@@ -98,12 +158,23 @@ export function ReminderSetupGuide() {
           <AppText muted style={styles.description}>
             {current.description}
           </AppText>
+          {permissionMessage ? (
+            <AppText variant="small" style={styles.permissionMessage}>
+              {permissionMessage}
+            </AppText>
+          ) : null}
           <AppButton
             accessibilityLabel={`Ativar ${current.title.toLowerCase()}`}
             disabled={busy}
             onPress={activate}
             style={styles.action}
-            title={step === STEPS.length - 1 ? "Ativar e concluir" : "Ativar e continuar"}
+            title={
+              step === 0
+                ? "Permitir e continuar"
+                : step === 1
+                  ? "Abrir configurações"
+                  : "Permitir tela cheia"
+            }
           />
           <AppButton
             accessibilityLabel="Fazer esta configuração depois"
@@ -142,5 +213,9 @@ const styles = StyleSheet.create({
   },
   title: { color: colors.primaryDark, marginTop: spacing.xs },
   description: { marginTop: spacing.sm },
+  permissionMessage: {
+    color: colors.primaryDark,
+    marginTop: spacing.md,
+  },
   action: { marginBottom: spacing.sm, marginTop: spacing.xl },
 });

@@ -165,7 +165,7 @@ export function AddMedicationScreen({ navigation }: Props) {
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
-          <FieldLabel label="Apresentação" />
+          <FieldLabel label="Dosagem" />
           <TextInput
             value={dosage}
             onChangeText={setDosage}

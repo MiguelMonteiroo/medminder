@@ -4,6 +4,7 @@ import {
   NativeModules,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   View,
 } from "react-native";
@@ -17,6 +18,8 @@ import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 import type { NotificationActionId } from "../types/domain";
+
+const SYSTEM_NOTIFICATION_CLEARANCE = (StatusBar.currentHeight ?? 24) + 96;
 
 export type DoseAlarmPayload = {
   notificationId: string;
@@ -204,7 +207,14 @@ export function DoseAlarmScreen({ payload: initialPayload, embedded, onClose }: 
           </AppText>
         </View>
 
-        <AppText style={styles.time}>{isTest ? "Teste" : time}</AppText>
+        <AppText
+          adjustsFontSizeToFit
+          maxFontSizeMultiplier={1.2}
+          numberOfLines={1}
+          style={styles.time}
+        >
+          {isTest ? "Teste" : time}
+        </AppText>
         <AppText variant="title" style={styles.title}>
           {isTest ? "Teste de alarme" : "Hora dos medicamentos"}
         </AppText>
@@ -311,7 +321,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,
-    paddingTop: spacing.xl,
+    paddingTop: SYSTEM_NOTIFICATION_CLEARANCE,
   },
   brandRow: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
   brandIcon: {
@@ -327,8 +337,12 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     fontSize: 72,
     fontWeight: "800",
+    includeFontPadding: true,
+    lineHeight: 88,
     marginTop: spacing.xxl,
+    minHeight: 88,
     textAlign: "center",
+    textAlignVertical: "center",
   },
   title: { color: colors.primaryDark, marginTop: spacing.md, textAlign: "center" },
   subtitle: { marginTop: spacing.sm, textAlign: "center" },
