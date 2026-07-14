@@ -1,5 +1,4 @@
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ArrowLeft, CalendarDays, CheckCircle2, FileText } from "lucide-react-native";
@@ -10,8 +9,6 @@ import { CareDetailHeroCard } from "../components/CareDetailHeroCard";
 import { IconButton } from "../components/ui/IconButton";
 import { Screen } from "../components/ui/Screen";
 import { StatusBadge } from "../components/ui/StatusBadge";
-import { useDatabase } from "../database/DatabaseProvider";
-import { createDoseLogRepository } from "../database/repositories/doseLogRepository";
 import { RootStackParamList } from "../navigation/types";
 import { useAppData } from "../services/appDataProvider";
 import { DoseLog } from "../types/domain";
@@ -22,22 +19,19 @@ type Props = NativeStackScreenProps<RootStackParamList, "MedicationDetail">;
 
 export function MedicationDetailScreen({ route, navigation }: Props) {
   const { medicationId } = route.params;
-  const { medications, schedules, removeMedication, setMedicationPaused } =
-    useAppData();
-  const db = useDatabase();
-  const [logs, setLogs] = useState<DoseLog[]>([]);
+  const {
+    medications,
+    schedules,
+    doseLogs,
+    removeMedication,
+    setMedicationPaused,
+  } = useAppData();
 
   const medication = medications.find((m) => m.id === medicationId);
   const medSchedules = schedules.filter((s) => s.medicationId === medicationId);
-
-  useEffect(() => {
-    async function loadLogs() {
-      const repo = createDoseLogRepository(db);
-      const allLogs = await repo.getAll();
-      setLogs(allLogs.filter((log) => log.medicationId === medicationId).slice(0, 3));
-    }
-    loadLogs();
-  }, [db, medicationId]);
+  const logs = doseLogs
+    .filter((log) => log.medicationId === medicationId)
+    .slice(0, 3);
 
   if (!medication) {
     return (
@@ -49,7 +43,8 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  const firstSchedule = medSchedules[0];
+  const firstSchedule =
+    medSchedules.find((schedule) => schedule.isActive) || medSchedules[0];
   const paused = medication.isPaused;
   const medicationName = medication.name;
 

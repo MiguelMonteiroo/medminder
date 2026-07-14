@@ -7,9 +7,11 @@ import {
 } from "../../screens/DoseAlarmScreen";
 import { handleNotifeeEvent } from "../../services/reminders/notificationEventHandler";
 import { shouldPresentAlarmScreen } from "../../services/reminders/notificationPresentation";
+import { useAppData } from "../../services/appDataProvider";
 
 export function NotificationEventBridge() {
   const [alarm, setAlarm] = useState<DoseAlarmPayload | null>(null);
+  const { refreshDoseLogs } = useAppData();
 
   useEffect(() =>
     notifee.onForegroundEvent(async (event) => {
@@ -25,8 +27,14 @@ export function NotificationEventBridge() {
           });
         }
       }
-      await handleNotifeeEvent(event);
-    }), []);
+      try {
+        await handleNotifeeEvent(event);
+      } finally {
+        if (event.type === EventType.ACTION_PRESS) {
+          await refreshDoseLogs().catch(() => undefined);
+        }
+      }
+    }), [refreshDoseLogs]);
 
   return (
     <Modal
@@ -37,6 +45,7 @@ export function NotificationEventBridge() {
     >
       <DoseAlarmScreen
         embedded
+        onDoseAction={refreshDoseLogs}
         onClose={() => setAlarm(null)}
         payload={alarm}
       />

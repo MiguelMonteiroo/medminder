@@ -22,7 +22,9 @@ export function createScheduleRepository(db: NativeDB) {
     medicationId: string
   ): Promise<MedicationSchedule[]> {
     const rows = await db.getAllAsync(
-      "SELECT * FROM medication_schedules WHERE medication_id = ? ORDER BY id",
+      `SELECT * FROM medication_schedules
+       WHERE medication_id = ?
+       ORDER BY is_active DESC, id`,
       medicationId
     );
     return rows.map(rowToSchedule);
@@ -30,7 +32,8 @@ export function createScheduleRepository(db: NativeDB) {
 
   async function getAll(): Promise<MedicationSchedule[]> {
     const rows = await db.getAllAsync(
-      "SELECT * FROM medication_schedules ORDER BY id"
+      `SELECT * FROM medication_schedules
+       ORDER BY medication_id, is_active DESC, id`
     );
     return rows.map(rowToSchedule);
   }
@@ -92,6 +95,19 @@ export function createScheduleRepository(db: NativeDB) {
     );
   }
 
+  async function deactivateOthers(
+    medicationId: string,
+    activeScheduleId: string
+  ): Promise<void> {
+    await db.runAsync(
+      `UPDATE medication_schedules
+       SET is_active = 0
+       WHERE medication_id = ? AND id <> ? AND is_active = 1`,
+      medicationId,
+      activeScheduleId
+    );
+  }
+
   return {
     getByMedicationId,
     getAll,
@@ -100,6 +116,7 @@ export function createScheduleRepository(db: NativeDB) {
     update,
     remove,
     removeByMedicationId,
+    deactivateOthers,
   };
 }
 

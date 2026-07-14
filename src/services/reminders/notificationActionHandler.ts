@@ -107,7 +107,10 @@ export async function processNotificationAction(
     const created = await dependencies.appendLog(
       actionLog(command, "taken", actionAt)
     );
-    if (!created) return { status: "duplicate" };
+    if (!created) {
+      await dependencies.cancelOccurrence(command.doseOccurrenceId);
+      return { status: "duplicate" };
+    }
 
     const occurrence = occurrenceFromCommand(command);
     await dependencies.cancelOccurrence(command.doseOccurrenceId);
@@ -133,6 +136,23 @@ export async function processNotificationAction(
 
   if (command.actionId === "snooze-five") {
     const logs = await dependencies.getLogs(command.doseOccurrenceId);
+    const existingCommand = logs.find(
+      (log) =>
+        log.commandId === command.commandId &&
+        log.action === "snoozed" &&
+        log.snoozedUntil
+    );
+    if (existingCommand) {
+      await dependencies.cancelOccurrence(command.doseOccurrenceId);
+      const settings = await dependencies.getSettings();
+      await dependencies.scheduleSnoozed(
+        occurrenceFromCommand(command, existingCommand.snoozedUntil),
+        medication,
+        schedule,
+        settings
+      );
+      return { status: "duplicate" };
+    }
     const snoozeCount = logs.filter((log) => log.action === "snoozed").length;
     if (snoozeCount >= 3) {
       return { status: "snooze-limit", snoozeCount };

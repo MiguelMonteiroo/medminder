@@ -52,7 +52,10 @@ export function MedicationsScreen({ navigation }: Props) {
           />
         ) : (
           medications.map((medication) => {
-            const schedule = schedules.find((s) => s.medicationId === medication.id);
+            const schedule = schedules.find(
+              (candidate) =>
+                candidate.medicationId === medication.id && candidate.isActive
+            );
             return (
               <Pressable
                 key={medication.id}

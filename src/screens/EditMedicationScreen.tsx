@@ -43,7 +43,11 @@ export function EditMedicationScreen({ route, navigation }: Props) {
   const { medications, schedules, updateMedicationWithSchedule } = useAppData();
 
   const medication = medications.find((m) => m.id === medicationId);
-  const existingSchedule = schedules.find((s) => s.medicationId === medicationId);
+  const existingSchedule =
+    schedules.find(
+      (schedule) =>
+        schedule.medicationId === medicationId && schedule.isActive
+    ) || schedules.find((schedule) => schedule.medicationId === medicationId);
 
   const [name, setName] = useState(medication?.name ?? "");
   const [dosage, setDosage] = useState(medication?.dosage === "Sem dosagem" ? "" : (medication?.dosage ?? ""));

@@ -182,9 +182,7 @@ export function createReminderScheduler(
         );
         if (hasAnotherDose) continue;
       }
-      await notifee.cancelNotification(artifact.notificationId).catch(
-        () => undefined
-      );
+      await notifee.cancelNotification(artifact.notificationId);
       await artifactRepo.remove(artifact.id);
     }
   }
@@ -204,9 +202,7 @@ export function createReminderScheduler(
         );
         if (hasAnotherMedication) continue;
       }
-      await notifee.cancelNotification(artifact.notificationId).catch(
-        () => undefined
-      );
+      await notifee.cancelNotification(artifact.notificationId);
       await artifactRepo.remove(artifact.id);
     }
   }

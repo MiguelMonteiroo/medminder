@@ -6,9 +6,16 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { Database, RefreshCw } from "lucide-react-native";
 import { NativeDB } from "./nativeDb";
 import { openAppDatabase, resetAppDatabaseForRetry } from "./openAppDatabase";
+import { AppButton } from "../components/ui/AppButton";
+import { AppCard } from "../components/ui/AppCard";
+import { AppText } from "../components/ui/AppText";
+import { Screen } from "../components/ui/Screen";
+import { colors } from "../theme/colors";
+import { spacing } from "../theme/spacing";
 
 interface DatabaseContextValue {
   db: NativeDB | null;
@@ -65,23 +72,43 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   if (state.error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Nao foi possivel abrir o banco</Text>
-        <Text style={styles.errorMessage}>{state.error}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Tentar inicializar o banco novamente"
+      <Screen style={styles.centeredScreen}>
+        <AppCard accessibilityRole="alert" style={styles.statusCard}>
+          <View style={styles.iconContainer}>
+            <Database color={colors.primaryDark} size={30} strokeWidth={2} />
+          </View>
+          <AppText variant="heading" style={styles.statusTitle}>
+            Não foi possível acessar seus dados
+          </AppText>
+          <AppText muted style={styles.statusMessage}>
+            Nada foi apagado. Tente abrir o armazenamento do MedMinder
+            novamente.
+          </AppText>
+          <AppButton
+            accessibilityLabel="Tentar abrir os dados novamente"
+            accessibilityHint="Repete a inicialização do armazenamento local"
+            icon={RefreshCw}
+            title="Tentar novamente"
           onPress={initialize}
-          style={styles.retryButton}
-        >
-          <Text style={styles.retryButtonText}>Tentar novamente</Text>
-        </Pressable>
-      </View>
+          />
+        </AppCard>
+      </Screen>
     );
   }
 
   if (!state.initialized) {
-    return null;
+    return (
+      <Screen style={styles.centeredScreen}>
+        <View
+          accessibilityLabel="Preparando seus dados"
+          accessibilityRole="progressbar"
+          style={styles.loadingContent}
+        >
+          <ActivityIndicator color={colors.primaryDark} size="large" />
+          <AppText muted>Preparando seus dados...</AppText>
+        </View>
+      </Screen>
+    );
   }
 
   return (
@@ -92,36 +119,32 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  errorContainer: {
-    flex: 1,
+  centeredScreen: {
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#F8F4EF",
   },
-  errorTitle: {
-    color: "#241F1A",
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 8,
+  statusCard: {
+    alignSelf: "center",
+    maxWidth: 440,
+    width: "100%",
   },
-  errorMessage: {
-    color: "#5F554B",
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  retryButton: {
+  iconContainer: {
     alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "#D96C3F",
+    backgroundColor: colors.primarySoft,
     borderRadius: 8,
-    minHeight: 44,
+    height: 52,
     justifyContent: "center",
-    paddingHorizontal: 18,
+    marginBottom: spacing.lg,
+    width: 52,
   },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
+  statusTitle: {
+    color: colors.primaryDark,
+    marginBottom: spacing.sm,
+  },
+  statusMessage: {
+    marginBottom: spacing.xl,
+  },
+  loadingContent: {
+    alignItems: "center",
+    gap: spacing.md,
   },
 });

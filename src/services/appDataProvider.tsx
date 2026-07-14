@@ -15,10 +15,6 @@ import {
   DoseOccurrence,
   ReminderSettings,
 } from "../types/domain";
-import { createMedicationRepository, MedicationRepository } from "../database/repositories/medicationRepository";
-import { createScheduleRepository, ScheduleRepository } from "../database/repositories/scheduleRepository";
-import { createDoseLogRepository, DoseLogRepository } from "../database/repositories/doseLogRepository";
-import { createSettingsRepository, SettingsRepository } from "../database/repositories/settingsRepository";
 import { createDoseService, DoseService } from "./doseService";
 import { createReminderScheduler } from "./reminderScheduler";
 import {
@@ -29,6 +25,7 @@ import {
 import { reconcileNotifications } from "./reminderSyncService";
 import { createReminderPermissionMonitor } from "./reminders/reminderPermissionMonitor";
 import { createRepositories } from "../database/db";
+import { createMedicationPersistenceService } from "./medicationPersistenceService";
 import {
   generateDoseOccurrencesForDate,
   getTodayDoseViewModel,
@@ -39,10 +36,14 @@ import { validateMedicationName, validateTimeHHMM, normalizeMedicationInput } fr
 interface AppDataContextValue {
   medications: Medication[];
   schedules: MedicationSchedule[];
+  doseLogs: DoseLog[];
   todayOccurrences: DoseOccurrence[];
   todaySummary: AdherenceSummary;
   loading: boolean;
   error: string | null;
+  retryLoadingData: () => Promise<void>;
+  refreshDoseLogs: () => Promise<void>;
+  reminderSyncPending: boolean;
   settings: ReminderSettings;
   addMedication: (name: string, dosage: string, time: string, notes: string, scheduleKind?: string, intervalHours?: number, weekdays?: number[]) => Promise<void>;
   removeMedication: (id: string) => Promise<void>;
@@ -81,10 +82,14 @@ const DEFAULT_SETTINGS: ReminderSettings = {
 const AppDataContext = createContext<AppDataContextValue>({
   medications: [],
   schedules: [],
+  doseLogs: [],
   todayOccurrences: [],
   todaySummary: { total: 0, taken: 0, pending: 0, skipped: 0, unrecorded: 0, snoozed: 0 },
   loading: true,
   error: null,
+  retryLoadingData: async () => {},
+  refreshDoseLogs: async () => {},
+  reminderSyncPending: false,
   settings: DEFAULT_SETTINGS,
   addMedication: async () => {},
   removeMedication: async () => {},
@@ -129,8 +134,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reminderSyncPending, setReminderSyncPending] = useState(false);
 
   const repos = createRepositories(db);
+  const medicationPersistence = createMedicationPersistenceService(db);
   const doseSvc = createDoseService(repos.doseLogs);
   const reminderScheduler = createReminderScheduler(repos.reminderArtifacts);
   const permissionMonitor = useRef<
@@ -181,11 +188,21 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         repos.settings,
         reminderScheduler
       );
-    } catch (e: any) {
-      setError(e?.message || "Erro ao carregar dados.");
+      setReminderSyncPending(false);
+    } catch {
+      setError("Não foi possível carregar sua rotina.");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const retryLoadingData = useCallback(async () => {
+    setLoading(true);
+    await loadData();
+  }, [loadData]);
+
+  const refreshDoseLogs = useCallback(async () => {
+    setLogs(await repos.doseLogs.getAll());
   }, []);
 
   useEffect(() => {
@@ -303,26 +320,37 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         isActive: true,
       };
 
-      await Promise.all([
-        repos.medications.create(medication),
-        repos.schedules.create(schedule),
-      ]);
+      await medicationPersistence.createWithSchedule(medication, schedule);
 
       setMedications((prev) => [...prev, medication]);
       setSchedules((prev) => [...prev, schedule]);
-      await scheduleMedicationNotifications(medication, schedule);
+      try {
+        await scheduleMedicationNotifications(medication, schedule);
+        setReminderSyncPending(false);
+      } catch {
+        try {
+          await reconcileNotifications(
+            repos.reminderArtifacts,
+            repos.medications,
+            repos.schedules,
+            repos.settings,
+            reminderScheduler
+          );
+          setReminderSyncPending(false);
+        } catch {
+          setReminderSyncPending(true);
+        }
+      }
     },
     [scheduleMedicationNotifications, settings.defaultSnoozeMinutes]
   );
 
   const removeMedication = useCallback(async (id: string) => {
     await reminderScheduler.cancelForMedication(id);
-    await Promise.all([
-      repos.schedules.removeByMedicationId(id),
-      repos.medications.remove(id),
-    ]);
+    await medicationPersistence.remove(id);
     setMedications((prev) => prev.filter((m) => m.id !== id));
     setSchedules((prev) => prev.filter((s) => s.medicationId !== id));
+    setLogs((prev) => prev.filter((log) => log.medicationId !== id));
   }, []);
 
   const setMedicationPaused = useCallback(
@@ -334,7 +362,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       await repos.medications.update(updated);
       setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
       if (!paused) {
-        const schedule = schedules.find((s) => s.medicationId === medicationId);
+        const schedule = schedules.find(
+          (candidate) =>
+            candidate.medicationId === medicationId && candidate.isActive
+        );
         if (schedule) await scheduleMedicationNotifications(updated, schedule);
       }
     },
@@ -350,8 +381,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         await doseSvc.markDoseTaken(occurrenceId, medicationId, scheduleId, now);
         await reminderScheduler.cancelSingle(occurrenceId);
       }
-      const doseLogs = await repos.doseLogs.getAll();
-      setLogs(doseLogs);
+      await refreshDoseLogs();
     },
     []
   );
@@ -361,8 +391,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       await doseSvc.skipDose(occurrenceId, medicationId, scheduleId, now);
       await reminderScheduler.cancelSingle(occurrenceId);
-      const doseLogs = await repos.doseLogs.getAll();
-      setLogs(doseLogs);
+      await refreshDoseLogs();
     },
     []
   );
@@ -410,8 +439,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         snoozedUntil.toISOString()
       );
 
-      const doseLogs = await repos.doseLogs.getAll();
-      setLogs(doseLogs);
+      await refreshDoseLogs();
     },
     [settings.defaultSnoozeMinutes, medications, schedules]
   );
@@ -440,17 +468,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         updatedAt: now,
       };
 
-      await reminderScheduler.cancelForMedication(medicationId);
-      await repos.medications.update(updated);
-      setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
-
-      const existingSchedule = schedules.find(
-        (s) => s.medicationId === medicationId
+      const medicationSchedules = schedules.filter(
+        (schedule) => schedule.medicationId === medicationId
       );
+      const existingSchedule =
+        medicationSchedules.find((schedule) => schedule.isActive) ||
+        medicationSchedules[0];
       const kind = (scheduleKind as MedicationSchedule["kind"]) || existingSchedule?.kind || "dailyTimes";
 
+      let persistedSchedule: MedicationSchedule;
       if (existingSchedule) {
-        const updatedSchedule: MedicationSchedule = {
+        persistedSchedule = {
           ...existingSchedule,
           kind,
           times: time ? [time] : existingSchedule.times,
@@ -462,12 +490,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               : kind === "intervalHours"
                 ? existingSchedule.anchorAt
                 : "",
+          isActive: true,
         };
-        await repos.schedules.update(updatedSchedule);
-        setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
-        await scheduleMedicationNotifications(updated, updatedSchedule);
       } else {
-        const newSchedule: MedicationSchedule = {
+        persistedSchedule = {
           id: `sched-${Date.now()}`,
           medicationId,
           kind,
@@ -480,9 +506,29 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           snoozeMinutes: settings.defaultSnoozeMinutes,
           isActive: true,
         };
-        await repos.schedules.create(newSchedule);
-        setSchedules((prev) => [...prev, newSchedule]);
-        await scheduleMedicationNotifications(updated, newSchedule);
+      }
+
+      await medicationPersistence.updateWithSchedule(updated, persistedSchedule);
+      setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
+      setSchedules(await repos.schedules.getAll());
+
+      try {
+        await reminderScheduler.cancelForMedication(medicationId);
+        await scheduleMedicationNotifications(updated, persistedSchedule);
+        setReminderSyncPending(false);
+      } catch {
+        try {
+          await reconcileNotifications(
+            repos.reminderArtifacts,
+            repos.medications,
+            repos.schedules,
+            repos.settings,
+            reminderScheduler
+          );
+          setReminderSyncPending(false);
+        } catch {
+          setReminderSyncPending(true);
+        }
       }
     },
     [medications, schedules, scheduleMedicationNotifications, settings.defaultSnoozeMinutes]
@@ -538,10 +584,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       value={{
         medications,
         schedules,
+        doseLogs: logs,
         todayOccurrences: todayData.occurrences,
         todaySummary: todayData.summary,
         loading,
         error,
+        retryLoadingData,
+        refreshDoseLogs,
+        reminderSyncPending,
         settings,
         addMedication,
         removeMedication,

@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "reac
 import { CompositeScreenProps } from "@react-navigation/native";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { CheckCircle2, ChevronRight, Pill } from "lucide-react-native";
+import { CheckCircle2, ChevronRight, Pill, RefreshCw } from "lucide-react-native";
 import { CareCompletedDoseRow } from "../components/CareCompletedDoseRow";
 import { CareDoseActionCard } from "../components/CareDoseActionCard";
 import { CareHeader } from "../components/CareHeader";
@@ -12,6 +12,7 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { Screen } from "../components/ui/Screen";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { AppText } from "../components/ui/AppText";
+import { AppButton } from "../components/ui/AppButton";
 import { useAppData } from "../services/appDataProvider";
 import { RootStackParamList, RootTabParamList } from "../navigation/types";
 import { DoseOccurrence } from "../types/domain";
@@ -78,6 +79,7 @@ export function HomeScreen({ navigation }: Props) {
     settings,
     loading,
     error,
+    retryLoadingData,
     setDoseTaken,
     skipDose,
     snoozeDose,
@@ -102,8 +104,15 @@ export function HomeScreen({ navigation }: Props) {
           Não foi possível carregar seus dados.
         </AppText>
         <AppText muted style={styles.centerText}>
-          {error}
+          Nada foi apagado. Tente carregar sua rotina novamente.
         </AppText>
+        <AppButton
+          accessibilityHint="Tenta ler novamente os dados armazenados no aparelho"
+          accessibilityLabel="Tentar carregar os dados novamente"
+          icon={RefreshCw}
+          onPress={retryLoadingData}
+          title="Tentar novamente"
+        />
       </Screen>
     );
   }
