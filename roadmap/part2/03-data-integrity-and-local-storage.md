@@ -78,4 +78,5 @@ The app uses local SQLite repositories for medications, schedules, dose logs, no
 ## Notes
 - Avoid introducing a complex ORM for MVP.
 - Avoid data export/import until after MVP.
-- If deleting logs for deleted medications is chosen, document it as intentional.
+- Deleting logs with their medication is intentional and documented in `docs/adr/0006-cascade-delete-medication-history.md`.
+- No production reset-data action is included because retry, migration repair, and cascade cleanup cover the MVP recovery needs without exposing an unnecessary destructive control.

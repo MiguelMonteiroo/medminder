@@ -32,6 +32,7 @@ type Props = {
   payload?: DoseAlarmPayload | null;
   embedded?: boolean;
   onClose?: () => void;
+  onDoseAction?: () => Promise<void> | void;
 };
 
 async function closeAlarmActivity(): Promise<void> {
@@ -111,7 +112,12 @@ async function expandDoseWindow(
   return expanded.filter((item): item is DoseAlarmPayload => item !== null);
 }
 
-export function DoseAlarmScreen({ payload: initialPayload, embedded, onClose }: Props) {
+export function DoseAlarmScreen({
+  payload: initialPayload,
+  embedded,
+  onClose,
+  onDoseAction,
+}: Props) {
   const [payloads, setPayloads] = useState<DoseAlarmPayload[]>(
     initialPayload ? [initialPayload] : []
   );
@@ -177,6 +183,7 @@ export function DoseAlarmScreen({ payload: initialPayload, embedded, onClose }: 
         if (!embedded) await closeAlarmActivity();
       }
     } finally {
+      await Promise.resolve(onDoseAction?.()).catch(() => undefined);
       setBusyId(null);
     }
   }

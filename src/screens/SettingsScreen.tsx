@@ -24,6 +24,7 @@ import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
 import { Screen } from "../components/ui/Screen";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { CareInfoTip } from "../components/CareInfoTip";
 import { useAppData } from "../services/appDataProvider";
 import {
   getNotificationPermissionStatus,
@@ -46,6 +47,7 @@ export function SettingsScreen() {
     updateNotificationsEnabled,
     updateReminderSettings,
     runAlarmTest,
+    reminderSyncPending,
   } = useAppData();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
@@ -166,6 +168,10 @@ export function SettingsScreen() {
         <AppText variant="title" style={styles.title}>
           Seu cuidado
         </AppText>
+
+        {reminderSyncPending ? (
+          <CareInfoTip text="Alguns lembretes aguardam sincronização. O MedMinder tentará novamente ao abrir o app." />
+        ) : null}
 
         <AppCard style={styles.card}>
           <View style={styles.cardHeader}>

@@ -10,6 +10,13 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   reminderSetupCompleted: false,
 };
 
+function parseSnoozeMinutes(value: string | undefined): number {
+  const parsed = value ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 60
+    ? parsed
+    : DEFAULT_SETTINGS.defaultSnoozeMinutes;
+}
+
 export function createSettingsRepository(db: NativeDB) {
   async function get(): Promise<ReminderSettings> {
     const rows = await db.getAllAsync<{ key: string; value: string }>(
@@ -23,9 +30,7 @@ export function createSettingsRepository(db: NativeDB) {
       notificationsEnabled:
         map.notificationsEnabled === "true" ||
         DEFAULT_SETTINGS.notificationsEnabled,
-      defaultSnoozeMinutes: map.defaultSnoozeMinutes
-        ? parseInt(map.defaultSnoozeMinutes, 10)
-        : DEFAULT_SETTINGS.defaultSnoozeMinutes,
+      defaultSnoozeMinutes: parseSnoozeMinutes(map.defaultSnoozeMinutes),
       userName: map.userName || DEFAULT_SETTINGS.userName,
       fullScreenAlarmEnabled: map.fullScreenAlarmEnabled === "true",
       showLockScreenDetails: map.showLockScreenDetails === "true",
@@ -34,36 +39,36 @@ export function createSettingsRepository(db: NativeDB) {
   }
 
   async function update(settings: ReminderSettings): Promise<void> {
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-      "notificationsEnabled",
-      settings.notificationsEnabled ? "true" : "false"
-    );
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-      "defaultSnoozeMinutes",
-      settings.defaultSnoozeMinutes.toString()
-    );
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-      "userName",
-      settings.userName
-    );
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-      "fullScreenAlarmEnabled",
-      settings.fullScreenAlarmEnabled ? "true" : "false"
-    );
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-      "showLockScreenDetails",
-      settings.showLockScreenDetails ? "true" : "false"
-    );
-    await db.runAsync(
-      `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-      "reminderSetupCompleted",
-      settings.reminderSetupCompleted ? "true" : "false"
-    );
+    const entries: Array<[string, string]> = [
+      [
+        "notificationsEnabled",
+        settings.notificationsEnabled ? "true" : "false",
+      ],
+      ["defaultSnoozeMinutes", settings.defaultSnoozeMinutes.toString()],
+      ["userName", settings.userName],
+      [
+        "fullScreenAlarmEnabled",
+        settings.fullScreenAlarmEnabled ? "true" : "false",
+      ],
+      [
+        "showLockScreenDetails",
+        settings.showLockScreenDetails ? "true" : "false",
+      ],
+      [
+        "reminderSetupCompleted",
+        settings.reminderSetupCompleted ? "true" : "false",
+      ],
+    ];
+
+    await db.withTransactionAsync(async (transaction) => {
+      for (const [key, value] of entries) {
+        await transaction.runAsync(
+          "INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)",
+          key,
+          value
+        );
+      }
+    });
   }
 
   return { get, update };

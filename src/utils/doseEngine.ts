@@ -126,7 +126,7 @@ export function resolveDoseStatus(
   if (latestLog.action === "undone") return unresolvedStatus();
   if (latestLog.action === "snoozed") {
     const snoozedUntil = new Date(latestLog.snoozedUntil).getTime();
-    if (snoozedUntil > Date.now()) return "snoozed";
+    if (snoozedUntil > now.getTime()) return "snoozed";
     return unresolvedStatus();
   }
 

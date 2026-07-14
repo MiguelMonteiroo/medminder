@@ -250,6 +250,29 @@ describe("resolveDoseStatus", () => {
     expect(resolveDoseStatus("occ-1", logs)).toBe("pending");
   });
 
+  it("uses the supplied clock to resolve a snoozed dose", () => {
+    const logs: DoseLog[] = [
+      {
+        id: "log-1",
+        doseOccurrenceId: "occ-1",
+        medicationId: "med-1",
+        scheduleId: "sched-1",
+        action: "snoozed",
+        actionAt: "2000-01-01T00:00:00.000Z",
+        snoozedUntil: "2000-01-01T00:10:00.000Z",
+      },
+    ];
+
+    expect(
+      resolveDoseStatus(
+        "occ-1",
+        logs,
+        "2000-01-01T00:00:00.000Z",
+        new Date("2000-01-01T00:05:00.000Z")
+      )
+    ).toBe("snoozed");
+  });
+
   it("returns pending when undone action exists", () => {
     const logs: DoseLog[] = [
       {

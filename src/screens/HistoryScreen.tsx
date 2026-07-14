@@ -1,6 +1,4 @@
 import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
-import { useState, useEffect } from "react";
-import { useDatabase } from "../database/DatabaseProvider";
 import { BarChart3 } from "lucide-react-native";
 import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
@@ -9,7 +7,6 @@ import { Screen } from "../components/ui/Screen";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { useAppData } from "../services/appDataProvider";
-import { createDoseLogRepository } from "../database/repositories/doseLogRepository";
 import { calculateAdherence, getLast7Days } from "../utils/stats";
 import { DoseLog, DoseStatus } from "../types/domain";
 import { generateDoseOccurrencesForDate } from "../utils/doseEngine";
@@ -17,20 +14,7 @@ import { colors } from "../theme/colors";
 import { spacing } from "../theme/spacing";
 
 export function HistoryScreen() {
-  const { medications, schedules } = useAppData();
-  const db = useDatabase();
-  const [logs, setLogs] = useState<DoseLog[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      const repo = createDoseLogRepository(db);
-      const allLogs = await repo.getAll();
-      setLogs(allLogs);
-      setLoading(false);
-    }
-    load();
-  }, [db]);
+  const { medications, schedules, doseLogs: logs, loading } = useAppData();
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;

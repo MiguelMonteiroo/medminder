@@ -90,6 +90,7 @@ describe("processNotificationAction", () => {
 
     expect(state.logs.filter((log) => log.action === "taken")).toHaveLength(1);
     expect(state.confirmations).toEqual(["occ-1"]);
+    expect(state.cancelled).toEqual(["occ-1", "occ-1"]);
   });
 
   it("schedules a five-minute alarm before the snooze limit", async () => {
@@ -131,5 +132,25 @@ describe("processNotificationAction", () => {
 
     expect(result).toEqual({ status: "snooze-limit", snoozeCount: 3 });
     expect(state.scheduled).toHaveLength(0);
+  });
+
+  it("retries native cleanup and scheduling without duplicating a snooze log", async () => {
+    const state = createDependencies();
+    const command = {
+      ...baseCommand,
+      actionId: "snooze-five" as const,
+      commandId: "notification-1:snooze-five",
+    };
+
+    await processNotificationAction(command, state.dependencies);
+    const result = await processNotificationAction(command, state.dependencies);
+
+    expect(result).toEqual({ status: "duplicate" });
+    expect(state.logs.filter((log) => log.action === "snoozed")).toHaveLength(1);
+    expect(state.cancelled).toEqual(["occ-1", "occ-1"]);
+    expect(state.scheduled).toEqual([
+      "2026-07-03T11:05:00.000Z",
+      "2026-07-03T11:05:00.000Z",
+    ]);
   });
 });
