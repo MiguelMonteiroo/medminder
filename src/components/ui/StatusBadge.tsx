@@ -6,7 +6,7 @@ import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
 import { DoseStatus } from "../../types/domain";
 
-type BadgeStatus = DoseStatus | "active" | "paused";
+export type BadgeStatus = DoseStatus | "active" | "paused" | "undone";
 
 type Props = {
   status: BadgeStatus;
@@ -20,6 +20,7 @@ const LABELS: Record<BadgeStatus, string> = {
   unrecorded: "Não registrada",
   active: "Ativo",
   paused: "Pausado",
+  undone: "Desfeita",
 };
 
 const ICON_COLORS: Record<BadgeStatus, string> = {
@@ -30,6 +31,7 @@ const ICON_COLORS: Record<BadgeStatus, string> = {
   unrecorded: colors.danger,
   active: colors.success,
   paused: colors.warning,
+  undone: colors.textMuted,
 };
 
 export function StatusBadge({ status }: Props) {
@@ -104,5 +106,11 @@ const styles = StyleSheet.create({
   },
   pausedText: {
     color: colors.warning,
+  },
+  undone: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  undoneText: {
+    color: colors.textMuted,
   },
 });

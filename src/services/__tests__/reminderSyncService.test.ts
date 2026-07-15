@@ -97,6 +97,7 @@ describe("reminder synchronization", () => {
         fullScreenAlarmEnabled: false,
         showLockScreenDetails: false,
         reminderSetupCompleted: true,
+        onboardingCompleted: true,
       });
 
       const plans = planOccurrenceReminders(occurrence);

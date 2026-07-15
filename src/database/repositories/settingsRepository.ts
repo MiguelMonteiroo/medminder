@@ -4,10 +4,11 @@ import { ReminderSettings } from "../../types/domain";
 const DEFAULT_SETTINGS: ReminderSettings = {
   notificationsEnabled: false,
   defaultSnoozeMinutes: 5,
-  userName: "Maria",
+  userName: "",
   fullScreenAlarmEnabled: false,
   showLockScreenDetails: false,
   reminderSetupCompleted: false,
+  onboardingCompleted: false,
 };
 
 function parseSnoozeMinutes(value: string | undefined): number {
@@ -35,6 +36,7 @@ export function createSettingsRepository(db: NativeDB) {
       fullScreenAlarmEnabled: map.fullScreenAlarmEnabled === "true",
       showLockScreenDetails: map.showLockScreenDetails === "true",
       reminderSetupCompleted: map.reminderSetupCompleted === "true",
+      onboardingCompleted: map.onboardingCompleted === "true",
     };
   }
 
@@ -57,6 +59,10 @@ export function createSettingsRepository(db: NativeDB) {
       [
         "reminderSetupCompleted",
         settings.reminderSetupCompleted ? "true" : "false",
+      ],
+      [
+        "onboardingCompleted",
+        settings.onboardingCompleted ? "true" : "false",
       ],
     ];
 

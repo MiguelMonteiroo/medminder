@@ -10,6 +10,7 @@ const updatedSettings: ReminderSettings = {
   fullScreenAlarmEnabled: true,
   showLockScreenDetails: true,
   reminderSetupCompleted: true,
+  onboardingCompleted: true,
 };
 
 describe("settings repository", () => {
@@ -23,10 +24,11 @@ describe("settings repository", () => {
       await expect(repository.get()).resolves.toEqual({
         notificationsEnabled: false,
         defaultSnoozeMinutes: 5,
-        userName: "Maria",
+        userName: "",
         fullScreenAlarmEnabled: false,
         showLockScreenDetails: false,
         reminderSetupCompleted: false,
+        onboardingCompleted: false,
       });
     } finally {
       close();

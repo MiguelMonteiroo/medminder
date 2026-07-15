@@ -33,6 +33,7 @@ export function CareAccordionStepCard({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? "Fechar" : "Abrir"} etapa ${step}: ${title}`}
+        accessibilityState={{ expanded }}
         onPress={onPress}
         style={styles.header}
       >

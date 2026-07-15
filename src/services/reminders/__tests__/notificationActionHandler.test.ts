@@ -43,6 +43,7 @@ function createDependencies(existingLogs: DoseLog[] = []) {
       fullScreenAlarmEnabled: true,
       showLockScreenDetails: true,
       reminderSetupCompleted: true,
+      onboardingCompleted: true,
     }),
     getLogs: async () => logs,
     appendLog: async (log) => {
