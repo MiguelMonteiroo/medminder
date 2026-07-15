@@ -43,3 +43,15 @@ _Avoid_: Completed medication
 **Unrecorded dose**:
 A past dose occurrence for which the user made no explicit taken, skipped, or snoozed action before the day ended.
 _Avoid_: Missed dose, forgotten dose
+
+**Local profile**:
+The person's display name stored only on the device and used to personalize MedMinder. It is not an account, login, or cloud identity.
+_Avoid_: User account, registered user
+
+**First-run onboarding**:
+The one-time flow shown before the main app on a fresh installation. It introduces MedMinder, collects the required local-profile name, explains the core workflow, and offers reminder permissions in dependency order.
+_Avoid_: Registration, sign-up
+
+**Daily adherence**:
+The percentage of dose occurrences scheduled for one local calendar day whose latest recorded action is taken. Skipped, snoozed, and unrecorded doses do not increase adherence. A day without scheduled doses has no adherence percentage.
+_Avoid_: Medication completion, seven-day total

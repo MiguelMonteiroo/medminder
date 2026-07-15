@@ -11,6 +11,12 @@ import { AppText } from "./ui/AppText";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
+import {
+  getCenteredVisualIndex,
+  getOptionIndex,
+  getRecenteredVisualIndex,
+  wrapIndex,
+} from "../utils/cyclicWheel";
 
 type Props = {
   value: string;
@@ -22,6 +28,7 @@ const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 const WHEEL_PADDING = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
+const CYCLE_COUNT = 5;
 
 const HOURS = Array.from({ length: 24 }, (_, index) =>
   String(index).padStart(2, "0")
@@ -32,26 +39,20 @@ const MINUTES = Array.from({ length: 60 }, (_, index) =>
 
 export function WheelTimePicker({ value, onChange, label }: Props) {
   const { hour, minute } = useMemo(() => parseTime(value), [value]);
-
-  function updateHour(nextHour: string) {
-    onChange(`${nextHour}:${minute}`);
-  }
-
-  function updateMinute(nextMinute: string) {
-    onChange(`${hour}:${nextMinute}`);
-  }
+  const pickerLabel = label || "Selecionar horário";
 
   return (
-    <View
-      accessibilityLabel={label || "Selecionar horário"}
-      accessibilityRole="adjustable"
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <AppText variant="small" style={styles.helper}>
           Role para ajustar o horário da dose.
         </AppText>
-        <AppText variant="small" style={styles.value}>
+        <AppText
+          accessibilityLabel={`Horário selecionado ${hour}:${minute}`}
+          accessibilityLiveRegion="polite"
+          variant="small"
+          style={styles.value}
+        >
           {hour}:{minute}
         </AppText>
       </View>
@@ -59,10 +60,11 @@ export function WheelTimePicker({ value, onChange, label }: Props) {
       <View style={styles.pickerShell}>
         <View pointerEvents="none" style={styles.selectionBand} />
         <WheelColumn
+          accessibilityLabel={`${pickerLabel}, hora`}
           label="Hora"
           options={HOURS}
           selectedValue={hour}
-          onSelect={updateHour}
+          onSelect={(nextHour) => onChange(`${nextHour}:${minute}`)}
         />
         <View style={styles.separatorColumn} pointerEvents="none">
           <AppText variant="heading" style={styles.separator}>
@@ -70,10 +72,11 @@ export function WheelTimePicker({ value, onChange, label }: Props) {
           </AppText>
         </View>
         <WheelColumn
+          accessibilityLabel={`${pickerLabel}, minuto`}
           label="Minuto"
           options={MINUTES}
           selectedValue={minute}
-          onSelect={updateMinute}
+          onSelect={(nextMinute) => onChange(`${hour}:${nextMinute}`)}
         />
       </View>
     </View>
@@ -81,6 +84,7 @@ export function WheelTimePicker({ value, onChange, label }: Props) {
 }
 
 type WheelColumnProps = {
+  accessibilityLabel: string;
   label: string;
   options: string[];
   selectedValue: string;
@@ -88,29 +92,84 @@ type WheelColumnProps = {
 };
 
 function WheelColumn({
+  accessibilityLabel,
   label,
   options,
   selectedValue,
   onSelect,
 }: WheelColumnProps) {
   const scrollRef = useRef<ScrollView>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedIndex = Math.max(0, options.indexOf(selectedValue));
+  const repeatedOptions = useMemo(
+    () => Array.from({ length: CYCLE_COUNT }, () => options).flat(),
+    [options]
+  );
+
+  function clearFallbackTimer() {
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+  }
+
+  function scrollToVisualIndex(visualIndex: number, animated: boolean) {
+    scrollRef.current?.scrollTo({
+      y: visualIndex * ITEM_HEIGHT,
+      animated,
+    });
+  }
 
   useEffect(() => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({
-        y: selectedIndex * ITEM_HEIGHT,
-        animated: false,
-      });
-    });
-  }, [selectedIndex]);
+    const centeredIndex = getCenteredVisualIndex(
+      selectedIndex,
+      options.length,
+      CYCLE_COUNT
+    );
+    requestAnimationFrame(() => scrollToVisualIndex(centeredIndex, false));
+  }, [selectedIndex, options.length]);
+
+  useEffect(() => clearFallbackTimer, []);
+
+  function commitOffset(offsetY: number) {
+    const visualIndex = Math.min(
+      repeatedOptions.length - 1,
+      Math.max(0, Math.round(offsetY / ITEM_HEIGHT))
+    );
+    const optionIndex = getOptionIndex(visualIndex, options.length);
+    const nextValue = options[optionIndex];
+    const recenteredIndex = getRecenteredVisualIndex(
+      visualIndex,
+      options.length,
+      CYCLE_COUNT
+    );
+
+    if (nextValue !== selectedValue) onSelect(nextValue);
+    if (recenteredIndex !== visualIndex) {
+      requestAnimationFrame(() => scrollToVisualIndex(recenteredIndex, false));
+    }
+  }
 
   function handleScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    const nextIndex = Math.min(
-      options.length - 1,
-      Math.max(0, Math.round(event.nativeEvent.contentOffset.y / ITEM_HEIGHT))
-    );
+    clearFallbackTimer();
+    commitOffset(event.nativeEvent.contentOffset.y);
+  }
+
+  function handleScrollEndDrag(
+    event: NativeSyntheticEvent<NativeScrollEvent>
+  ) {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    clearFallbackTimer();
+    fallbackTimerRef.current = setTimeout(() => commitOffset(offsetY), 80);
+  }
+
+  function adjustValue(delta: number) {
+    const nextIndex = wrapIndex(selectedIndex + delta, options.length);
     onSelect(options[nextIndex]);
+    scrollToVisualIndex(
+      getCenteredVisualIndex(nextIndex, options.length, CYCLE_COUNT),
+      true
+    );
   }
 
   return (
@@ -118,38 +177,55 @@ function WheelColumn({
       <AppText variant="caption" style={styles.columnLabel}>
         {label}
       </AppText>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        nestedScrollEnabled
-        contentContainerStyle={styles.wheelContent}
-        onMomentumScrollEnd={handleScrollEnd}
-        onScrollEndDrag={handleScrollEnd}
-        style={styles.wheel}
+      <View
+        accessible
+        accessibilityActions={[
+          { name: "increment", label: `Aumentar ${label.toLowerCase()}` },
+          { name: "decrement", label: `Diminuir ${label.toLowerCase()}` },
+        ]}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="adjustable"
+        accessibilityValue={{ text: selectedValue }}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "increment") adjustValue(1);
+          if (event.nativeEvent.actionName === "decrement") adjustValue(-1);
+        }}
+        style={styles.adjustable}
       >
-        {options.map((option) => {
-          const isSelected = option === selectedValue;
-
-          return (
-            <Pressable
-              key={option}
-              accessibilityRole="button"
-              accessibilityLabel={`${label} ${option}`}
-              onPress={() => onSelect(option)}
-              style={styles.option}
-            >
-              <AppText
-                variant={isSelected ? "heading" : "subheading"}
-                style={[styles.optionText, isSelected && styles.selectedText]}
+        <ScrollView
+          ref={scrollRef}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          decelerationRate="fast"
+          nestedScrollEnabled
+          contentContainerStyle={styles.wheelContent}
+          onMomentumScrollBegin={clearFallbackTimer}
+          onMomentumScrollEnd={handleScrollEnd}
+          onScrollEndDrag={handleScrollEndDrag}
+          style={styles.wheel}
+        >
+          {repeatedOptions.map((option, visualIndex) => {
+            const isSelected = option === selectedValue;
+            return (
+              <Pressable
+                key={`${visualIndex}-${option}`}
+                accessible={false}
+                onPress={() => onSelect(option)}
+                style={styles.option}
               >
-                {option}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <AppText
+                  variant={isSelected ? "heading" : "subheading"}
+                  style={[styles.optionText, isSelected && styles.selectedText]}
+                >
+                  {option}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -171,24 +247,15 @@ function parseTime(value: string) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.sm,
-  },
+  container: { marginBottom: spacing.sm },
   header: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: spacing.sm,
   },
-  helper: {
-    color: colors.textMuted,
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  value: {
-    color: colors.primaryDark,
-    fontWeight: "800",
-  },
+  helper: { color: colors.textMuted, flex: 1, marginRight: spacing.md },
+  value: { color: colors.primaryDark, fontWeight: "800" },
   pickerShell: {
     alignItems: "center",
     backgroundColor: colors.white,
@@ -212,11 +279,7 @@ const styles = StyleSheet.create({
     right: spacing.md,
     top: WHEEL_PADDING,
   },
-  column: {
-    alignItems: "center",
-    flex: 1,
-    height: PICKER_HEIGHT,
-  },
+  column: { alignItems: "center", flex: 1, height: PICKER_HEIGHT },
   columnLabel: {
     color: colors.textMuted,
     fontWeight: "800",
@@ -225,29 +288,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     zIndex: 1,
   },
-  wheel: {
-    height: PICKER_HEIGHT,
-    width: "100%",
-  },
-  wheelContent: {
-    paddingBottom: WHEEL_PADDING,
-    paddingTop: WHEEL_PADDING,
-  },
-  option: {
-    alignItems: "center",
-    height: ITEM_HEIGHT,
-    justifyContent: "center",
-  },
-  optionText: {
-    color: colors.textMuted,
-    fontWeight: "700",
-    opacity: 0.55,
-  },
-  selectedText: {
-    color: colors.primaryDark,
-    fontWeight: "900",
-    opacity: 1,
-  },
+  adjustable: { height: PICKER_HEIGHT, width: "100%" },
+  wheel: { height: PICKER_HEIGHT, width: "100%" },
+  wheelContent: { paddingBottom: WHEEL_PADDING, paddingTop: WHEEL_PADDING },
+  option: { alignItems: "center", height: ITEM_HEIGHT, justifyContent: "center" },
+  optionText: { color: colors.textMuted, fontWeight: "700", opacity: 0.55 },
+  selectedText: { color: colors.primaryDark, fontWeight: "900", opacity: 1 },
   separatorColumn: {
     alignItems: "center",
     height: PICKER_HEIGHT,

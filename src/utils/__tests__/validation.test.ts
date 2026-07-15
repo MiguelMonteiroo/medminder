@@ -5,7 +5,18 @@ import {
   validateSchedule,
   normalizeMedicationInput,
   normalizeScheduleInput,
+  validateProfileName,
 } from "../validation";
+
+describe("validateProfileName", () => {
+  it("requires a non-empty local profile name", () => {
+    expect(validateProfileName("   ")).toBe("Informe como podemos chamar você.");
+  });
+
+  it("accepts and trims a real name", () => {
+    expect(validateProfileName("  Miguel  ")).toBeNull();
+  });
+});
 
 describe("validateMedicationName", () => {
   it("returns error for empty name", () => {

@@ -1,5 +1,12 @@
-import { ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
+import { useRef, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   ArrowLeft,
@@ -14,6 +21,7 @@ import { CareAccordionStepCard } from "../components/CareAccordionStepCard";
 import { CareInfoTip } from "../components/CareInfoTip";
 import { IntervalHoursPicker } from "../components/IntervalHoursPicker";
 import { WheelTimePicker } from "../components/WheelTimePicker";
+import { MedicationFormActionBar } from "../components/MedicationFormActionBar";
 import { IconButton } from "../components/ui/IconButton";
 import { Screen } from "../components/ui/Screen";
 import { RootStackParamList } from "../navigation/types";
@@ -50,6 +58,9 @@ export function AddMedicationScreen({ navigation }: Props) {
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [error, setError] = useState("");
   const [step, setStep] = useState<Step>(1);
+  const [isSaving, setIsSaving] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const nameInputRef = useRef<TextInput>(null);
 
   function toggleWeekday(day: number) {
     setWeekdays((prev) =>
@@ -63,6 +74,10 @@ export function AddMedicationScreen({ navigation }: Props) {
       if (nameError) {
         setError(nameError);
         setStep(1);
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollTo({ y: 0, animated: true });
+          nameInputRef.current?.focus();
+        });
         return false;
       }
     }
@@ -96,31 +111,35 @@ export function AddMedicationScreen({ navigation }: Props) {
     return true;
   }
 
-  function handleContinue() {
+  async function handleContinue() {
+    if (isSaving) return;
     if (!validateStep(step)) return;
     if (step < 4) {
       setStep((step + 1) as Step);
       return;
     }
-    handleAdd();
+    await handleAdd();
   }
 
   async function handleAdd() {
     if (!validateStep(4)) return;
 
     const normalized = normalizeMedicationInput({ name, dosage, notes });
-
-    await addMedication(
-      normalized.name,
-      normalized.dosage,
-      time.trim(),
-      normalized.notes,
-      scheduleKind,
-      intervalHours,
-      weekdays
-    );
-
-    navigation.goBack();
+    setIsSaving(true);
+    try {
+      await addMedication(
+        normalized.name,
+        normalized.dosage,
+        time.trim(),
+        normalized.notes,
+        scheduleKind,
+        intervalHours,
+        weekdays
+      );
+      navigation.goBack();
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function clearError() {
@@ -129,10 +148,16 @@ export function AddMedicationScreen({ navigation }: Props) {
 
   return (
     <Screen>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardArea}
       >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.header}>
           <IconButton
             icon={ArrowLeft}
@@ -156,6 +181,8 @@ export function AddMedicationScreen({ navigation }: Props) {
         >
           <FieldLabel label="Nome do medicamento" />
           <TextInput
+            ref={nameInputRef}
+            accessibilityLabel="Nome do medicamento"
             value={name}
             onChangeText={(text) => {
               setName(text);
@@ -167,13 +194,22 @@ export function AddMedicationScreen({ navigation }: Props) {
           />
           <FieldLabel label="Dosagem" />
           <TextInput
+            accessibilityLabel="Dosagem do medicamento"
             value={dosage}
             onChangeText={setDosage}
             placeholder="Ex.: 50 mg"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
-          {error && step === 1 ? <AppText style={styles.errorText}>{error}</AppText> : null}
+          {error && step === 1 ? (
+            <AppText
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={styles.errorText}
+            >
+              {error}
+            </AppText>
+          ) : null}
         </CareAccordionStepCard>
 
         <CareAccordionStepCard
@@ -196,6 +232,7 @@ export function AddMedicationScreen({ navigation }: Props) {
                   onPress={() => setScheduleKind(kind.key)}
                   accessibilityLabel={`Agendamento ${kind.label}`}
                   accessibilityHint={kind.hint}
+                  accessibilityState={{ selected: active }}
                 />
               );
             })}
@@ -234,12 +271,21 @@ export function AddMedicationScreen({ navigation }: Props) {
                     style={styles.weekdayButton}
                     onPress={() => toggleWeekday(index)}
                     accessibilityLabel={`${active ? "Remover" : "Adicionar"} ${label}`}
+                    accessibilityState={{ selected: active }}
                   />
                 );
               })}
             </View>
           ) : null}
-          {error && step === 2 ? <AppText style={styles.errorText}>{error}</AppText> : null}
+          {error && step === 2 ? (
+            <AppText
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={styles.errorText}
+            >
+              {error}
+            </AppText>
+          ) : null}
         </CareAccordionStepCard>
 
         <CareAccordionStepCard
@@ -252,6 +298,7 @@ export function AddMedicationScreen({ navigation }: Props) {
         >
           <FieldLabel label="Notas do cuidador" />
           <TextInput
+            accessibilityLabel="Notas do cuidador"
             value={notes}
             onChangeText={setNotes}
             placeholder="Ex.: tomar após o café"
@@ -278,13 +325,16 @@ export function AddMedicationScreen({ navigation }: Props) {
 
         <CareInfoTip text="Dica: você pode adicionar mais detalhes sobre o uso na etapa de notas." />
 
-        <AppButton
-          title={step === 4 ? "Salvar medicamento" : "Continuar"}
-          variant="primary"
+        </ScrollView>
+        <MedicationFormActionBar
+          accessibilityLabel={
+            step === 4 ? "Salvar medicamento" : "Continuar cadastro"
+          }
+          busy={isSaving}
           onPress={handleContinue}
-          accessibilityLabel={step === 4 ? "Salvar medicamento" : "Continuar cadastro"}
+          title={step === 4 ? "Salvar medicamento" : "Continuar"}
         />
-      </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -304,7 +354,10 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xl,
+  },
+  keyboardArea: {
+    flex: 1,
   },
   header: {
     alignItems: "flex-start",

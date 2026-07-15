@@ -28,6 +28,7 @@ export function AppButton({
   compact = false,
   icon: Icon,
   style,
+  disabled,
   ...props
 }: Props) {
   const isGhost = variant === "ghost";
@@ -41,11 +42,17 @@ export function AppButton({
   return (
     <Pressable
       {...props}
+      accessibilityState={{
+        ...props.accessibilityState,
+        disabled: Boolean(disabled),
+      }}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
         compact && styles.compact,
         styles[variant],
         pressed && styles.pressed,
+        disabled && styles.disabled,
         style,
       ]}
     >
@@ -58,8 +65,7 @@ export function AppButton({
             isGhost && styles.ghostText,
             isDangerSoft && styles.dangerSoftText,
           ]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
+          numberOfLines={2}
         >
           {title}
         </AppText>
@@ -87,6 +93,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     justifyContent: "center",
+    minWidth: 0,
   },
   primary: {
     backgroundColor: colors.primary,
@@ -116,9 +123,14 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
   },
+  disabled: {
+    opacity: 0.5,
+  },
   text: {
     color: colors.white,
+    flexShrink: 1,
     fontWeight: "800",
+    textAlign: "center",
   },
   ghostText: {
     color: colors.primary,

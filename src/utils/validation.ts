@@ -2,6 +2,11 @@ import { ScheduleKind, MedicationSchedule } from "../types/domain";
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export function validateProfileName(name: string): string | null {
+  if (!name.trim()) return "Informe como podemos chamar você.";
+  return null;
+}
+
 export function validateMedicationName(name: string): string | null {
   if (!name.trim()) {
     return "O nome do medicamento é obrigatório.";

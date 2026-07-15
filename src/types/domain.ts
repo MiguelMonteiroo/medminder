@@ -63,6 +63,7 @@ export type ReminderSettings = {
   fullScreenAlarmEnabled: boolean;
   showLockScreenDetails: boolean;
   reminderSetupCompleted: boolean;
+  onboardingCompleted: boolean;
 };
 
 export type ReminderArtifactKind =

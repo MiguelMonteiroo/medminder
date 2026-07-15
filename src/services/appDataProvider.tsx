@@ -31,7 +31,12 @@ import {
   getTodayDoseViewModel,
   AdherenceSummary,
 } from "../utils/doseEngine";
-import { validateMedicationName, validateTimeHHMM, normalizeMedicationInput } from "../utils/validation";
+import {
+  normalizeMedicationInput,
+  validateMedicationName,
+  validateProfileName,
+  validateTimeHHMM,
+} from "../utils/validation";
 
 interface AppDataContextValue {
   medications: Medication[];
@@ -63,6 +68,7 @@ interface AppDataContextValue {
     weekdays?: number[]
   ) => Promise<void>;
   updateUserName: (name: string) => Promise<void>;
+  completeOnboarding: (name: string) => Promise<void>;
   updateNotificationsEnabled: (enabled: boolean) => Promise<void>;
   updateReminderSettings: (patch: Partial<ReminderSettings>) => Promise<void>;
   rescheduleMedicationNotifications: () => Promise<void>;
@@ -73,10 +79,11 @@ interface AppDataContextValue {
 const DEFAULT_SETTINGS: ReminderSettings = {
   notificationsEnabled: false,
   defaultSnoozeMinutes: 5,
-  userName: "Maria",
+  userName: "",
   fullScreenAlarmEnabled: false,
   showLockScreenDetails: false,
   reminderSetupCompleted: false,
+  onboardingCompleted: false,
 };
 
 const AppDataContext = createContext<AppDataContextValue>({
@@ -100,6 +107,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   setMedicationPaused: async () => {},
   updateMedicationWithSchedule: async () => {},
   updateUserName: async () => {},
+  completeOnboarding: async () => {},
   updateNotificationsEnabled: async () => {},
   updateReminderSettings: async () => {},
   rescheduleMedicationNotifications: async () => {},
@@ -132,6 +140,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [schedules, setSchedules] = useState<MedicationSchedule[]>([]);
   const [logs, setLogs] = useState<DoseLog[]>([]);
   const [settings, setSettings] = useState<ReminderSettings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef<ReminderSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reminderSyncPending, setReminderSyncPending] = useState(false);
@@ -172,6 +181,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setMedications(meds);
       setSchedules(scheds);
       setLogs(doseLogs);
+      settingsRef.current = appSettings;
       setSettings(appSettings);
       setError(null);
 
@@ -536,18 +546,40 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const updateUserName = useCallback(
     async (name: string) => {
-      const trimmed = name.trim() || DEFAULT_SETTINGS.userName;
-      const updated = { ...settings, userName: trimmed };
+      const validationError = validateProfileName(name);
+      if (validationError) throw new Error(validationError);
+
+      const updated = { ...settingsRef.current, userName: name.trim() };
       await repos.settings.update(updated);
+      settingsRef.current = updated;
       setSettings(updated);
     },
-    [settings]
+    []
   );
+
+  const completeOnboarding = useCallback(async (name: string) => {
+    const validationError = validateProfileName(name);
+    if (validationError) throw new Error(validationError);
+
+    const updated: ReminderSettings = {
+      ...settingsRef.current,
+      userName: name.trim(),
+      onboardingCompleted: true,
+      reminderSetupCompleted: true,
+    };
+    await repos.settings.update(updated);
+    settingsRef.current = updated;
+    setSettings(updated);
+  }, []);
 
   const updateNotificationsEnabled = useCallback(
     async (enabled: boolean) => {
-      const updated = { ...settings, notificationsEnabled: enabled };
+      const updated = {
+        ...settingsRef.current,
+        notificationsEnabled: enabled,
+      };
       await repos.settings.update(updated);
+      settingsRef.current = updated;
       setSettings(updated);
       if (enabled) {
         await rescheduleMedicationNotifications(true, updated);
@@ -555,23 +587,24 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         await reminderScheduler.cancelAll();
       }
     },
-    [settings, rescheduleMedicationNotifications]
+    [rescheduleMedicationNotifications]
   );
 
   const updateReminderSettings = useCallback(
     async (patch: Partial<ReminderSettings>) => {
       const updated = {
-        ...settings,
+        ...settingsRef.current,
         ...patch,
         defaultSnoozeMinutes: 5,
       };
       await repos.settings.update(updated);
+      settingsRef.current = updated;
       setSettings(updated);
       if (updated.notificationsEnabled) {
         await rescheduleMedicationNotifications(true, updated);
       }
     },
-    [settings, rescheduleMedicationNotifications]
+    [rescheduleMedicationNotifications]
   );
 
   const runAlarmTest = useCallback(async () => {
@@ -601,6 +634,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setMedicationPaused,
         updateMedicationWithSchedule,
         updateUserName,
+        completeOnboarding,
         updateNotificationsEnabled,
         updateReminderSettings,
         rescheduleMedicationNotifications,

@@ -1,5 +1,4 @@
 import {
-  Alert,
   AppState,
   ScrollView,
   StyleSheet,
@@ -7,7 +6,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlarmClockCheck,
   BatteryCharging,
@@ -23,19 +22,20 @@ import { AppButton } from "../components/ui/AppButton";
 import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
 import { Screen } from "../components/ui/Screen";
+import { SectionHeader } from "../components/ui/SectionHeader";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { CareInfoTip } from "../components/CareInfoTip";
 import { useAppData } from "../services/appDataProvider";
 import {
-  getNotificationPermissionStatus,
   getReminderPermissionState,
   openBatterySettings,
   openExactAlarmSettings,
   openFullScreenAlarmSettings,
-  requestNotificationPermission,
   openNotificationSettings,
+  requestNotificationPermission,
 } from "../services/notificationPermissionService";
 import type { ReminderPermissionState } from "../types/domain";
+import { validateProfileName } from "../utils/validation";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
@@ -50,13 +50,26 @@ export function SettingsScreen() {
     reminderSyncPending,
   } = useAppData();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [permissionState, setPermissionState] =
+    useState<ReminderPermissionState | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(settings.userName);
+  const [nameError, setNameError] = useState("");
   const [alarmTestMessage, setAlarmTestMessage] = useState("");
-  const [permissionState, setPermissionState] =
-    useState<ReminderPermissionState | null>(null);
+
+  const refreshPermissions = useCallback(
+    async (enabledPreference = settings.notificationsEnabled) => {
+      const readiness = await getReminderPermissionState();
+      setPermissionState(readiness);
+      setNotificationsEnabled(
+        enabledPreference && readiness.notifications === "granted"
+      );
+      setLoading(false);
+      return readiness;
+    },
+    [settings.notificationsEnabled]
+  );
 
   useEffect(() => {
     setNameDraft(settings.userName);
@@ -64,103 +77,88 @@ export function SettingsScreen() {
 
   useEffect(() => {
     if (!alarmTestMessage) return;
-
     const timer = setTimeout(() => setAlarmTestMessage(""), 8_000);
     return () => clearTimeout(timer);
   }, [alarmTestMessage]);
 
   useEffect(() => {
-    async function check() {
-      const [{ granted }, readiness] = await Promise.all([
-        getNotificationPermissionStatus(),
-        getReminderPermissionState(),
-      ]);
-      const enabled = settings.notificationsEnabled && granted;
-      setNotificationsEnabled(enabled);
-      setPermissionDenied(!granted);
-      setPermissionState(readiness);
-      setLoading(false);
-    }
-    check();
-  }, [settings.notificationsEnabled, updateNotificationsEnabled]);
+    refreshPermissions();
+  }, [refreshPermissions]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") refreshPermissions();
     });
     return () => subscription.remove();
-  }, []);
+  }, [refreshPermissions]);
 
-  async function handleToggle(value: boolean) {
+  const basicPermissionGranted =
+    permissionState?.notifications === "granted";
+  const remindersReady = notificationsEnabled && basicPermissionGranted;
+  const advancedDisabled = !remindersReady;
+
+  async function handleToggleNotifications(value: boolean) {
     setLoading(true);
     if (value) {
-      const { granted } = await requestNotificationPermission();
-      setNotificationsEnabled(granted);
-      setPermissionDenied(!granted);
-      if (granted) {
-        await updateNotificationsEnabled(true);
-      }
-    } else {
-      setNotificationsEnabled(false);
-      setPermissionDenied(false);
-      await updateNotificationsEnabled(false);
+      const result = await requestNotificationPermission();
+      await updateNotificationsEnabled(result.granted);
+      await refreshPermissions(result.granted);
+      return;
     }
-    setLoading(false);
-  }
 
-  async function handleOpenSettings() {
-    await openNotificationSettings();
-  }
-
-  async function refreshPermissions() {
-    setPermissionState(await getReminderPermissionState());
+    await updateNotificationsEnabled(false);
+    await refreshPermissions(false);
   }
 
   async function handleExactAlarm() {
+    if (advancedDisabled) return;
     await openExactAlarmSettings();
-    await refreshPermissions();
   }
 
   async function handleFullScreenToggle(value: boolean) {
+    if (advancedDisabled) return;
     await updateReminderSettings({ fullScreenAlarmEnabled: value });
     if (value && permissionState?.fullScreen === "denied") {
       await openFullScreenAlarmSettings();
     }
-    await refreshPermissions();
+  }
+
+  async function handleSaveName() {
+    const error = validateProfileName(nameDraft);
+    if (error) {
+      setNameError(error);
+      return;
+    }
+
+    await updateUserName(nameDraft);
+    setNameError("");
+    setEditingName(false);
+  }
+
+  function handleCancelName() {
+    setNameDraft(settings.userName);
+    setNameError("");
+    setEditingName(false);
   }
 
   async function handleAlarmTest() {
+    if (advancedDisabled) return;
     setAlarmTestMessage("");
-    const readiness = await getReminderPermissionState();
-    setPermissionState(readiness);
-    if (readiness.notifications !== "granted") {
-      Alert.alert(
-        "Ative os lembretes primeiro",
-        "O Android precisa permitir notificações antes de testar o alarme."
-      );
-      return;
-    }
+    const readiness = await refreshPermissions();
+    if (readiness.notifications !== "granted") return;
+
     await runAlarmTest();
     setAlarmTestMessage(
       "Teste agendado. Bloqueie a tela agora; o alarme aparecerá em cinco segundos."
     );
   }
 
-  async function handleSaveName() {
-    await updateUserName(nameDraft);
-    setEditingName(false);
-  }
-
-  function handleCancelName() {
-    setNameDraft(settings.userName);
-    setEditingName(false);
-  }
-
   return (
     <Screen>
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <AppText variant="caption" muted>
           Perfil
@@ -173,85 +171,89 @@ export function SettingsScreen() {
           <CareInfoTip text="Alguns lembretes aguardam sincronização. O MedMinder tentará novamente ao abrir o app." />
         ) : null}
 
-        <AppCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <UserRound color={colors.primary} size={22} />
-            </View>
-            <View style={styles.headerText}>
-              <AppText variant="subheading">Nome</AppText>
-              <AppText muted style={styles.hint}>
-                Usado na saudação da tela inicial.
-              </AppText>
-            </View>
-            {!editingName ? (
-              <AppButton
-                title="Editar"
-                variant="ghost"
-                compact
-                onPress={() => setEditingName(true)}
-                accessibilityLabel="Editar nome do perfil"
-              />
-            ) : null}
-          </View>
+        <ProfileNameCard
+          editing={editingName}
+          error={nameError}
+          name={settings.userName}
+          nameDraft={nameDraft}
+          onCancel={handleCancelName}
+          onChange={(value) => {
+            setNameDraft(value);
+            if (nameError) setNameError("");
+          }}
+          onEdit={() => setEditingName(true)}
+          onSave={handleSaveName}
+        />
 
-          {editingName ? (
-            <>
-              <TextInput
-                value={nameDraft}
-                onChangeText={setNameDraft}
-                placeholder="Seu nome"
-                placeholderTextColor={colors.textMuted}
-                style={styles.input}
-                accessibilityLabel="Nome do perfil"
+        <SectionHeader title="Lembretes" meta="Configure na ordem" />
+
+        <AppCard style={styles.card}>
+          <SettingHeader
+            icon={Bell}
+            title="Permitir notificações"
+            hint="É a permissão básica para receber qualquer lembrete."
+            status={remindersReady ? "active" : "paused"}
+          />
+
+          {permissionState?.notifications === "denied" ? (
+            <View style={styles.permissionBody}>
+              <AppText style={styles.warningTitle}>Permissão bloqueada</AppText>
+              <AppText variant="small" muted style={styles.bodyText}>
+                Abra as configurações do aparelho e permita notificações para o MedMinder.
+              </AppText>
+              <AppButton
+                accessibilityLabel="Abrir configurações de notificação"
+                icon={Settings}
+                onPress={openNotificationSettings}
+                title="Abrir configurações"
+                variant="ghost"
               />
-              <View style={styles.editActions}>
-                <AppButton
-                  title="Cancelar"
-                  variant="ghost"
-                  style={styles.editButton}
-                  onPress={handleCancelName}
-                  accessibilityLabel="Cancelar edição do nome"
-                />
-                <AppButton
-                  title="Salvar"
-                  variant="primary"
-                  style={styles.editButton}
-                  onPress={handleSaveName}
-                  accessibilityLabel="Salvar nome do perfil"
-                />
-              </View>
-            </>
+            </View>
           ) : (
-            <AppText variant="heading" style={styles.profileName}>
-              {settings.userName}
-            </AppText>
+            <View style={styles.switchRow}>
+              <View style={styles.switchText}>
+                <AppText style={styles.settingLabel}>Lembretes</AppText>
+                <AppText variant="small" muted style={styles.hintText}>
+                  {remindersReady
+                    ? "Notificações ativadas para sua rotina."
+                    : "Ative para receber avisos dos medicamentos."}
+                </AppText>
+              </View>
+              <Switch
+                accessibilityLabel="Ativar notificações"
+                accessibilityState={{ checked: remindersReady, disabled: loading }}
+                disabled={loading}
+                onValueChange={handleToggleNotifications}
+                thumbColor={remindersReady ? colors.primary : colors.surface}
+                trackColor={{ false: colors.surfaceMuted, true: colors.primarySoft }}
+                value={remindersReady}
+              />
+            </View>
           )}
         </AppCard>
 
         <AppCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <AlarmClockCheck color={colors.primary} size={22} />
-            </View>
-            <View style={styles.headerText}>
-              <AppText variant="subheading">Avisar no horário exato</AppText>
-              <AppText muted style={styles.hint}>
-                Evita que o Android atrase os lembretes.
-              </AppText>
-            </View>
-            <StatusBadge
-              status={
-                permissionState?.exactAlarms === "denied" ? "paused" : "active"
-              }
-            />
-          </View>
-          {permissionState?.exactAlarms === "denied" ? (
+          <SettingHeader
+            icon={AlarmClockCheck}
+            title="Avisar no horário exato"
+            hint="Evita que o Android atrase os lembretes."
+            status={
+              !advancedDisabled &&
+              (permissionState?.exactAlarms === "granted" ||
+                permissionState?.exactAlarms === "notRequired")
+                ? "active"
+                : "paused"
+            }
+          />
+          {advancedDisabled ? (
+            <DisabledRequirement />
+          ) : permissionState?.exactAlarms === "denied" ? (
             <AppButton
+              accessibilityHint="Abre a autorização de alarmes e lembretes do Android"
               accessibilityLabel="Ativar avisos no horário exato"
               icon={Settings}
               onPress={handleExactAlarm}
-              title="Ativar"
+              title="Ativar horário exato"
               variant="ghost"
             />
           ) : (
@@ -262,180 +264,160 @@ export function SettingsScreen() {
         </AppCard>
 
         <AppCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <Maximize2 color={colors.primary} size={22} />
-            </View>
-            <View style={styles.headerText}>
-              <AppText variant="subheading">Alarme em tela cheia</AppText>
-              <AppText muted style={styles.hint}>
-                Abre uma tela de alarme quando o Android permitir.
-              </AppText>
-            </View>
-            <Switch
-              accessibilityLabel="Ativar alarme em tela cheia"
-              onValueChange={handleFullScreenToggle}
-              value={settings.fullScreenAlarmEnabled}
-            />
-          </View>
-          {settings.fullScreenAlarmEnabled && permissionState?.fullScreen === "denied" ? (
-            <AppButton
-              accessibilityLabel="Abrir configuração de alarme em tela cheia"
-              icon={Settings}
-              onPress={openFullScreenAlarmSettings}
-              title="Abrir configuração"
-              variant="ghost"
-            />
-          ) : null}
-          {settings.fullScreenAlarmEnabled ? (
-            <AppText variant="small" muted style={styles.permissionExplanation}>
-              {permissionState?.fullScreen === "denied"
-                ? "A preferência está ligada no MedMinder, mas o Android ainda precisa autorizar a tela cheia."
-                : permissionState?.fullScreen === "unsupported"
-                  ? "Este Android não exige uma autorização separada."
-                  : "Preferência e autorização do Android estão ativas."}
-            </AppText>
+          <SettingHeader
+            icon={Maximize2}
+            title="Alarme em tela cheia"
+            hint="Abre uma tela de alarme quando o Android permitir."
+            status={
+              !advancedDisabled &&
+              settings.fullScreenAlarmEnabled &&
+              permissionState?.fullScreen !== "denied"
+                ? "active"
+                : "paused"
+            }
+          />
+          {advancedDisabled ? (
+            <DisabledRequirement />
           ) : (
-            <AppText variant="small" muted>
-              Ative para solicitar uma tela de alarme quando o aparelho estiver bloqueado.
-            </AppText>
+            <>
+              <View style={styles.switchRow}>
+                <View style={styles.switchText}>
+                  <AppText style={styles.settingLabel}>Usar tela cheia</AppText>
+                  <AppText variant="small" muted style={styles.hintText}>
+                    O Android pode limitar este recurso conforme o aparelho.
+                  </AppText>
+                </View>
+                <Switch
+                  accessibilityLabel="Ativar alarme em tela cheia"
+                  accessibilityState={{ checked: settings.fullScreenAlarmEnabled }}
+                  onValueChange={handleFullScreenToggle}
+                  value={settings.fullScreenAlarmEnabled}
+                />
+              </View>
+              {settings.fullScreenAlarmEnabled &&
+              permissionState?.fullScreen === "denied" ? (
+                <AppButton
+                  accessibilityLabel="Abrir configuração de alarme em tela cheia"
+                  icon={Settings}
+                  onPress={openFullScreenAlarmSettings}
+                  style={styles.inlineAction}
+                  title="Autorizar tela cheia"
+                  variant="ghost"
+                />
+              ) : null}
+            </>
           )}
         </AppCard>
 
         <AppCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <LockKeyhole color={colors.primary} size={22} />
-            </View>
-            <View style={styles.headerText}>
-              <AppText variant="subheading">Detalhes na tela bloqueada</AppText>
-              <AppText muted style={styles.hint}>
-                Mostra nome, dosagem e notas sem desbloquear o aparelho.
-              </AppText>
-            </View>
-            <Switch
-              accessibilityLabel="Mostrar detalhes na tela bloqueada"
-              onValueChange={(value) =>
-                updateReminderSettings({ showLockScreenDetails: value })
-              }
-              value={settings.showLockScreenDetails}
-            />
-          </View>
-        </AppCard>
-
-        {permissionState?.batteryOptimization === "optimized" ? (
-          <AppCard style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.iconWrap}>
-                <BatteryCharging color={colors.primary} size={22} />
-              </View>
-              <View style={styles.headerText}>
-                <AppText variant="subheading">Funcionamento em segundo plano</AppText>
-                <AppText muted style={styles.hint}>
-                  A economia de bateria pode atrasar lembretes neste aparelho.
-                </AppText>
-              </View>
-            </View>
-            <AppButton
-              accessibilityLabel="Abrir configuração de economia de bateria"
-              icon={Settings}
-              onPress={openBatterySettings}
-              title="Revisar configuração"
-              variant="ghost"
-            />
-          </AppCard>
-        ) : null}
-
-        <AppButton
-          accessibilityLabel="Testar alarme em cinco segundos"
-          icon={TestTube2}
-          onPress={handleAlarmTest}
-          style={styles.testButton}
-          title="Testar alarme"
-          variant="secondary"
-        />
-        {alarmTestMessage ? (
-          <AppText
-            accessibilityLiveRegion="polite"
-            style={styles.alarmTestMessage}
-            variant="small"
-          >
-            {alarmTestMessage}
-          </AppText>
-        ) : null}
-
-        <AppCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.iconWrap}>
-              <Bell color={colors.primary} size={22} />
-            </View>
-            <View style={styles.headerText}>
-              <AppText variant="subheading">Notificações</AppText>
-              <AppText muted style={styles.hint}>
-                Cuide da rotina com lembretes locais no seu aparelho.
-              </AppText>
-            </View>
-            <StatusBadge status={permissionDenied && !notificationsEnabled ? "paused" : notificationsEnabled ? "active" : "paused"} />
-          </View>
-
-          {permissionDenied && !notificationsEnabled ? (
-            <View style={styles.deniedState}>
-              <AppText style={styles.deniedTitle}>
-                Permissão negada
-              </AppText>
-              <AppText variant="small" muted style={styles.deniedText}>
-                As notificações foram bloqueadas. Para receber lembretes, autorize
-                as notificações nas configurações do aparelho.
-              </AppText>
-              <AppButton
-                title="Abrir configurações"
-                variant="secondary"
-                icon={Settings}
-                onPress={handleOpenSettings}
-                style={styles.settingsButton}
-                accessibilityLabel="Abrir configurações de notificação"
-              />
-            </View>
+          <SettingHeader
+            icon={LockKeyhole}
+            title="Detalhes na tela bloqueada"
+            hint="Controla quais informações aparecem sem desbloquear o aparelho."
+            status={
+              !advancedDisabled && settings.showLockScreenDetails
+                ? "active"
+                : "paused"
+            }
+          />
+          {advancedDisabled ? (
+            <DisabledRequirement />
           ) : (
-            <View style={styles.row}>
-              <View style={styles.rowInfo}>
-                <AppText style={styles.label}>Lembretes</AppText>
-                <AppText variant="small" muted style={styles.hint}>
-                  {notificationsEnabled
-                    ? "Notificações ativadas para a rotina."
-                    : "Ative para receber lembretes dos medicamentos."}
+            <View style={styles.switchRow}>
+              <View style={styles.switchText}>
+                <AppText style={styles.settingLabel}>Mostrar detalhes</AppText>
+                <AppText variant="small" muted style={styles.hintText}>
+                  Exibe nome, dosagem e notas na tela bloqueada.
                 </AppText>
               </View>
               <Switch
-                value={notificationsEnabled}
-                onValueChange={handleToggle}
-                disabled={loading}
-                thumbColor={notificationsEnabled ? colors.primary : colors.surface}
-                trackColor={{
-                  false: colors.surfaceMuted,
-                  true: colors.primarySoft,
-                }}
-                accessibilityLabel="Ativar notificações"
+                accessibilityLabel="Mostrar detalhes na tela bloqueada"
+                accessibilityState={{ checked: settings.showLockScreenDetails }}
+                onValueChange={(value) =>
+                  updateReminderSettings({ showLockScreenDetails: value })
+                }
+                value={settings.showLockScreenDetails}
               />
             </View>
           )}
         </AppCard>
 
         <AppCard style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconWrap, styles.accentIcon]}>
-              <Info color={colors.accent} size={22} />
-            </View>
-            <View style={styles.headerText}>
-              <AppText variant="subheading">Sobre</AppText>
-              <AppText muted style={styles.hint}>
-                MedMinder v1.0.0
+          <SettingHeader
+            icon={BatteryCharging}
+            title="Funcionamento em segundo plano"
+            hint="Ajuda o Android a entregar os alarmes sem atraso."
+            status={
+              !advancedDisabled &&
+              permissionState?.batteryOptimization === "unrestricted"
+                ? "active"
+                : "paused"
+            }
+          />
+          {advancedDisabled ? (
+            <DisabledRequirement />
+          ) : permissionState?.batteryOptimization === "optimized" ? (
+            <>
+              <AppText variant="small" muted style={styles.bodyText}>
+                A economia de bateria pode atrasar lembretes neste aparelho.
               </AppText>
-            </View>
-          </View>
+              <AppButton
+                accessibilityLabel="Abrir configuração de economia de bateria"
+                icon={Settings}
+                onPress={openBatterySettings}
+                title="Revisar configuração"
+                variant="ghost"
+              />
+            </>
+          ) : (
+            <AppText variant="small" muted>
+              O MedMinder pode funcionar em segundo plano neste aparelho.
+            </AppText>
+          )}
+        </AppCard>
+
+        <AppCard style={styles.card}>
+          <SettingHeader
+            icon={TestTube2}
+            title="Testar alarme"
+            hint="Confirme som, vibração e apresentação antes de depender dos lembretes."
+            status={advancedDisabled ? "paused" : "active"}
+          />
+          {advancedDisabled ? <DisabledRequirement /> : null}
+          <AppButton
+            accessibilityHint={
+              advancedDisabled
+                ? "Ative as notificações primeiro"
+                : "Agenda um teste para daqui a cinco segundos"
+            }
+            accessibilityLabel="Testar alarme em cinco segundos"
+            disabled={advancedDisabled}
+            icon={TestTube2}
+            onPress={handleAlarmTest}
+            title="Testar alarme"
+            variant="secondary"
+          />
+          {alarmTestMessage ? (
+            <AppText
+              accessibilityLiveRegion="polite"
+              style={styles.alarmTestMessage}
+              variant="small"
+            >
+              {alarmTestMessage}
+            </AppText>
+          ) : null}
+        </AppCard>
+
+        <SectionHeader title="Sobre" />
+        <AppCard style={styles.card}>
+          <SettingHeader
+            accent
+            icon={Info}
+            title="MedMinder"
+            hint="Versão 1.0.0"
+          />
           <AppText muted>
-            Aplicativo offline para lembrete de medicamentos, feito para acompanhar
-            sua rotina diária com calma, clareza e carinho.
+            Aplicativo offline para lembrete de medicamentos, feito para acompanhar sua rotina diária com calma e clareza.
           </AppText>
         </AppCard>
       </ScrollView>
@@ -443,23 +425,133 @@ export function SettingsScreen() {
   );
 }
 
+function ProfileNameCard({
+  editing,
+  error,
+  name,
+  nameDraft,
+  onCancel,
+  onChange,
+  onEdit,
+  onSave,
+}: {
+  editing: boolean;
+  error: string;
+  name: string;
+  nameDraft: string;
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onEdit: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <AppCard style={styles.card}>
+      <SettingHeader icon={UserRound} title="Nome" hint="Usado na saudação da tela inicial." />
+      {editing ? (
+        <>
+          <TextInput
+            accessibilityLabel="Nome do perfil"
+            autoCapitalize="words"
+            onChangeText={onChange}
+            placeholder="Seu nome"
+            placeholderTextColor={colors.textMuted}
+            style={[styles.input, error ? styles.inputError : null]}
+            value={nameDraft}
+          />
+          {error ? (
+            <AppText
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={styles.nameError}
+              variant="small"
+            >
+              {error}
+            </AppText>
+          ) : null}
+          <View style={styles.editActions}>
+            <AppButton
+              accessibilityLabel="Cancelar edição do nome"
+              onPress={onCancel}
+              style={styles.editButton}
+              title="Cancelar"
+              variant="ghost"
+            />
+            <AppButton
+              accessibilityLabel="Salvar nome do perfil"
+              disabled={Boolean(validateProfileName(nameDraft))}
+              onPress={onSave}
+              style={styles.editButton}
+              title="Salvar"
+            />
+          </View>
+        </>
+      ) : (
+        <View style={styles.profileValueRow}>
+          <AppText variant="heading" style={styles.profileName}>
+            {name || "Não informado"}
+          </AppText>
+          <AppButton
+            accessibilityLabel="Editar nome do perfil"
+            compact
+            onPress={onEdit}
+            title="Editar"
+            variant="ghost"
+          />
+        </View>
+      )}
+    </AppCard>
+  );
+}
+
+function SettingHeader({
+  icon: Icon,
+  title,
+  hint,
+  status,
+  accent = false,
+}: {
+  icon: typeof Bell;
+  title: string;
+  hint: string;
+  status?: "active" | "paused";
+  accent?: boolean;
+}) {
+  return (
+    <View style={styles.cardHeader}>
+      <View style={[styles.iconWrap, accent && styles.accentIcon]}>
+        <Icon color={accent ? colors.accent : colors.primary} size={22} />
+      </View>
+      <View style={styles.headerText}>
+        <AppText variant="subheading">{title}</AppText>
+        <AppText muted style={styles.hintText}>
+          {hint}
+        </AppText>
+      </View>
+      {status ? <StatusBadge status={status} /> : null}
+    </View>
+  );
+}
+
+function DisabledRequirement() {
+  return (
+    <View
+      accessible
+      accessibilityLabel="Indisponível. Ative as notificações primeiro."
+      style={styles.disabledRequirement}
+    >
+      <LockKeyhole color={colors.textMuted} size={18} />
+      <AppText variant="small" muted style={styles.disabledText}>
+        Ative as notificações primeiro.
+      </AppText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing.xxl,
-  },
-  title: {
-    color: colors.primaryDark,
-    marginBottom: spacing.lg,
-    marginTop: spacing.xs,
-  },
-  card: {
-    marginBottom: spacing.md,
-  },
-  cardHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    marginBottom: spacing.lg,
-  },
+  content: { paddingBottom: spacing.xxl },
+  title: { color: colors.primaryDark, marginBottom: spacing.lg, marginTop: spacing.xs },
+  card: { marginBottom: spacing.md },
+  cardHeader: { alignItems: "center", flexDirection: "row", marginBottom: spacing.lg },
   iconWrap: {
     alignItems: "center",
     backgroundColor: colors.primarySoft,
@@ -469,16 +561,11 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
     width: 44,
   },
-  accentIcon: {
-    backgroundColor: colors.accentSoft,
-  },
-  headerText: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  profileName: {
-    color: colors.primaryDark,
-  },
+  accentIcon: { backgroundColor: colors.accentSoft },
+  headerText: { flex: 1, marginRight: spacing.md },
+  hintText: { marginTop: spacing.xs },
+  profileValueRow: { alignItems: "center", flexDirection: "row" },
+  profileName: { color: colors.primaryDark, flex: 1, marginRight: spacing.md },
   input: {
     backgroundColor: colors.white,
     borderColor: colors.border,
@@ -489,55 +576,31 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: spacing.md,
   },
-  editActions: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  editButton: {
-    flex: 1,
-  },
-  row: {
+  inputError: { borderColor: colors.danger },
+  nameError: { color: colors.danger, marginTop: spacing.sm },
+  editActions: { flexDirection: "row", gap: spacing.md, marginTop: spacing.md },
+  editButton: { flex: 1 },
+  switchRow: {
     alignItems: "center",
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
     paddingTop: spacing.lg,
   },
-  rowInfo: {
-    flex: 1,
-    marginRight: spacing.md,
+  switchText: { flex: 1, marginRight: spacing.md },
+  settingLabel: { fontWeight: "700" },
+  permissionBody: { borderTopColor: colors.border, borderTopWidth: 1, paddingTop: spacing.lg },
+  warningTitle: { color: colors.warning, fontWeight: "800" },
+  bodyText: { marginBottom: spacing.md, marginTop: spacing.xs },
+  inlineAction: { marginTop: spacing.md },
+  disabledRequirement: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    flexDirection: "row",
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
   },
-  label: {
-    fontWeight: "700",
-  },
-  hint: {
-    marginTop: spacing.xs,
-  },
-  permissionExplanation: {
-    marginTop: spacing.sm,
-  },
-  deniedState: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    paddingTop: spacing.lg,
-  },
-  deniedTitle: {
-    color: colors.warning,
-    fontWeight: "800",
-    marginBottom: spacing.xs,
-  },
-  deniedText: {
-    marginBottom: spacing.md,
-  },
-  settingsButton: {
-    alignSelf: "flex-start",
-  },
-  testButton: {
-    marginBottom: spacing.sm,
-  },
-  alarmTestMessage: {
-    color: colors.primaryDark,
-    marginBottom: spacing.lg,
-  },
+  disabledText: { flex: 1, marginLeft: spacing.sm },
+  alarmTestMessage: { color: colors.primaryDark, marginTop: spacing.md },
 });

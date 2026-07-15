@@ -1,0 +1,763 @@
+import { useEffect, useState } from "react";
+import {
+  AppState,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
+import {
+  AlarmClockCheck,
+  BellRing,
+  CheckCircle2,
+  Clock3,
+  HeartPulse,
+  History,
+  LockKeyhole,
+  Maximize2,
+  Pill,
+} from "lucide-react-native";
+import { useAppData } from "../../services/appDataProvider";
+import {
+  getReminderPermissionState,
+  openExactAlarmSettings,
+  openFullScreenAlarmSettings,
+  requestNotificationPermission,
+} from "../../services/notificationPermissionService";
+import { validateProfileName } from "../../utils/validation";
+import { AppButton } from "../ui/AppButton";
+import { AppText } from "../ui/AppText";
+import { Screen } from "../ui/Screen";
+import { colors } from "../../theme/colors";
+import { radii } from "../../theme/radii";
+import { spacing } from "../../theme/spacing";
+
+type Step =
+  | "welcome"
+  | "profile"
+  | "guide"
+  | "notifications"
+  | "exact"
+  | "fullScreen";
+
+type AwaitingCapability = "exact" | "fullScreen" | null;
+
+const PERMISSION_STEP: Record<"notifications" | "exact" | "fullScreen", number> = {
+  notifications: 1,
+  exact: 2,
+  fullScreen: 3,
+};
+
+export function FirstRunOnboarding() {
+  const {
+    completeOnboarding,
+    updateNotificationsEnabled,
+    updateReminderSettings,
+  } = useAppData();
+  const [step, setStep] = useState<Step>("welcome");
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [permissionMessage, setPermissionMessage] = useState("");
+  const [confirmSkipVisible, setConfirmSkipVisible] = useState(false);
+  const [awaitingCapability, setAwaitingCapability] =
+    useState<AwaitingCapability>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function finishOnboarding() {
+    setBusy(true);
+    try {
+      await completeOnboarding(name);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!awaitingCapability) return;
+
+    const subscription = AppState.addEventListener("change", async (state) => {
+      if (state !== "active") return;
+
+      const permissions = await getReminderPermissionState();
+      setAwaitingCapability(null);
+
+      if (awaitingCapability === "exact") {
+        if (
+          permissions.exactAlarms === "granted" ||
+          permissions.exactAlarms === "notRequired"
+        ) {
+          setPermissionMessage("");
+          setStep("fullScreen");
+        } else {
+          setPermissionMessage(
+            "O horário exato ainda não foi autorizado. Você pode tentar novamente ou continuar sem ele."
+          );
+        }
+        return;
+      }
+
+      if (
+        permissions.fullScreen === "granted" ||
+        permissions.fullScreen === "unsupported"
+      ) {
+        setPermissionMessage("");
+        await finishOnboarding();
+      } else {
+        setPermissionMessage(
+          "A tela cheia ainda não foi autorizada. Você pode tentar novamente ou continuar sem ela."
+        );
+      }
+    });
+
+    return () => subscription.remove();
+  }, [awaitingCapability, name]);
+
+  function continueFromProfile() {
+    const error = validateProfileName(name);
+    if (error) {
+      setNameError(error);
+      return;
+    }
+    setNameError("");
+    setStep("guide");
+  }
+
+  async function requestBasicNotifications() {
+    setBusy(true);
+    setPermissionMessage("");
+    try {
+      const result = await requestNotificationPermission();
+      await updateNotificationsEnabled(result.granted);
+      if (result.granted) {
+        setStep("exact");
+      } else {
+        setPermissionMessage(
+          "As notificações não foram autorizadas. Tente novamente ou continue sem lembretes."
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestExactAlarms() {
+    setBusy(true);
+    setPermissionMessage("");
+    try {
+      const permissions = await getReminderPermissionState();
+      if (
+        permissions.exactAlarms === "granted" ||
+        permissions.exactAlarms === "notRequired"
+      ) {
+        setStep("fullScreen");
+        return;
+      }
+
+      setAwaitingCapability("exact");
+      setPermissionMessage(
+        "Na próxima tela, permita que o MedMinder defina alarmes e lembretes."
+      );
+      await openExactAlarmSettings();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestFullScreenAlarm() {
+    setBusy(true);
+    setPermissionMessage("");
+    try {
+      await updateReminderSettings({ fullScreenAlarmEnabled: true });
+      const permissions = await getReminderPermissionState();
+      if (
+        permissions.fullScreen === "granted" ||
+        permissions.fullScreen === "unsupported"
+      ) {
+        await finishOnboarding();
+        return;
+      }
+
+      setAwaitingCapability("fullScreen");
+      setPermissionMessage(
+        "Na próxima tela, permita que o MedMinder abra alarmes em tela cheia."
+      );
+      await openFullScreenAlarmSettings();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function skipBasicNotifications() {
+    setConfirmSkipVisible(false);
+    setBusy(true);
+    try {
+      await updateNotificationsEnabled(false);
+      await finishOnboarding();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function skipFullScreen() {
+    setBusy(true);
+    try {
+      await updateReminderSettings({ fullScreenAlarmEnabled: false });
+      await finishOnboarding();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handlePrimaryAction() {
+    if (busy) return;
+    if (step === "welcome") setStep("profile");
+    else if (step === "profile") continueFromProfile();
+    else if (step === "guide") setStep("notifications");
+    else if (step === "notifications") requestBasicNotifications();
+    else if (step === "exact") requestExactAlarms();
+    else requestFullScreenAlarm();
+  }
+
+  const primaryTitle = getPrimaryTitle(step, busy);
+
+  return (
+    <Screen>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardArea}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <OnboardingStepContent
+            name={name}
+            nameError={nameError}
+            onNameChange={(value) => {
+              setName(value);
+              if (nameError) setNameError("");
+            }}
+            permissionMessage={permissionMessage}
+            step={step}
+          />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <AppButton
+            accessibilityLabel={primaryTitle}
+            accessibilityState={{ busy, disabled: busy }}
+            disabled={busy}
+            onPress={handlePrimaryAction}
+            title={primaryTitle}
+          />
+          {step === "notifications" || step === "exact" || step === "fullScreen" ? (
+            <Pressable
+              accessibilityLabel={`Fazer ${getStepTitle(step).toLowerCase()} depois`}
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => {
+                if (step === "notifications") setConfirmSkipVisible(true);
+                else if (step === "exact") {
+                  setPermissionMessage("");
+                  setStep("fullScreen");
+                } else skipFullScreen();
+              }}
+              style={styles.secondaryAction}
+            >
+              <AppText style={styles.secondaryText}>Agora não</AppText>
+            </Pressable>
+          ) : null}
+        </View>
+      </KeyboardAvoidingView>
+
+      <SkipNotificationsConfirmation
+        busy={busy}
+        onCancel={() => setConfirmSkipVisible(false)}
+        onConfirm={skipBasicNotifications}
+        visible={confirmSkipVisible}
+      />
+    </Screen>
+  );
+}
+
+function OnboardingStepContent({
+  step,
+  name,
+  nameError,
+  onNameChange,
+  permissionMessage,
+}: {
+  step: Step;
+  name: string;
+  nameError: string;
+  onNameChange: (value: string) => void;
+  permissionMessage: string;
+}) {
+  if (step === "welcome") {
+    return (
+      <View style={styles.stepContent}>
+        <View style={styles.brandRow}>
+          <View style={styles.iconWrap}>
+            <HeartPulse color={colors.primaryDark} size={30} />
+          </View>
+          <AppText variant="subheading" style={styles.brandName}>
+            MedMinder
+          </AppText>
+        </View>
+        <AppText accessibilityRole="header" variant="title" style={styles.title}>
+          Bem-vindo ao MedMinder
+        </AppText>
+        <AppText muted style={styles.description}>
+          Organize seus medicamentos e acompanhe sua rotina com mais tranquilidade.
+        </AppText>
+        <View style={styles.peachTip}>
+          <HeartPulse color={colors.accent} size={22} />
+          <AppText style={styles.tipText}>
+            Um lembrete pessoal para apoiar seu cuidado diário.
+          </AppText>
+        </View>
+        <View style={styles.localDataNote}>
+          <LockKeyhole color={colors.primary} size={18} />
+          <AppText variant="small" muted style={styles.localDataText}>
+            Seus dados ficam somente neste aparelho.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  if (step === "profile") {
+    return (
+      <View style={styles.stepContent}>
+        <AppText variant="caption" style={styles.eyebrow}>
+          Primeiro acesso
+        </AppText>
+        <AppText accessibilityRole="header" variant="title" style={styles.title}>
+          Como podemos chamar você?
+        </AppText>
+        <AppText muted style={styles.description}>
+          Usaremos seu nome apenas para personalizar sua experiência neste aparelho.
+        </AppText>
+        <AppText style={styles.inputLabel}>Seu nome</AppText>
+        <TextInput
+          accessibilityLabel="Seu nome"
+          autoCapitalize="words"
+          autoComplete="name"
+          autoFocus
+          onChangeText={onNameChange}
+          placeholder="Digite seu nome"
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="done"
+          style={[styles.input, nameError ? styles.inputError : null]}
+          value={name}
+        />
+        {nameError ? (
+          <AppText
+            accessibilityLiveRegion="assertive"
+            accessibilityRole="alert"
+            style={styles.errorText}
+            variant="small"
+          >
+            {nameError}
+          </AppText>
+        ) : null}
+        <View style={styles.localDataNote}>
+          <LockKeyhole color={colors.primary} size={18} />
+          <AppText variant="small" muted style={styles.localDataText}>
+            Seu nome fica somente neste aparelho.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  if (step === "guide") {
+    return (
+      <View style={styles.stepContent}>
+        <AppText variant="caption" style={styles.eyebrow}>
+          Conheça o MedMinder
+        </AppText>
+        <AppText accessibilityRole="header" variant="title" style={styles.title}>
+          Seu cuidado em um só lugar
+        </AppText>
+        <View style={styles.featureList}>
+          <FeatureRow
+            icon={Pill}
+            title="Organize sua rotina"
+            description="Cadastre medicamentos e horários."
+          />
+          <FeatureRow
+            icon={CheckCircle2}
+            title="Cuide das doses de hoje"
+            description="Marque como tomada, adie ou pule."
+          />
+          <FeatureRow
+            icon={History}
+            title="Acompanhe seu histórico"
+            description="Consulte seus registros dos últimos dias."
+            last
+          />
+        </View>
+      </View>
+    );
+  }
+
+  const content = PERMISSION_CONTENT[step];
+  const Icon = content.icon;
+
+  return (
+    <View style={styles.stepContent}>
+      <AppText variant="caption" style={styles.stepIndicator}>
+        Etapa {PERMISSION_STEP[step]} de 3
+      </AppText>
+      <View style={styles.iconWrap}>
+        <Icon color={colors.primaryDark} size={30} />
+      </View>
+      <AppText accessibilityRole="header" variant="title" style={styles.title}>
+        {content.title}
+      </AppText>
+      <AppText muted style={styles.description}>
+        {content.description}
+      </AppText>
+      {step === "notifications" ? (
+        <View style={styles.peachTip}>
+          <BellRing color={colors.accent} size={22} />
+          <AppText style={styles.tipText}>
+            Você pode mudar isso depois em Perfil.
+          </AppText>
+        </View>
+      ) : null}
+      {step === "exact" ? (
+        <View style={styles.benefitList}>
+          <BenefitRow text="Lembrete 5 minutos antes" />
+          <BenefitRow text="Alarme no horário da dose" />
+        </View>
+      ) : null}
+      {step === "fullScreen" ? <AlarmPreview /> : null}
+      {permissionMessage ? (
+        <AppText
+          accessibilityLiveRegion="polite"
+          style={styles.permissionMessage}
+          variant="small"
+        >
+          {permissionMessage}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
+const PERMISSION_CONTENT = {
+  notifications: {
+    title: "Receba seus lembretes",
+    description:
+      "O MedMinder precisa enviar notificações para avisar quando estiver perto da hora e no horário da dose.",
+    icon: BellRing,
+  },
+  exact: {
+    title: "Avise no horário certo",
+    description:
+      "Permita alarmes exatos para evitar atrasos causados pelo Android.",
+    icon: AlarmClockCheck,
+  },
+  fullScreen: {
+    title: "Alarme em tela cheia",
+    description:
+      "Quando permitido pelo Android, o alarme pode ocupar a tela para chamar sua atenção.",
+    icon: Maximize2,
+  },
+} as const;
+
+function FeatureRow({
+  icon: Icon,
+  title,
+  description,
+  last = false,
+}: {
+  icon: typeof Pill;
+  title: string;
+  description: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={[styles.featureRow, last && styles.featureRowLast]}>
+      <View style={styles.featureIcon}>
+        <Icon color={colors.primaryDark} size={23} />
+      </View>
+      <View style={styles.featureText}>
+        <AppText variant="subheading">{title}</AppText>
+        <AppText muted variant="small" style={styles.featureDescription}>
+          {description}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function BenefitRow({ text }: { text: string }) {
+  return (
+    <View style={styles.benefitRow}>
+      <CheckCircle2 color={colors.success} size={22} />
+      <AppText style={styles.benefitText}>{text}</AppText>
+    </View>
+  );
+}
+
+function AlarmPreview() {
+  return (
+    <View
+      accessible
+      accessibilityLabel="Exemplo de alarme para Losartana 50 miligramas"
+      style={styles.alarmPreview}
+    >
+      <View style={styles.alarmPreviewHeader}>
+        <Clock3 color={colors.primaryDark} size={23} />
+        <View style={styles.alarmPreviewText}>
+          <AppText variant="subheading">Losartana 50 mg</AppText>
+          <AppText variant="caption" muted>
+            09:00
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.previewActions}>
+        <View style={styles.previewPrimary}>
+          <AppText variant="caption" style={styles.previewPrimaryText}>
+            Marcar como tomado
+          </AppText>
+        </View>
+        <View style={styles.previewSecondary}>
+          <AppText variant="caption" style={styles.previewSecondaryText}>
+            Adiar 5 min
+          </AppText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function SkipNotificationsConfirmation({
+  visible,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  visible: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      animationType="fade"
+      onRequestClose={onCancel}
+      transparent
+      visible={visible}
+    >
+      <View accessibilityViewIsModal style={styles.modalOverlay}>
+        <View style={styles.confirmation}>
+          <View style={styles.confirmationIcon}>
+            <BellRing color={colors.warning} size={28} />
+          </View>
+          <AppText accessibilityRole="header" variant="heading" style={styles.confirmationTitle}>
+            Continuar sem lembretes?
+          </AppText>
+          <AppText muted style={styles.confirmationDescription}>
+            Sem essa permissão, o MedMinder não poderá avisar quando uma dose estiver próxima ou no horário. Você ainda poderá usar o app e ativar os lembretes depois em Perfil.
+          </AppText>
+          <AppButton
+            accessibilityLabel="Voltar e permitir notificações"
+            disabled={busy}
+            onPress={onCancel}
+            style={styles.confirmationPrimary}
+            title="Voltar e permitir"
+          />
+          <AppButton
+            accessibilityLabel="Continuar sem lembretes"
+            disabled={busy}
+            onPress={onConfirm}
+            title="Continuar sem lembretes"
+            variant="ghost"
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function getPrimaryTitle(step: Step, busy: boolean): string {
+  if (busy) return "Aguarde...";
+  if (step === "welcome") return "Começar";
+  if (step === "profile") return "Continuar";
+  if (step === "guide") return "Configurar lembretes";
+  if (step === "notifications") return "Permitir notificações";
+  if (step === "exact") return "Abrir configurações";
+  return "Permitir tela cheia";
+}
+
+function getStepTitle(step: "notifications" | "exact" | "fullScreen"): string {
+  return PERMISSION_CONTENT[step].title;
+}
+
+const styles = StyleSheet.create({
+  keyboardArea: { flex: 1 },
+  content: { flexGrow: 1, paddingBottom: spacing.lg },
+  stepContent: { flex: 1, paddingTop: spacing.xl },
+  brandRow: { alignItems: "center", flexDirection: "row", marginBottom: spacing.xl },
+  brandName: { color: colors.primaryDark, marginLeft: spacing.md },
+  eyebrow: { color: colors.primaryDark, marginBottom: spacing.md },
+  stepIndicator: {
+    alignSelf: "flex-start",
+    borderColor: colors.primary,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    color: colors.primaryDark,
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  iconWrap: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.md,
+    height: 64,
+    justifyContent: "center",
+    marginBottom: spacing.xl,
+    width: 64,
+  },
+  title: { color: colors.primaryDark },
+  description: { marginTop: spacing.md },
+  peachTip: {
+    alignItems: "center",
+    backgroundColor: colors.accentSoft,
+    borderColor: "#F2C4A8",
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+  },
+  tipText: { flex: 1, marginLeft: spacing.md },
+  localDataNote: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginTop: spacing.xl,
+  },
+  localDataText: { flex: 1, marginLeft: spacing.sm },
+  inputLabel: { fontWeight: "700", marginBottom: spacing.sm, marginTop: spacing.xxl },
+  input: {
+    backgroundColor: colors.white,
+    borderColor: "#BFB5A8",
+    borderRadius: radii.md,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 17,
+    minHeight: 52,
+    paddingHorizontal: spacing.lg,
+  },
+  inputError: { borderColor: colors.danger },
+  errorText: { color: colors.danger, fontWeight: "700", marginTop: spacing.sm },
+  featureList: { marginTop: spacing.xl },
+  featureRow: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    paddingVertical: spacing.lg,
+  },
+  featureRowLast: { borderBottomWidth: 0 },
+  featureIcon: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.md,
+    height: 48,
+    justifyContent: "center",
+    marginRight: spacing.md,
+    width: 48,
+  },
+  featureText: { flex: 1 },
+  featureDescription: { marginTop: spacing.xs },
+  benefitList: { marginTop: spacing.xl },
+  benefitRow: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    minHeight: 58,
+  },
+  benefitText: { flex: 1, marginLeft: spacing.md },
+  permissionMessage: { color: colors.primaryDark, marginTop: spacing.lg },
+  alarmPreview: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+  },
+  alarmPreviewHeader: { alignItems: "center", flexDirection: "row" },
+  alarmPreviewText: { flex: 1, marginLeft: spacing.md },
+  previewActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
+  previewPrimary: {
+    alignItems: "center",
+    backgroundColor: colors.primaryDark,
+    borderRadius: radii.md,
+    flex: 1,
+    minHeight: 40,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  previewPrimaryText: { color: colors.white, textAlign: "center" },
+  previewSecondary: {
+    alignItems: "center",
+    borderColor: colors.primary,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+  },
+  previewSecondaryText: { color: colors.primaryDark, textAlign: "center" },
+  footer: {
+    backgroundColor: colors.background,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
+  },
+  secondaryAction: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.sm,
+    minHeight: 44,
+  },
+  secondaryText: { color: colors.primaryDark, fontWeight: "800" },
+  modalOverlay: {
+    backgroundColor: "rgba(36, 31, 26, 0.45)",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  confirmation: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: radii.md,
+    borderTopRightRadius: radii.md,
+    padding: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
+  confirmationIcon: {
+    alignItems: "center",
+    backgroundColor: colors.warningSoft,
+    borderRadius: radii.md,
+    height: 56,
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+    width: 56,
+  },
+  confirmationTitle: { color: colors.primaryDark },
+  confirmationDescription: { marginTop: spacing.md },
+  confirmationPrimary: { marginBottom: spacing.sm, marginTop: spacing.xl },
+});
