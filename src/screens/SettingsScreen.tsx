@@ -17,6 +17,7 @@ import {
   Settings,
   TestTube2,
   UserRound,
+  Volume2,
 } from "lucide-react-native";
 import { AppButton } from "../components/ui/AppButton";
 import { AppCard } from "../components/ui/AppCard";
@@ -27,8 +28,10 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { CareInfoTip } from "../components/CareInfoTip";
 import { useAppData } from "../services/appDataProvider";
 import {
+  ensureAlarmChannels,
   getReminderPermissionState,
   openBatterySettings,
+  openDoNotDisturbSettings,
   openExactAlarmSettings,
   openFullScreenAlarmSettings,
   openNotificationSettings,
@@ -113,6 +116,24 @@ export function SettingsScreen() {
   async function handleExactAlarm() {
     if (advancedDisabled) return;
     await openExactAlarmSettings();
+  }
+
+  async function handleCriticalAlertsToggle(value: boolean) {
+    if (advancedDisabled) return;
+    if (!value) {
+      await updateReminderSettings({ criticalAlertsEnabled: false });
+      return;
+    }
+
+    const readiness = await refreshPermissions();
+    if (readiness.doNotDisturb === "granted") {
+      await ensureAlarmChannels();
+      await updateReminderSettings({ criticalAlertsEnabled: true });
+      return;
+    }
+
+    await updateReminderSettings({ criticalAlertsEnabled: true });
+    await openDoNotDisturbSettings();
   }
 
   async function handleFullScreenToggle(value: boolean) {
@@ -229,6 +250,57 @@ export function SettingsScreen() {
                 value={remindersReady}
               />
             </View>
+          )}
+        </AppCard>
+
+        <AppCard style={styles.card}>
+          <SettingHeader
+            icon={Volume2}
+            title="Tocar no silencioso e Não Perturbe"
+            hint="Opcional. Dá prioridade aos alarmes de dose quando o aparelho estiver silenciado."
+            status={
+              !advancedDisabled &&
+              settings.criticalAlertsEnabled &&
+              permissionState?.doNotDisturb === "granted"
+                ? "active"
+                : "paused"
+            }
+          />
+          {advancedDisabled ? (
+            <DisabledRequirement />
+          ) : (
+            <>
+              <View style={styles.switchRow}>
+                <View style={styles.switchText}>
+                  <AppText style={styles.settingLabel}>Alarmes importantes</AppText>
+                  <AppText variant="small" muted style={styles.hintText}>
+                    {permissionState?.doNotDisturb === "granted"
+                      ? "O Android autorizou alarmes durante o silencioso e Não Perturbe."
+                      : "Sem esta autorização, o Android ainda pode silenciar o alarme."}
+                  </AppText>
+                </View>
+                <Switch
+                  accessibilityLabel="Tocar alarmes no silencioso e Não Perturbe"
+                  accessibilityState={{
+                    checked: settings.criticalAlertsEnabled,
+                  }}
+                  onValueChange={handleCriticalAlertsToggle}
+                  value={settings.criticalAlertsEnabled}
+                />
+              </View>
+              {settings.criticalAlertsEnabled &&
+              permissionState?.doNotDisturb === "denied" ? (
+                <AppButton
+                  accessibilityHint="Abre a autorização de alarmes importantes do Android"
+                  accessibilityLabel="Autorizar alarmes no Não Perturbe"
+                  icon={Settings}
+                  onPress={openDoNotDisturbSettings}
+                  style={styles.inlineAction}
+                  title="Autorizar no Android"
+                  variant="ghost"
+                />
+              ) : null}
+            </>
           )}
         </AppCard>
 

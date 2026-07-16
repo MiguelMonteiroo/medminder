@@ -81,6 +81,7 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   defaultSnoozeMinutes: 5,
   userName: "",
   fullScreenAlarmEnabled: false,
+  criticalAlertsEnabled: false,
   showLockScreenDetails: false,
   reminderSetupCompleted: false,
   onboardingCompleted: false,
@@ -156,6 +157,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     permissionMonitor.current = createReminderPermissionMonitor({
       readState: getReminderPermissionState,
       onCapabilitiesChanged: async () => {
+        await ensureChannelCreated();
         await reminderScheduler.cancelAll();
         await reconcileNotifications(
           repos.reminderArtifacts,
@@ -271,6 +273,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           {
             showLockScreenDetails: reminderSettings.showLockScreenDetails,
             fullScreenAlarmEnabled: reminderSettings.fullScreenAlarmEnabled,
+            criticalAlertsEnabled: reminderSettings.criticalAlertsEnabled,
           }
         );
       }
@@ -435,6 +438,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           {
             showLockScreenDetails: settings.showLockScreenDetails,
             fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+            criticalAlertsEnabled: settings.criticalAlertsEnabled,
             snoozed: true,
             alarmAt: snoozedUntil,
           }
@@ -609,7 +613,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const runAlarmTest = useCallback(async () => {
     await ensureChannelCreated();
-    await reminderScheduler.runAlarmTest();
+    await reminderScheduler.runAlarmTest({
+      criticalAlertsEnabled: settingsRef.current.criticalAlertsEnabled,
+      fullScreenAlarmEnabled: settingsRef.current.fullScreenAlarmEnabled,
+    });
   }, []);
 
   return (

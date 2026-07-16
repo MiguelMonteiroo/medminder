@@ -95,6 +95,7 @@ describe("reminder synchronization", () => {
         defaultSnoozeMinutes: 5,
         userName: "Maria",
         fullScreenAlarmEnabled: false,
+        criticalAlertsEnabled: false,
         showLockScreenDetails: false,
         reminderSetupCompleted: true,
         onboardingCompleted: true,

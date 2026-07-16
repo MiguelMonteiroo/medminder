@@ -61,6 +61,7 @@ export type ReminderSettings = {
   defaultSnoozeMinutes: number;
   userName: string;
   fullScreenAlarmEnabled: boolean;
+  criticalAlertsEnabled: boolean;
   showLockScreenDetails: boolean;
   reminderSetupCompleted: boolean;
   onboardingCompleted: boolean;
@@ -92,6 +93,7 @@ export type ReminderPermissionState = {
   notifications: "granted" | "denied" | "blocked";
   exactAlarms: "granted" | "denied" | "notRequired";
   fullScreen: "granted" | "denied" | "unsupported";
+  doNotDisturb: "granted" | "denied";
   batteryOptimization: "optimized" | "unrestricted" | "unknown";
 };
 

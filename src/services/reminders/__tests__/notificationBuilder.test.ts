@@ -1,4 +1,5 @@
 import {
+  buildAlarmTestNotification,
   buildDoseAlarmNotification,
   buildPreAlertNotification,
 } from "../notificationBuilder";
@@ -34,12 +35,20 @@ describe("notificationBuilder", () => {
     const notification = buildDoseAlarmNotification(dose, {
       showDetails: true,
       fullScreenEnabled: true,
+      useCriticalChannel: false,
     });
 
     expect(notification.android?.fullScreenAction).toEqual({
       id: "dose-alarm",
-      mainComponent: "MedMinderDoseAlarm",
+      launchActivity: "com.medminder.DoseAlarmActivity",
     });
+    expect(notification.android?.pressAction).toEqual({
+      id: "open-dose-window",
+      launchActivity: "com.medminder.DoseAlarmActivity",
+    });
+    expect(notification.android?.channelId).toBe(
+      "medication-dose-alarms-v2"
+    );
     expect(notification.android?.actions?.map((action) => action.pressAction.id)).toEqual([
       "mark-taken",
       "snooze-five",
@@ -52,13 +61,31 @@ describe("notificationBuilder", () => {
     const notification = buildDoseAlarmNotification(dose, {
       showDetails: false,
       fullScreenEnabled: false,
+      useCriticalChannel: true,
     });
 
     expect(notification.title).toBe("Hora do medicamento");
     expect(notification.android?.fullScreenAction).toBeUndefined();
+    expect(notification.android?.channelId).toBe(
+      "medication-dose-alarms-critical-v2"
+    );
     expect(notification.android?.actions?.map((action) => action.pressAction.id)).toEqual([
       "open-dose-window",
       "snooze-five",
     ]);
+  });
+
+  it("opens alarm tests in the dedicated alarm Activity", () => {
+    const notification = buildAlarmTestNotification({
+      fullScreenEnabled: true,
+      useCriticalChannel: true,
+    });
+
+    expect(notification.android?.pressAction?.launchActivity).toBe(
+      "com.medminder.DoseAlarmActivity"
+    );
+    expect(notification.android?.fullScreenAction?.launchActivity).toBe(
+      "com.medminder.DoseAlarmActivity"
+    );
   });
 });

@@ -20,6 +20,7 @@ import {
   buildTakenConfirmationNotification,
   type ReminderDoseViewModel,
 } from "./reminders/notificationBuilder";
+import { shouldUseCriticalAlarmChannel } from "./reminders/alarmChannelSelection";
 import {
   planOccurrenceReminders,
   type PlannedReminder,
@@ -28,6 +29,7 @@ import {
 export type ReminderScheduleOptions = {
   showLockScreenDetails?: boolean;
   fullScreenAlarmEnabled?: boolean;
+  criticalAlertsEnabled?: boolean;
   snoozed?: boolean;
   alarmAt?: Date;
 };
@@ -52,7 +54,8 @@ function artifactNotification(
   plan: PlannedReminder,
   dose: ReminderDoseViewModel,
   options: ReminderScheduleOptions,
-  fullScreenAllowed: boolean
+  fullScreenAllowed: boolean,
+  useCriticalChannel: boolean
 ) {
   const showDetails = options.showLockScreenDetails ?? false;
   switch (plan.kind) {
@@ -63,11 +66,16 @@ function artifactNotification(
       return buildDoseAlarmNotification(dose, {
         showDetails,
         fullScreenEnabled: fullScreenAllowed,
+        useCriticalChannel,
       });
     case "alarmHandoff":
       return buildPendingNotification(dose, showDetails);
     case "reinforcement":
-      return buildReinforcementNotification(dose, showDetails);
+      return buildReinforcementNotification(
+        dose,
+        showDetails,
+        useCriticalChannel
+      );
     default:
       return buildPendingNotification(dose, showDetails);
   }
@@ -93,6 +101,10 @@ export function createReminderScheduler(
     const fullScreenAllowed =
       (options.fullScreenAlarmEnabled ?? false) &&
       permissionState.fullScreen !== "denied";
+    const useCriticalChannel = shouldUseCriticalAlarmChannel(
+      options.criticalAlertsEnabled ?? false,
+      permissionState.doNotDisturb
+    );
     const exactAlarmAllowed =
       permissionState.exactAlarms === "granted" ||
       permissionState.exactAlarms === "notRequired";
@@ -107,7 +119,8 @@ export function createReminderScheduler(
         plan,
         dose,
         options,
-        fullScreenAllowed
+        fullScreenAllowed,
+        useCriticalChannel
       );
       if (isWindowPreAlert) {
         const windowArtifacts = await artifactRepo.getByWindowKey(
@@ -232,13 +245,26 @@ export function createReminderScheduler(
     );
   }
 
-  async function runAlarmTest(): Promise<string> {
+  async function runAlarmTest(options: {
+    criticalAlertsEnabled: boolean;
+    fullScreenAlarmEnabled: boolean;
+  }): Promise<string> {
     const settings = await notifee.getNotificationSettings();
+    const permissionState = await getReminderPermissionState();
     const exact =
       settings.android.alarm === AndroidNotificationSetting.ENABLED ||
       settings.android.alarm === AndroidNotificationSetting.NOT_SUPPORTED;
     const timestamp = Date.now() + 5_000;
-    return notifee.createTriggerNotification(buildAlarmTestNotification(), {
+    const notification = buildAlarmTestNotification({
+      fullScreenEnabled:
+        options.fullScreenAlarmEnabled &&
+        permissionState.fullScreen !== "denied",
+      useCriticalChannel: shouldUseCriticalAlarmChannel(
+        options.criticalAlertsEnabled,
+        permissionState.doNotDisturb
+      ),
+    });
+    return notifee.createTriggerNotification(notification, {
       type: TriggerType.TIMESTAMP,
       timestamp,
       ...(exact

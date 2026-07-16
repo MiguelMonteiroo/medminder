@@ -6,7 +6,8 @@ import {
 
 export const REMINDER_CHANNELS = {
   preAlert: "medication-pre-alerts-v1",
-  alarm: "medication-dose-alarms-v1",
+  alarm: "medication-dose-alarms-v2",
+  criticalAlarm: "medication-dose-alarms-critical-v2",
   pending: "medication-pending-v1",
   status: "medication-dose-status-v1",
 } as const;
@@ -25,7 +26,16 @@ export type ReminderDoseViewModel = {
 type AlarmOptions = {
   showDetails: boolean;
   fullScreenEnabled: boolean;
+  useCriticalChannel: boolean;
 };
+
+const DOSE_ALARM_ACTIVITY = "com.medminder.DoseAlarmActivity";
+
+function alarmChannel(useCriticalChannel: boolean): string {
+  return useCriticalChannel
+    ? REMINDER_CHANNELS.criticalAlarm
+    : REMINDER_CHANNELS.alarm;
+}
 
 function reminderData(dose: ReminderDoseViewModel, artifactKind: string) {
   return {
@@ -102,7 +112,7 @@ export function buildDoseAlarmNotification(
       showDetails: String(options.showDetails),
     },
     android: {
-      channelId: REMINDER_CHANNELS.alarm,
+      channelId: alarmChannel(options.useCriticalChannel),
       category: AndroidCategory.ALARM,
       visibility: options.showDetails
         ? AndroidVisibility.PUBLIC
@@ -114,12 +124,12 @@ export function buildDoseAlarmNotification(
       timeoutAfter: 60_000,
       pressAction: {
         id: "open-dose-window",
-        mainComponent: "MedMinderDoseAlarm",
+        launchActivity: DOSE_ALARM_ACTIVITY,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "dose-alarm",
-            mainComponent: "MedMinderDoseAlarm",
+            launchActivity: DOSE_ALARM_ACTIVITY,
           }
         : undefined,
       actions: doseActions(options.showDetails),
@@ -148,7 +158,8 @@ export function buildPendingNotification(
 
 export function buildReinforcementNotification(
   dose: ReminderDoseViewModel,
-  showDetails: boolean
+  showDetails: boolean,
+  useCriticalChannel = false
 ): Notification {
   const notification = buildPendingNotification(dose, showDetails);
   return {
@@ -157,7 +168,7 @@ export function buildReinforcementNotification(
     data: reminderData(dose, "reinforcement"),
     android: {
       ...notification.android!,
-      channelId: REMINDER_CHANNELS.alarm,
+      channelId: alarmChannel(useCriticalChannel),
       ongoing: false,
       loopSound: false,
     },
@@ -185,21 +196,30 @@ export function buildTakenConfirmationNotification(
   };
 }
 
-export function buildAlarmTestNotification(): Notification {
+export function buildAlarmTestNotification(options: {
+  fullScreenEnabled: boolean;
+  useCriticalChannel: boolean;
+}): Notification {
   return {
     title: "Teste de alarme",
     body: "Som, vibração e tela cheia estão sendo testados.",
     data: { payloadVersion: "1", artifactKind: "alarmTest" },
     android: {
-      channelId: REMINDER_CHANNELS.alarm,
+      channelId: alarmChannel(options.useCriticalChannel),
       category: AndroidCategory.ALARM,
       loopSound: true,
       lightUpScreen: true,
       timeoutAfter: 10_000,
-      fullScreenAction: {
+      pressAction: {
         id: "alarm-test",
-        mainComponent: "MedMinderDoseAlarm",
+        launchActivity: DOSE_ALARM_ACTIVITY,
       },
+      fullScreenAction: options.fullScreenEnabled
+        ? {
+            id: "alarm-test",
+            launchActivity: DOSE_ALARM_ACTIVITY,
+          }
+        : undefined,
       actions: [
         {
           title: "Encerrar teste",

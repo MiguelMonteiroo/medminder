@@ -19,10 +19,13 @@ import {
   LockKeyhole,
   Maximize2,
   Pill,
+  Volume2,
 } from "lucide-react-native";
 import { useAppData } from "../../services/appDataProvider";
 import {
+  ensureAlarmChannels,
   getReminderPermissionState,
+  openDoNotDisturbSettings,
   openExactAlarmSettings,
   openFullScreenAlarmSettings,
   requestNotificationPermission,
@@ -41,15 +44,20 @@ type Step =
   | "profile"
   | "guide"
   | "notifications"
+  | "doNotDisturb"
   | "exact"
   | "fullScreen";
 
-type AwaitingCapability = "exact" | "fullScreen" | null;
+type AwaitingCapability = "doNotDisturb" | "exact" | "fullScreen" | null;
 
-const PERMISSION_STEP: Record<"notifications" | "exact" | "fullScreen", number> = {
+const PERMISSION_STEP: Record<
+  "notifications" | "doNotDisturb" | "exact" | "fullScreen",
+  number
+> = {
   notifications: 1,
-  exact: 2,
-  fullScreen: 3,
+  doNotDisturb: 2,
+  exact: 3,
+  fullScreen: 4,
 };
 
 export function FirstRunOnboarding() {
@@ -84,6 +92,20 @@ export function FirstRunOnboarding() {
 
       const permissions = await getReminderPermissionState();
       setAwaitingCapability(null);
+
+      if (awaitingCapability === "doNotDisturb") {
+        if (permissions.doNotDisturb === "granted") {
+          await ensureAlarmChannels();
+          await updateReminderSettings({ criticalAlertsEnabled: true });
+          setPermissionMessage("");
+          setStep("exact");
+        } else {
+          setPermissionMessage(
+            "O Android ainda não autorizou alarmes no silencioso e Não Perturbe. Você pode tentar novamente ou continuar com alarmes comuns."
+          );
+        }
+        return;
+      }
 
       if (awaitingCapability === "exact") {
         if (
@@ -133,12 +155,35 @@ export function FirstRunOnboarding() {
       const result = await requestNotificationPermission();
       await updateNotificationsEnabled(result.granted);
       if (result.granted) {
-        setStep("exact");
+        setStep("doNotDisturb");
       } else {
         setPermissionMessage(
           "As notificações não foram autorizadas. Tente novamente ou continue sem lembretes."
         );
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestDoNotDisturbAccess() {
+    setBusy(true);
+    setPermissionMessage("");
+    try {
+      const permissions = await getReminderPermissionState();
+      if (permissions.doNotDisturb === "granted") {
+        await ensureAlarmChannels();
+        await updateReminderSettings({ criticalAlertsEnabled: true });
+        setStep("exact");
+        return;
+      }
+
+      await updateReminderSettings({ criticalAlertsEnabled: true });
+      setAwaitingCapability("doNotDisturb");
+      setPermissionMessage(
+        "Na próxima tela, permita que o MedMinder envie alarmes importantes. O app não altera o modo do aparelho."
+      );
+      await openDoNotDisturbSettings();
     } finally {
       setBusy(false);
     }
@@ -212,12 +257,24 @@ export function FirstRunOnboarding() {
     }
   }
 
+  async function skipDoNotDisturb() {
+    setBusy(true);
+    try {
+      await updateReminderSettings({ criticalAlertsEnabled: false });
+      setPermissionMessage("");
+      setStep("exact");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handlePrimaryAction() {
     if (busy) return;
     if (step === "welcome") setStep("profile");
     else if (step === "profile") continueFromProfile();
     else if (step === "guide") setStep("notifications");
     else if (step === "notifications") requestBasicNotifications();
+    else if (step === "doNotDisturb") requestDoNotDisturbAccess();
     else if (step === "exact") requestExactAlarms();
     else requestFullScreenAlarm();
   }
@@ -255,13 +312,17 @@ export function FirstRunOnboarding() {
             onPress={handlePrimaryAction}
             title={primaryTitle}
           />
-          {step === "notifications" || step === "exact" || step === "fullScreen" ? (
+          {step === "notifications" ||
+          step === "doNotDisturb" ||
+          step === "exact" ||
+          step === "fullScreen" ? (
             <Pressable
               accessibilityLabel={`Fazer ${getStepTitle(step).toLowerCase()} depois`}
               accessibilityRole="button"
               disabled={busy}
               onPress={() => {
                 if (step === "notifications") setConfirmSkipVisible(true);
+                else if (step === "doNotDisturb") skipDoNotDisturb();
                 else if (step === "exact") {
                   setPermissionMessage("");
                   setStep("fullScreen");
@@ -419,7 +480,7 @@ function OnboardingStepContent({
   return (
     <View style={styles.stepContent}>
       <AppText variant="caption" style={styles.stepIndicator}>
-        Etapa {PERMISSION_STEP[step]} de 3
+        Etapa {PERMISSION_STEP[step]} de 4
       </AppText>
       <View style={styles.iconWrap}>
         <Icon color={colors.primaryDark} size={30} />
@@ -464,6 +525,12 @@ const PERMISSION_CONTENT = {
     description:
       "O MedMinder precisa enviar notificações para avisar quando estiver perto da hora e no horário da dose.",
     icon: BellRing,
+  },
+  doNotDisturb: {
+    title: "Tocar no silencioso e Não Perturbe",
+    description:
+      "Opcional: autorize alarmes importantes para que o Android não silencie a dose. Você continua no controle e pode desativar isso em Perfil.",
+    icon: Volume2,
   },
   exact: {
     title: "Avise no horário certo",
@@ -552,11 +619,14 @@ function getPrimaryTitle(step: Step, busy: boolean): string {
   if (step === "profile") return "Continuar";
   if (step === "guide") return "Configurar lembretes";
   if (step === "notifications") return "Permitir notificações";
+  if (step === "doNotDisturb") return "Revisar no Android";
   if (step === "exact") return "Abrir configurações";
   return "Permitir tela cheia";
 }
 
-function getStepTitle(step: "notifications" | "exact" | "fullScreen"): string {
+function getStepTitle(
+  step: "notifications" | "doNotDisturb" | "exact" | "fullScreen"
+): string {
   return PERMISSION_CONTENT[step].title;
 }
 

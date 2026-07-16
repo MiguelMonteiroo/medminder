@@ -27,6 +27,7 @@ async function createDefaultDependencies(): Promise<NotificationActionDependenci
       await scheduler.scheduleForOccurrence(occurrence, medication, schedule, {
         showLockScreenDetails: settings.showLockScreenDetails,
         fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+        criticalAlertsEnabled: settings.criticalAlertsEnabled,
         snoozed: true,
         alarmAt: new Date(occurrence.scheduledAt),
       });

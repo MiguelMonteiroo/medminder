@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS: ReminderSettings = {
   defaultSnoozeMinutes: 5,
   userName: "",
   fullScreenAlarmEnabled: false,
+  criticalAlertsEnabled: false,
   showLockScreenDetails: false,
   reminderSetupCompleted: false,
   onboardingCompleted: false,
@@ -34,6 +35,7 @@ export function createSettingsRepository(db: NativeDB) {
       defaultSnoozeMinutes: parseSnoozeMinutes(map.defaultSnoozeMinutes),
       userName: map.userName || DEFAULT_SETTINGS.userName,
       fullScreenAlarmEnabled: map.fullScreenAlarmEnabled === "true",
+      criticalAlertsEnabled: map.criticalAlertsEnabled === "true",
       showLockScreenDetails: map.showLockScreenDetails === "true",
       reminderSetupCompleted: map.reminderSetupCompleted === "true",
       onboardingCompleted: map.onboardingCompleted === "true",
@@ -51,6 +53,10 @@ export function createSettingsRepository(db: NativeDB) {
       [
         "fullScreenAlarmEnabled",
         settings.fullScreenAlarmEnabled ? "true" : "false",
+      ],
+      [
+        "criticalAlertsEnabled",
+        settings.criticalAlertsEnabled ? "true" : "false",
       ],
       [
         "showLockScreenDetails",

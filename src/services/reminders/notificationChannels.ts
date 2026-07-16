@@ -1,10 +1,15 @@
 import notifee, { AndroidImportance } from "@notifee/react-native";
 import { Platform } from "react-native";
 import { REMINDER_CHANNELS } from "./notificationBuilder";
+import { reminderPermissionsNative } from "./nativeReminderPermissions";
 
 export async function ensureReminderChannelsCreated(): Promise<void> {
   if (Platform.OS !== "android") return;
+  if (!reminderPermissionsNative?.ensureAlarmChannels) {
+    throw new Error("Native alarm channel support is unavailable.");
+  }
 
+  await reminderPermissionsNative.ensureAlarmChannels();
   await Promise.all([
     notifee.createChannel({
       id: REMINDER_CHANNELS.preAlert,
@@ -13,15 +18,6 @@ export async function ensureReminderChannelsCreated(): Promise<void> {
       importance: AndroidImportance.DEFAULT,
       sound: "medminder_pre_alert",
       vibration: false,
-    }),
-    notifee.createChannel({
-      id: REMINDER_CHANNELS.alarm,
-      name: "Alarmes de dose",
-      description: "Alarmes no horário dos medicamentos.",
-      importance: AndroidImportance.HIGH,
-      sound: "medminder_alarm",
-      vibration: true,
-      vibrationPattern: [300, 450, 300, 450],
     }),
     notifee.createChannel({
       id: REMINDER_CHANNELS.pending,

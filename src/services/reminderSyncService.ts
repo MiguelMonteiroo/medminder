@@ -120,6 +120,7 @@ export async function reconcileNotifications(
           {
             showLockScreenDetails: settings.showLockScreenDetails,
             fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+            criticalAlertsEnabled: settings.criticalAlertsEnabled,
           }
         );
         recreated += ids.length;

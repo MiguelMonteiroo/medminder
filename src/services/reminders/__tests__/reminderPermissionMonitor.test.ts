@@ -5,6 +5,7 @@ const granted: ReminderPermissionState = {
   notifications: "granted",
   exactAlarms: "granted",
   fullScreen: "granted",
+  doNotDisturb: "granted",
   batteryOptimization: "unrestricted",
 };
 
@@ -61,5 +62,22 @@ describe("reminderPermissionMonitor", () => {
     await monitor.refresh();
 
     expect(onCapabilitiesChanged).not.toHaveBeenCalled();
+  });
+
+  it("reconfigures reminders when DND access is revoked", async () => {
+    const states: ReminderPermissionState[] = [
+      granted,
+      { ...granted, doNotDisturb: "denied" },
+    ];
+    const onCapabilitiesChanged = jest.fn();
+    const monitor = createReminderPermissionMonitor({
+      readState: async () => states.shift()!,
+      onCapabilitiesChanged,
+    });
+
+    await monitor.refresh();
+    await monitor.refresh();
+
+    expect(onCapabilitiesChanged).toHaveBeenCalledTimes(1);
   });
 });

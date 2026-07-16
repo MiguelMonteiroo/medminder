@@ -41,6 +41,7 @@ function createDependencies(existingLogs: DoseLog[] = []) {
       defaultSnoozeMinutes: 5,
       userName: "Maria",
       fullScreenAlarmEnabled: true,
+      criticalAlertsEnabled: true,
       showLockScreenDetails: true,
       reminderSetupCompleted: true,
       onboardingCompleted: true,
