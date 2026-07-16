@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   AppState,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -32,6 +31,7 @@ import { validateProfileName } from "../../utils/validation";
 import { AppButton } from "../ui/AppButton";
 import { AppText } from "../ui/AppText";
 import { Screen } from "../ui/Screen";
+import { ConfirmationDialog } from "../ui/ConfirmationDialog";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
@@ -275,10 +275,16 @@ export function FirstRunOnboarding() {
         </View>
       </KeyboardAvoidingView>
 
-      <SkipNotificationsConfirmation
+      <ConfirmationDialog
         busy={busy}
+        cancelLabel="Voltar e permitir"
+        confirmAccessibilityLabel="Continuar sem lembretes"
+        confirmLabel="Continuar sem lembretes"
+        description="Sem essa permissão, o MedMinder não poderá avisar quando uma dose estiver próxima ou no horário. Você ainda poderá usar o app e ativar os lembretes depois em Perfil."
+        icon={BellRing}
         onCancel={() => setConfirmSkipVisible(false)}
         onConfirm={skipBasicNotifications}
+        title="Continuar sem lembretes?"
         visible={confirmSkipVisible}
       />
     </Screen>
@@ -537,55 +543,6 @@ function AlarmPreview() {
         </View>
       </View>
     </View>
-  );
-}
-
-function SkipNotificationsConfirmation({
-  visible,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  visible: boolean;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onCancel}
-      transparent
-      visible={visible}
-    >
-      <View accessibilityViewIsModal style={styles.modalOverlay}>
-        <View style={styles.confirmation}>
-          <View style={styles.confirmationIcon}>
-            <BellRing color={colors.warning} size={28} />
-          </View>
-          <AppText accessibilityRole="header" variant="heading" style={styles.confirmationTitle}>
-            Continuar sem lembretes?
-          </AppText>
-          <AppText muted style={styles.confirmationDescription}>
-            Sem essa permissão, o MedMinder não poderá avisar quando uma dose estiver próxima ou no horário. Você ainda poderá usar o app e ativar os lembretes depois em Perfil.
-          </AppText>
-          <AppButton
-            accessibilityLabel="Voltar e permitir notificações"
-            disabled={busy}
-            onPress={onCancel}
-            style={styles.confirmationPrimary}
-            title="Voltar e permitir"
-          />
-          <AppButton
-            accessibilityLabel="Continuar sem lembretes"
-            disabled={busy}
-            onPress={onConfirm}
-            title="Continuar sem lembretes"
-            variant="ghost"
-          />
-        </View>
-      </View>
-    </Modal>
   );
 }
 
