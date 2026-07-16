@@ -37,6 +37,7 @@ import {
   validateProfileName,
   validateTimeHHMM,
 } from "../utils/validation";
+import { DEFAULT_REMINDER_SETTINGS } from "../utils/defaultReminderSettings";
 
 interface AppDataContextValue {
   medications: Medication[];
@@ -76,16 +77,7 @@ interface AppDataContextValue {
   snoozeMinutes: number;
 }
 
-const DEFAULT_SETTINGS: ReminderSettings = {
-  notificationsEnabled: false,
-  defaultSnoozeMinutes: 5,
-  userName: "",
-  fullScreenAlarmEnabled: false,
-  criticalAlertsEnabled: false,
-  showLockScreenDetails: false,
-  reminderSetupCompleted: false,
-  onboardingCompleted: false,
-};
+const DEFAULT_SETTINGS = DEFAULT_REMINDER_SETTINGS;
 
 const AppDataContext = createContext<AppDataContextValue>({
   medications: [],

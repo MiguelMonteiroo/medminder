@@ -27,6 +27,11 @@ describe("ConfirmationDialog", () => {
     });
 
     const cancel = renderer.root.findByProps({ accessibilityLabel: "Cancelar" });
+    const header = renderer.root.findByProps({
+      accessibilityLabel: "Remover medicamento",
+      accessibilityRole: "header",
+    });
+    expect(header.props.accessible).toBe(true);
     await act(async () => cancel.props.onPress());
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();

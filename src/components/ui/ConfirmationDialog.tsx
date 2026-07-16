@@ -60,9 +60,6 @@ export function ConfirmationDialog({
       <View accessibilityViewIsModal style={styles.overlay}>
         <View style={styles.dialog}>
           <View
-            accessibilityRole="header"
-            accessible
-            ref={titleRef}
             style={[
               styles.iconContainer,
               destructive && styles.destructiveIconContainer,
@@ -73,9 +70,16 @@ export function ConfirmationDialog({
               size={28}
             />
           </View>
-          <AppText variant="heading" style={styles.title}>
-            {title}
-          </AppText>
+          <View
+            accessibilityLabel={title}
+            accessibilityRole="header"
+            accessible
+            ref={titleRef}
+          >
+            <AppText variant="heading" style={styles.title}>
+              {title}
+            </AppText>
+          </View>
           <AppText muted style={styles.description}>
             {description}
           </AppText>

@@ -1,16 +1,8 @@
 import type { NativeDB } from "../nativeDb";
 import { ReminderSettings } from "../../types/domain";
+import { DEFAULT_REMINDER_SETTINGS } from "../../utils/defaultReminderSettings";
 
-const DEFAULT_SETTINGS: ReminderSettings = {
-  notificationsEnabled: false,
-  defaultSnoozeMinutes: 5,
-  userName: "",
-  fullScreenAlarmEnabled: false,
-  criticalAlertsEnabled: false,
-  showLockScreenDetails: false,
-  reminderSetupCompleted: false,
-  onboardingCompleted: false,
-};
+const DEFAULT_SETTINGS = DEFAULT_REMINDER_SETTINGS;
 
 function parseSnoozeMinutes(value: string | undefined): number {
   const parsed = value ? Number.parseInt(value, 10) : Number.NaN;

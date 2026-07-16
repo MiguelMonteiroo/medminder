@@ -37,10 +37,10 @@ type Props = {
 
 async function closeAlarmActivity(): Promise<void> {
   const module = NativeModules.ReminderPermissions as
-    | { finishCurrentActivity?: () => Promise<void> }
+    | { finishDoseAlarmActivity?: () => Promise<void> }
     | undefined;
-  if (module?.finishCurrentActivity) {
-    await module.finishCurrentActivity();
+  if (module?.finishDoseAlarmActivity) {
+    await module.finishDoseAlarmActivity();
     return;
   }
   BackHandler.exitApp();

@@ -36,7 +36,6 @@
         android:excludeFromRecents="true"
         android:exported="false"
         android:launchMode="singleTop"
-        android:noHistory="true"
         android:showWhenLocked="true"
         android:theme="@style/DoseAlarmTheme"
         android:turnScreenOn="true" />

@@ -9,6 +9,7 @@ import {
   type NotificationActionCommand,
   type NotificationActionDependencies,
 } from "./notificationActionHandler";
+import { finishDoseAlarmActivityIfOpen } from "./nativeReminderPermissions";
 
 async function createDefaultDependencies(): Promise<NotificationActionDependencies> {
   const database = await openAppDatabase();
@@ -69,6 +70,13 @@ export async function handleNotifeeEvent(event: Event): Promise<void> {
   };
 
   await executeDefaultNotificationCommand(command);
+  if (
+    actionId === "mark-taken" ||
+    actionId === "snooze-five" ||
+    actionId === "end-alarm-test"
+  ) {
+    await finishDoseAlarmActivityIfOpen();
+  }
 }
 
 export async function reconcileRemindersFromBackground(): Promise<void> {

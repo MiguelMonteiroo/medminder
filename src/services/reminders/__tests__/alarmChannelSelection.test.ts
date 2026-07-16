@@ -14,9 +14,8 @@ describe("shouldUseCriticalAlarmChannel", () => {
     expect(shouldUseCriticalAlarmChannel(true, "denied")).toBe(false);
   });
 
-  it("maps Android DND access for granted, denied and revoked states", () => {
+  it("maps current Android DND access without retaining stale grants", () => {
     expect(toDoNotDisturbPermissionState(true)).toBe("granted");
-    expect(toDoNotDisturbPermissionState(false)).toBe("denied");
     expect(toDoNotDisturbPermissionState(false)).toBe("denied");
   });
 });
