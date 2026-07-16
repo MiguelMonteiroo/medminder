@@ -29,12 +29,16 @@ Avisar o usuario antes de uma dose e solicitar uma acao no horario agendado, mes
 21. Com a preferencia ativada, nome, dosagem e as duas acoes ficam disponiveis na tela bloqueada.
 22. Se o acesso a alarmes exatos estiver indisponivel, o app continua com notificacoes aproximadas e avisa que os lembretes podem atrasar.
 23. A falta de acesso a alarmes exatos nao bloqueia cadastro, historico nem registro manual de doses.
+24. `Tocar no silencioso e Nao Perturbe` e opcional e depende de preferencia explicita e acesso concedido pelo Android.
+25. Sem esse acesso, o MedMinder usa o canal normal e explica que o Android pode silenciar o alarme.
+26. O MedMinder nao altera globalmente o modo Nao Perturbe; o usuario continua no controle final dos canais.
 
 ## Requisitos de configuracao
 
 Cada permissao ou acesso especial deve ser apresentado com linguagem orientada ao beneficio, sem expor nomes tecnicos do Android como titulo principal. O estado deve informar claramente o que funciona, o que fica limitado e qual acao o usuario pode realizar.
 
 - `Receber lembretes`: permite que o MedMinder mostre notificacoes.
+- `Tocar no silencioso e Nao Perturbe`: autoriza um canal critico opcional para alarmes de dose.
 - `Avisar no horario exato`: reduz o risco de atraso causado pelo sistema.
 - `Abrir alarme em tela cheia`: mostra a experiencia de alarme quando o Android permitir.
 - `Mostrar detalhes na tela bloqueada`: controla a exposicao de nome e dosagem.
@@ -43,7 +47,7 @@ Cada item deve ter estado legivel, explicacao curta e um unico botao contextual,
 
 ## Tela de alarme
 
-A experiencia em tela cheia usa um componente React Native leve registrado separadamente como `DoseAlarmScreen` e aberto pelo `fullScreenAction` do Notifee. O Android inicia o som sem depender da renderizacao dessa tela.
+A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `MedMinderDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O Android inicia o som sem depender da renderizacao React.
 
 A tela segue o design system Home Care Cards e a referencia visual em `docs/design/dose-alarm-screen.png`: fundo creme, verde profundo, acento pessego, bordas sutis, raio maximo de 8 px, icones lineares e acoes individuais por dose.
 
@@ -60,14 +64,17 @@ Os botoes de volume ajustam apenas o volume; eles nao registram, pulam nem adiam
 Depois que o primeiro medicamento for salvo, o app apresenta o guia `Prepare seus lembretes` nesta ordem:
 
 1. `Receber lembretes`.
-2. `Avisar no horario exato`.
-3. `Alarme em tela cheia`, como opcao recomendada e nao obrigatoria.
+2. `Tocar no silencioso e Nao Perturbe`, como opcao recomendada e nao obrigatoria.
+3. `Avisar no horario exato`.
+4. `Alarme em tela cheia`, como opcao recomendada e nao obrigatoria.
 
 Os mesmos controles permanecem disponiveis em `Perfil > Lembretes`. O app nao solicita essas permissoes sem contexto na primeira abertura.
 
 ## Som e controle do sistema
 
-O alarme no horario usa um som proprio e reconhecivel no canal `Alarmes de dose`, com comportamento de audio de alarme. O MedMinder nao solicita acesso para ignorar o modo Nao Perturbe. A tela de configuracao explica quando o sistema pode silenciar o aviso e oferece `Abrir configuracoes` e `Testar alarme`.
+O alarme no horario usa som proprio com `AudioAttributes.USAGE_ALARM` e canais Android versionados: `medication-dose-alarms-v2` para o comportamento normal e `medication-dose-alarms-critical-v2` para o modo critico opt-in. O canal critico so e criado quando o Android concede acesso a politica de notificacoes.
+
+A tela de configuracao explica o beneficio e a consequencia antes de abrir as configuracoes do Android. Se o usuario recusar ou revogar o acesso, alarmes futuros voltam ao canal normal. O app nao muda o modo Nao Perturbe do aparelho.
 
 Som, vibracao, volume e excecoes ao modo Nao Perturbe permanecem sob controle final do usuario nas configuracoes do Android.
 
@@ -113,3 +120,4 @@ O pre-aviso ocorre cinco minutos antes e cada adiamento dura cinco minutos. Esse
 - Google Play: https://support.google.com/googleplay/android-developer/answer/13392821
 - Notifee full-screen: https://notifee.app/react-native/docs/android/behaviour/
 - Notifee actions: https://notifee.app/react-native/docs/android/interaction/
+- Android NotificationChannel: https://developer.android.com/reference/android/app/NotificationChannel
