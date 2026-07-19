@@ -4,7 +4,9 @@ import fs from "fs";
 import path from "path";
 
 function projectFile(relativePath: string): string {
-  return fs.readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
+  return fs
+    .readFileSync(path.resolve(process.cwd(), relativePath), "utf8")
+    .replace(/\r\n/g, "\n");
 }
 
 describe("DoseAlarmActivity lock-screen configuration", () => {

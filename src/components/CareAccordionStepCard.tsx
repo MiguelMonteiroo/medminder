@@ -41,9 +41,9 @@ export function CareAccordionStepCard({
           {StepIcon ? (
             <StepIcon color={colors.white} size={15} strokeWidth={2.5} />
           ) : null}
-          <AppText style={styles.stepText}>{step}</AppText>
+          <AppText variant="caption" weight="bold" style={styles.stepText}>{step}</AppText>
         </View>
-        <AppText variant="subheading" style={styles.title}>
+        <AppText variant="subheading" weight="semibold" style={styles.title}>
           {title}
           {optional ? <AppText> (opcional)</AppText> : null}
         </AppText>
@@ -64,12 +64,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   expandedCard: {
-    borderColor: "#D8CBB8",
+    borderColor: colors.borderWarm,
   },
   header: {
     alignItems: "center",
     flexDirection: "row",
-    minHeight: 58,
+    minHeight: 64,
     paddingHorizontal: spacing.lg,
   },
   stepBadge: {
@@ -77,19 +77,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radii.pill,
     flexDirection: "row",
-    height: 34,
+    height: 38,
     justifyContent: "center",
     marginRight: spacing.md,
-    width: 34,
+    width: 38,
   },
   stepBadgeWithIcon: {
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    width: 58,
+    width: 62,
   },
   stepText: {
     color: colors.white,
-    fontWeight: "800",
   },
   title: {
     color: colors.text,

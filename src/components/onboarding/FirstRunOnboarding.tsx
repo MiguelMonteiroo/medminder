@@ -47,6 +47,7 @@ import { ConfirmationDialog } from "../ui/ConfirmationDialog";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
+import { fontFamilies } from "../../theme/typography";
 
 type Step =
   | "welcome"
@@ -793,7 +794,7 @@ const styles = StyleSheet.create({
   peachTip: {
     alignItems: "center",
     backgroundColor: colors.accentSoft,
-    borderColor: "#F2C4A8",
+    borderColor: colors.accentSelectionBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -807,19 +808,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   localDataText: { flex: 1, marginLeft: spacing.sm },
-  inputLabel: { fontWeight: "700", marginBottom: spacing.sm, marginTop: spacing.xxl },
+  inputLabel: { marginBottom: spacing.sm, marginTop: spacing.xxl },
   input: {
     backgroundColor: colors.white,
-    borderColor: "#BFB5A8",
+    borderColor: colors.controlBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     color: colors.text,
-    fontSize: 17,
+    fontFamily: fontFamilies.regular,
+    fontSize: 18,
     minHeight: 52,
     paddingHorizontal: spacing.lg,
   },
   inputError: { borderColor: colors.danger },
-  errorText: { color: colors.danger, fontWeight: "700", marginTop: spacing.sm },
+  errorText: { color: colors.danger, marginTop: spacing.sm },
   featureList: { marginTop: spacing.xl },
   featureRow: {
     alignItems: "center",
@@ -866,7 +868,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
     borderRadius: radii.md,
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     justifyContent: "center",
     paddingHorizontal: spacing.sm,
   },
@@ -877,7 +879,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
   },
   previewSecondaryText: { color: colors.primaryDark, textAlign: "center" },
@@ -892,9 +894,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: spacing.sm,
-    minHeight: 44,
+    minHeight: 48,
   },
-  secondaryText: { color: colors.primaryDark, fontWeight: "800" },
+  secondaryText: { color: colors.primaryDark },
   modalOverlay: {
     backgroundColor: "rgba(36, 31, 26, 0.45)",
     flex: 1,

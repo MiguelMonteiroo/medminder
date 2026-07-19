@@ -12,6 +12,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
   },
 });

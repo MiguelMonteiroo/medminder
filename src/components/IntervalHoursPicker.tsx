@@ -35,7 +35,7 @@ export function IntervalHoursPicker({ value, onChange }: Props) {
           icon={Minus}
         />
         <View style={styles.valueBox}>
-          <AppText variant="title" style={styles.value}>
+          <AppText variant="title" weight="bold" style={styles.value}>
             {safeValue}
           </AppText>
           <AppText variant="small" muted>
@@ -68,6 +68,7 @@ export function IntervalHoursPicker({ value, onChange }: Props) {
             >
               <AppText
                 variant="small"
+                weight="bold"
                 style={[styles.quickText, active && styles.quickTextActive]}
               >
                 {interval}h
@@ -117,11 +118,11 @@ const styles = StyleSheet.create({
   stepper: {
     alignItems: "center",
     backgroundColor: colors.white,
-    borderColor: "#BFB5A8",
+    borderColor: colors.controlBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
-    minHeight: 92,
+    minHeight: 104,
     padding: spacing.md,
   },
   stepButton: {
@@ -130,9 +131,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    height: 48,
+    height: 52,
     justifyContent: "center",
-    width: 48,
+    width: 52,
   },
   disabled: {
     opacity: 0.45,
@@ -147,7 +148,6 @@ const styles = StyleSheet.create({
   },
   value: {
     color: colors.primaryDark,
-    fontWeight: "900",
   },
   quickRow: {
     flexDirection: "row",
@@ -162,18 +162,17 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     minWidth: 58,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
   },
   quickButtonActive: {
     backgroundColor: colors.accentSoft,
-    borderColor: "#F2C4A8",
+    borderColor: colors.accentSelectionBorder,
   },
   quickText: {
     color: colors.primary,
-    fontWeight: "800",
   },
   quickTextActive: {
     color: colors.primaryDark,

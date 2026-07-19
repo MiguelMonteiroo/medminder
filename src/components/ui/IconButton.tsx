@@ -13,9 +13,10 @@ export function IconButton({ icon: Icon, label, ...props }: Props) {
     <Pressable
       {...props}
       accessibilityLabel={label}
+      accessibilityRole={props.accessibilityRole ?? "button"}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
-      <Icon color={colors.text} size={20} strokeWidth={2.4} />
+      <Icon color={colors.text} size={22} strokeWidth={2} />
     </Pressable>
   );
 }
@@ -27,9 +28,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    height: 44,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
   pressed: {
     opacity: 0.75,

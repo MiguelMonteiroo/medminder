@@ -24,8 +24,8 @@ type Props = {
   label?: string;
 };
 
-const ITEM_HEIGHT = 44;
-const VISIBLE_ITEMS = 5;
+const ITEM_HEIGHT = 52;
+const VISIBLE_ITEMS = 3;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 const WHEEL_PADDING = (PICKER_HEIGHT - ITEM_HEIGHT) / 2;
 const CYCLE_COUNT = 5;
@@ -51,12 +51,18 @@ export function WheelTimePicker({ value, onChange, label }: Props) {
           accessibilityLabel={`Horário selecionado ${hour}:${minute}`}
           accessibilityLiveRegion="polite"
           variant="small"
+          weight="bold"
           style={styles.value}
         >
           {hour}:{minute}
         </AppText>
       </View>
 
+      <View style={styles.columnHeadings}>
+        <AppText variant="caption" weight="semibold" muted style={styles.columnHeading}>Hora</AppText>
+        <View style={styles.headingSpacer} />
+        <AppText variant="caption" weight="semibold" muted style={styles.columnHeading}>Minuto</AppText>
+      </View>
       <View style={styles.pickerShell}>
         <View pointerEvents="none" style={styles.selectionBand} />
         <WheelColumn
@@ -174,9 +180,6 @@ function WheelColumn({
 
   return (
     <View style={styles.column}>
-      <AppText variant="caption" style={styles.columnLabel}>
-        {label}
-      </AppText>
       <View
         accessible
         accessibilityActions={[
@@ -217,6 +220,7 @@ function WheelColumn({
               >
                 <AppText
                   variant={isSelected ? "heading" : "subheading"}
+                  weight={isSelected ? "bold" : "medium"}
                   style={[styles.optionText, isSelected && styles.selectedText]}
                 >
                   {option}
@@ -255,11 +259,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   helper: { color: colors.textMuted, flex: 1, marginRight: spacing.md },
-  value: { color: colors.primaryDark, fontWeight: "800" },
+  value: { color: colors.primaryDark },
+  columnHeadings: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.md,
+  },
+  columnHeading: { flex: 1, textAlign: "center" },
+  headingSpacer: { marginHorizontal: spacing.sm, width: 14 },
   pickerShell: {
     alignItems: "center",
     backgroundColor: colors.white,
-    borderColor: "#BFB5A8",
+    borderColor: colors.controlBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -270,7 +280,7 @@ const styles = StyleSheet.create({
   },
   selectionBand: {
     backgroundColor: colors.accentSoft,
-    borderColor: "#F2C4A8",
+    borderColor: colors.accentSelectionBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     height: ITEM_HEIGHT,
@@ -280,20 +290,12 @@ const styles = StyleSheet.create({
     top: WHEEL_PADDING,
   },
   column: { alignItems: "center", flex: 1, height: PICKER_HEIGHT },
-  columnLabel: {
-    color: colors.textMuted,
-    fontWeight: "800",
-    paddingTop: spacing.sm,
-    position: "absolute",
-    textTransform: "uppercase",
-    zIndex: 1,
-  },
   adjustable: { height: PICKER_HEIGHT, width: "100%" },
   wheel: { height: PICKER_HEIGHT, width: "100%" },
   wheelContent: { paddingBottom: WHEEL_PADDING, paddingTop: WHEEL_PADDING },
   option: { alignItems: "center", height: ITEM_HEIGHT, justifyContent: "center" },
-  optionText: { color: colors.textMuted, fontWeight: "700", opacity: 0.55 },
-  selectedText: { color: colors.primaryDark, fontWeight: "900", opacity: 1 },
+  optionText: { color: colors.textMuted, opacity: 0.52 },
+  selectedText: { color: colors.primaryDark, opacity: 1 },
   separatorColumn: {
     alignItems: "center",
     height: PICKER_HEIGHT,
@@ -304,7 +306,6 @@ const styles = StyleSheet.create({
   },
   separator: {
     color: colors.primaryDark,
-    fontWeight: "900",
     lineHeight: ITEM_HEIGHT,
     textAlign: "center",
   },
