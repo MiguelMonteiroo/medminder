@@ -6,9 +6,9 @@ Accepted for the MVP.
 
 ## Context
 
-MedMinder currently supplies `Maria` as a sample profile name and presents reminder setup only after a medication exists. This can show a false identity on Home, delays the explanation of an important feature, and separates dependent Android permissions from the context that makes them understandable.
+Remedin currently supplies `Maria` as a sample profile name and presents reminder setup only after a medication exists. This can show a false identity on Home, delays the explanation of an important feature, and separates dependent Android permissions from the context that makes them understandable.
 
-MedMinder has no account or backend. The person's name is only local personalization, while notification, exact-alarm, and full-screen capabilities remain independent Android permissions.
+Remedin has no account or backend. The person's name is only local personalization, while notification, exact-alarm, and full-screen capabilities remain independent Android permissions.
 
 ## Decision
 

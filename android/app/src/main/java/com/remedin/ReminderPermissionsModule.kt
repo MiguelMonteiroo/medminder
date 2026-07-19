@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -115,7 +115,7 @@ class ReminderPermissionsModule(
             createAlarmChannel(
                 id = NATIVE_ALARM_CHANNEL_ID,
                 name = "Alarmes de dose",
-                description = "Alarmes reproduzidos diretamente pelo MedMinder.",
+                description = "Alarmes reproduzidos diretamente pelo Remedin.",
                 bypassDoNotDisturb = false,
                 playSound = false,
             ),
@@ -137,7 +137,7 @@ class ReminderPermissionsModule(
                   id = NATIVE_CRITICAL_ALARM_CHANNEL_ID,
                   name = "Alarmes críticos de dose",
                   description =
-                      "Alarmes prioritários reproduzidos diretamente pelo MedMinder.",
+                      "Alarmes prioritários reproduzidos diretamente pelo Remedin.",
                   bypassDoNotDisturb = true,
                   playSound = false,
               ),
@@ -159,7 +159,7 @@ class ReminderPermissionsModule(
   ): NotificationChannel {
     val soundUri =
         Uri.parse(
-            "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${reactApplicationContext.packageName}/${R.raw.medminder_alarm}",
+            "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${reactApplicationContext.packageName}/${R.raw.remedin_alarm}",
         )
     val audioAttributes =
         AudioAttributes.Builder()

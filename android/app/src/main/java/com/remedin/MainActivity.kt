@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -13,7 +13,7 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String =
-      NotifeeApiModule.getMainComponent("MedMinder")
+      NotifeeApiModule.getMainComponent("Remedin")
 
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]

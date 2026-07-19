@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.content.BroadcastReceiver
 import android.content.Context

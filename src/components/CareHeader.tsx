@@ -20,7 +20,7 @@ export function CareHeader({ title, subtitle, initials = "M" }: Props) {
         <AppText muted>{subtitle}</AppText>
       </View>
       <View style={styles.avatar}>
-        <AppText style={styles.avatarText}>{initials}</AppText>
+        <AppText weight="bold" style={styles.avatarText}>{initials}</AppText>
       </View>
     </View>
   );
@@ -46,12 +46,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.pill,
     borderWidth: 1,
-    height: 56,
+    height: 52,
     justifyContent: "center",
-    width: 56,
+    width: 52,
   },
   avatarText: {
     color: colors.primaryDark,
-    fontWeight: "800",
   },
 });

@@ -1,6 +1,6 @@
-# MedMinder
+# Remedin
 
-MedMinder is a personal medication reminder app that helps a person act on scheduled doses and keep a local history of those actions.
+Remedin is a personal medication reminder app that helps a person act on scheduled doses and keep a local history of those actions.
 
 ## Language
 
@@ -45,11 +45,11 @@ A past dose occurrence for which the user made no explicit taken, skipped, or sn
 _Avoid_: Missed dose, forgotten dose
 
 **Local profile**:
-The person's display name stored only on the device and used to personalize MedMinder. It is not an account, login, or cloud identity.
+The person's display name stored only on the device and used to personalize Remedin. It is not an account, login, or cloud identity.
 _Avoid_: User account, registered user
 
 **First-run onboarding**:
-The one-time flow shown before the main app on a fresh installation. It introduces MedMinder, collects the required local-profile name, explains the core workflow, and offers reminder permissions in dependency order.
+The one-time flow shown before the main app on a fresh installation. It introduces Remedin, collects the required local-profile name, explains the core workflow, and offers reminder permissions in dependency order.
 _Avoid_: Registration, sign-up
 
 **Daily adherence**:

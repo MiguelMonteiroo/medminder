@@ -21,7 +21,7 @@ describe("native alarm audio configuration", () => {
 
   it("plays a looping alarm through a native MediaPlayer", () => {
     const service = projectFile(
-      "android/app/src/main/java/com/medminder/MedicationAlarmService.kt"
+      "android/app/src/main/java/com/remedin/MedicationAlarmService.kt"
     );
 
     expect(service).toContain("AudioAttributes.USAGE_ALARM");

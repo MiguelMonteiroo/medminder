@@ -17,6 +17,8 @@ type Variant =
 type Props = PressableProps & {
   title: string;
   variant?: Variant;
+  size?: "default" | "compact";
+  /** @deprecated Use size="compact". */
   compact?: boolean;
   icon?: LucideIcon;
   style?: ViewStyle;
@@ -25,23 +27,29 @@ type Props = PressableProps & {
 export function AppButton({
   title,
   variant = "primary",
+  size = "default",
   compact = false,
   icon: Icon,
   style,
   disabled,
   ...props
 }: Props) {
+  const isCompact = compact || size === "compact";
   const isGhost = variant === "ghost";
   const isDangerSoft = variant === "dangerSoft";
+  const usesDarkForeground = ["secondary", "success", "warning"].includes(variant);
   const iconColor = isDangerSoft
     ? colors.danger
     : isGhost
     ? colors.primary
+    : usesDarkForeground
+    ? colors.text
     : colors.white;
 
   return (
     <Pressable
       {...props}
+      accessibilityRole={props.accessibilityRole ?? "button"}
       accessibilityState={{
         ...props.accessibilityState,
         disabled: Boolean(disabled),
@@ -49,7 +57,7 @@ export function AppButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,
-        compact && styles.compact,
+        isCompact && styles.compact,
         styles[variant],
         pressed && styles.pressed,
         disabled && styles.disabled,
@@ -60,12 +68,13 @@ export function AppButton({
         {Icon ? <Icon color={iconColor} size={18} strokeWidth={2.4} /> : null}
         <AppText
           variant="small"
+          weight="bold"
           style={[
             styles.text,
             isGhost && styles.ghostText,
             isDangerSoft && styles.dangerSoftText,
+            usesDarkForeground && styles.darkText,
           ]}
-          numberOfLines={2}
         >
           {title}
         </AppText>
@@ -79,12 +88,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: radii.md,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 56,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   compact: {
-    minHeight: 40,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -112,7 +121,7 @@ const styles = StyleSheet.create({
   },
   dangerSoft: {
     backgroundColor: colors.dangerSoft,
-    borderColor: "#E9A39E",
+    borderColor: colors.dangerBorder,
     borderWidth: 1,
   },
   ghost: {
@@ -129,7 +138,6 @@ const styles = StyleSheet.create({
   text: {
     color: colors.white,
     flexShrink: 1,
-    fontWeight: "800",
     textAlign: "center",
   },
   ghostText: {
@@ -137,5 +145,8 @@ const styles = StyleSheet.create({
   },
   dangerSoftText: {
     color: colors.danger,
+  },
+  darkText: {
+    color: colors.text,
   },
 });

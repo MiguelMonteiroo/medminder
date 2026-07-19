@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { AppText } from "./AppText";
 import { spacing } from "../../theme/spacing";
+import { colors } from "../../theme/colors";
 
 type Props = {
   title: string;
@@ -10,7 +11,7 @@ type Props = {
 export function SectionHeader({ title, meta }: Props) {
   return (
     <View style={styles.row}>
-      <AppText variant="caption" muted style={styles.title}>
+      <AppText variant="subheading" weight="semibold" style={styles.title}>
         {title}
       </AppText>
       {meta ? (
@@ -31,7 +32,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   title: {
-    letterSpacing: 0,
-    textTransform: "uppercase",
+    color: colors.primary,
   },
 });

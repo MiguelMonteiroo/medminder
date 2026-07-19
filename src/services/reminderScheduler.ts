@@ -163,7 +163,7 @@ export function createReminderScheduler(
         const doseCount = existingDoseCount + 1;
         if (doseCount > 1) {
           notification.title = `${doseCount} medicamentos em 5 minutos`;
-          notification.body = "Abra o MedMinder para conferir as próximas doses.";
+          notification.body = "Abra o Remedin para conferir as próximas doses.";
         }
       }
       notification.id = artifactId;

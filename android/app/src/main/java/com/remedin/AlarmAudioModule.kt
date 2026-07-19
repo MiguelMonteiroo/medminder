@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext

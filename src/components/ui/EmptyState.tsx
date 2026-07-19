@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { LucideIcon } from "lucide-react-native";
 import { AppText } from "./AppText";
+import { AppButton } from "./AppButton";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
@@ -9,20 +10,43 @@ type Props = {
   icon: LucideIcon;
   title: string;
   message: string;
+  actionLabel?: string;
+  actionIcon?: LucideIcon;
+  onAction?: () => void;
+  illustration?: React.ReactNode;
 };
 
-export function EmptyState({ icon: Icon, title, message }: Props) {
+export function EmptyState({
+  icon: Icon,
+  title,
+  message,
+  actionLabel,
+  actionIcon,
+  onAction,
+  illustration,
+}: Props) {
   return (
     <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <Icon color={colors.primary} size={28} strokeWidth={2.4} />
-      </View>
+      {illustration ?? (
+        <View style={styles.iconWrap}>
+          <Icon color={colors.primary} size={32} strokeWidth={2} />
+        </View>
+      )}
       <AppText variant="subheading" style={styles.title}>
         {title}
       </AppText>
       <AppText muted style={styles.message}>
         {message}
       </AppText>
+      {actionLabel && onAction ? (
+        <AppButton
+          accessibilityLabel={actionLabel}
+          icon={actionIcon}
+          onPress={onAction}
+          style={styles.action}
+          title={actionLabel}
+        />
+      ) : null}
     </View>
   );
 }
@@ -52,5 +76,9 @@ const styles = StyleSheet.create({
   message: {
     marginTop: spacing.sm,
     textAlign: "center",
+  },
+  action: {
+    marginTop: spacing.xl,
+    width: "100%",
   },
 });

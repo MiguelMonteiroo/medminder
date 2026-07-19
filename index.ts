@@ -9,9 +9,9 @@ import {
 
 notifee.onBackgroundEvent(handleNotifeeEvent);
 
-AppRegistry.registerComponent("MedMinder", () => App);
-AppRegistry.registerComponent("MedMinderDoseAlarm", () => DoseAlarmRoot);
+AppRegistry.registerComponent("Remedin", () => App);
+AppRegistry.registerComponent("RemedinDoseAlarm", () => DoseAlarmRoot);
 AppRegistry.registerHeadlessTask(
-  "MedMinderReminderReconcile",
+  "RemedinReminderReconcile",
   () => reconcileRemindersFromBackground
 );

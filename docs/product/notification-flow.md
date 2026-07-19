@@ -30,14 +30,14 @@ Avisar o usuario antes de uma dose e solicitar uma acao no horario agendado, mes
 22. Se o acesso a alarmes exatos estiver indisponivel, o app continua com notificacoes aproximadas e avisa que os lembretes podem atrasar.
 23. A falta de acesso a alarmes exatos nao bloqueia cadastro, historico nem registro manual de doses.
 24. `Tocar no silencioso e Nao Perturbe` e opcional e depende de preferencia explicita e acesso concedido pelo Android.
-25. Sem esse acesso, o MedMinder usa o canal normal e explica que o Android pode silenciar o alarme.
-26. O MedMinder nao altera globalmente o modo Nao Perturbe; o usuario continua no controle final dos canais.
+25. Sem esse acesso, o Remedin usa o canal normal e explica que o Android pode silenciar o alarme.
+26. O Remedin nao altera globalmente o modo Nao Perturbe; o usuario continua no controle final dos canais.
 
 ## Requisitos de configuracao
 
 Cada permissao ou acesso especial deve ser apresentado com linguagem orientada ao beneficio, sem expor nomes tecnicos do Android como titulo principal. O estado deve informar claramente o que funciona, o que fica limitado e qual acao o usuario pode realizar.
 
-- `Receber lembretes`: permite que o MedMinder mostre notificacoes.
+- `Receber lembretes`: permite que o Remedin mostre notificacoes.
 - `Tocar no silencioso e Nao Perturbe`: autoriza um canal critico opcional para alarmes de dose.
 - `Avisar no horario exato`: reduz o risco de atraso causado pelo sistema.
 - `Abrir alarme em tela cheia`: mostra a experiencia de alarme quando o Android permitir.
@@ -47,13 +47,13 @@ Cada item deve ter estado legivel, explicacao curta e um unico botao contextual,
 
 ## Tela de alarme
 
-A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `MedMinderDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
+A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `RemedinDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
 
 A tela segue o design system Home Care Cards e a referencia visual em `docs/design/dose-alarm-screen.png`: fundo creme, verde profundo, acento pessego, bordas sutis, raio maximo de 8 px, icones lineares e acoes individuais por dose.
 
 Quando houver notas do medicamento, a tela mostra no maximo duas linhas por dose. Notas seguem a preferencia `Mostrar detalhes na tela bloqueada` e ficam ocultas quando essa preferencia estiver desativada.
 
-Quando o MedMinder estiver em primeiro plano, a mesma experiencia aparece como modal sobre a tela atual. O modal nao desmonta a navegacao nem perde dados de formularios; ao encerrar, o usuario retorna ao estado anterior.
+Quando o Remedin estiver em primeiro plano, a mesma experiencia aparece como modal sobre a tela atual. O modal nao desmonta a navegacao nem perde dados de formularios; ao encerrar, o usuario retorna ao estado anterior.
 
 A tela nao possui acao `Fechar`. Voltar, bloquear o aparelho ou trocar de app apenas minimiza a experiencia e nao altera a dose. O som continua ate o limite de 60 segundos e a notificacao permanece visivel.
 
@@ -94,7 +94,7 @@ Depois do registro, uma notificacao discreta `Dose registrada como tomada` ofere
 
 ## Limite de adiamentos
 
-Cada ocorrencia permite no maximo tres adiamentos consecutivos de cinco minutos. Depois do terceiro, o app nao abre outra tela cheia e mantem uma notificacao pendente com `Marcar como tomado` e `Abrir MedMinder`.
+Cada ocorrencia permite no maximo tres adiamentos consecutivos de cinco minutos. Depois do terceiro, o app nao abre outra tela cheia e mantem uma notificacao pendente com `Marcar como tomado` e `Abrir Remedin`.
 
 Atingir o limite nao registra a dose automaticamente como tomada, pulada ou perdida.
 
