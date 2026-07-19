@@ -26,6 +26,8 @@ export const ptBR = {
     back: "Voltar",
     saveMedication: "Salvar medicamento",
     saveChanges: "Salvar alterações",
+    review: "Revisar",
+    openSettings: "Abrir configurações",
   },
   home: {
     subtitle: "Veja seus horários e registre suas doses.",

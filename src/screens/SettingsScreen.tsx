@@ -192,7 +192,7 @@ export function SettingsScreen() {
             description={ptBR.profile.exactAlarm.description}
             state={exactReady ? "Ativado" : advancedDisabled ? "Ative as notificações primeiro" : "Precisa de autorização"}
             stateTone={exactReady ? "positive" : "attention"}
-            actionLabel={!advancedDisabled && permissionState?.exactAlarms === "denied" ? "Ativar" : undefined}
+            actionLabel={ptBR.actions.review}
             onAction={openExactAlarmSettings}
             disabled={advancedDisabled}
           />
@@ -236,7 +236,7 @@ export function SettingsScreen() {
             description={ptBR.profile.background.description}
             state={backgroundReady ? "Sem restrição" : "Economia de bateria ativa"}
             stateTone={backgroundReady ? "positive" : "attention"}
-            actionLabel={!advancedDisabled && !backgroundReady ? "Revisar configuração" : undefined}
+            actionLabel={ptBR.actions.openSettings}
             onAction={openBatterySettings}
             disabled={advancedDisabled}
             last
