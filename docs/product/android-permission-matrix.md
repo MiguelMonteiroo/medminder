@@ -43,6 +43,23 @@ O Perfil mantém `Funcionamento em segundo plano` como diagnóstico. O app abre 
 - O estado de alarme crítico só é considerado pronto quando o acesso à política está concedido e o canal confirma `canBypassDnd()`.
 - Canais permanecem sob controle final do usuário. O Perfil deve continuar mostrando o diagnóstico quando notificações ou canais forem alterados nas configurações.
 
+## Google Play Declarations
+
+As declarações devem ser preenchidas ao preparar a primeira distribuição pelo Google Play, logo depois de enviar o AAB assinado para uma versão de teste interno e antes de publicar essa versão. Não é necessário preenchê-las durante desenvolvimento local, mas elas não devem ser adiadas até o lançamento em produção, pois pendências também podem bloquear faixas de teste.
+
+Ordem recomendada:
+
+1. Criar o aplicativo MedMinder no Play Console.
+2. Gerar e enviar o primeiro AAB release assinado para `Teste interno`, mantendo a versão como rascunho.
+3. Abrir `Monitorar e melhorar > Conteúdo do app`.
+4. Declarar o foreground service `systemExempted` e explicar que ele mantém por até 60 segundos o som de um alarme de medicamento solicitado pelo usuário.
+5. Informar o impacto caso o serviço seja adiado ou interrompido: o lembrete pode não tocar no horário esperado.
+6. Fornecer um vídeo acessível ao revisor mostrando o cadastro de um medicamento, o agendamento e o alarme sendo disparado e encerrado.
+7. Preencher separadamente a declaração de `USE_FULL_SCREEN_INTENT`, identificando alarmes como funcionalidade central do aplicativo e mostrando a tela de alarme no vídeo.
+8. Resolver todos os alertas de `Conteúdo do app` antes de publicar a versão no teste interno.
+
+O uso de `systemExempted` depende de o aplicativo manter `SCHEDULE_EXACT_ALARM` ou `USE_EXACT_ALARM` e utilizar o foreground service para continuar um alarme em segundo plano. A declaração no Play Console não substitui as permissões e tipos registrados no `AndroidManifest.xml`.
+
 ## References
 
 - Android notification permission: https://developer.android.com/develop/ui/compose/notifications/notification-permission
@@ -50,4 +67,6 @@ O Perfil mantém `Funcionamento em segundo plano` como diagnóstico. O app abre 
 - Android 14 full-screen intents: https://developer.android.com/about/versions/14/behavior-changes-14
 - Android notification policy access: https://developer.android.com/reference/android/app/NotificationManager
 - Android special permissions: https://developer.android.com/training/permissions/requesting-special
+- Android foreground service types: https://developer.android.com/develop/background-work/services/fgs/service-types#system-exempted
+- Google Play foreground service and full-screen intent declarations: https://support.google.com/googleplay/android-developer/answer/13392821
 - Notifee Android behavior: https://notifee.app/react-native/docs/android/behaviour/
