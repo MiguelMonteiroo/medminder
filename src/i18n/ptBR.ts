@@ -1,5 +1,5 @@
 export const ptBR = {
-  appName: "MedMinder",
+  appName: "Remedin",
   tabs: {
     today: "Hoje",
     medications: "Medicamentos",
@@ -112,7 +112,7 @@ export const ptBR = {
     remindersMeta: "Configure na ordem",
     notifications: {
       title: "Receber notificações",
-      description: "Permite que o MedMinder avise sobre cada horário.",
+      description: "Permite que o Remedin avise sobre cada horário.",
     },
     silentMode: {
       title: "Tocar no silencioso",

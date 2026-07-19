@@ -36,7 +36,7 @@ export function createDatabaseBootstrap({
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       let stage: BootstrapStage = "open";
       try {
-        const database = await openNativeDatabase("medminder.db");
+        const database = await openNativeDatabase("remedin.db");
         stage = "migration";
         await migrate(database);
         return database;

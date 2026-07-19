@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 
 object AlarmAudioScheduler {
-  private const val PREFS_NAME = "medminder_alarm_audio"
+  private const val PREFS_NAME = "remedin_alarm_audio"
   private const val PREFS_ALARM_IDS = "scheduled_alarm_ids"
 
   fun schedule(
@@ -67,7 +67,7 @@ object AlarmAudioScheduler {
     val intent =
         Intent(context, MedicationAlarmService::class.java).apply {
           action = MedicationAlarmService.ACTION_START_ALARM
-          data = Uri.parse("medminder://alarm-audio/${Uri.encode(alarmId)}")
+          data = Uri.parse("remedin://alarm-audio/${Uri.encode(alarmId)}")
           putExtra(MedicationAlarmService.EXTRA_ALARM_ID, alarmId)
           putExtra(MedicationAlarmService.EXTRA_TIMEOUT_MILLIS, timeoutMillis)
         }

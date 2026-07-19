@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.media.AudioManager
 import android.os.Build
@@ -19,7 +19,7 @@ class DoseAlarmActivity : ReactActivity() {
   private val timeoutHandler = Handler(Looper.getMainLooper())
   private val timeoutAction = Runnable { finish() }
 
-  override fun getMainComponentName(): String = "MedMinderDoseAlarm"
+  override fun getMainComponentName(): String = "RemedinDoseAlarm"
 
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {

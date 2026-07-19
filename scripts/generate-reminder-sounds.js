@@ -43,13 +43,13 @@ function createWav(fileName, notes) {
 const outputDir = path.resolve(__dirname, "../android/app/src/main/res/raw");
 fs.mkdirSync(outputDir, { recursive: true });
 
-createWav(path.join(outputDir, "medminder_pre_alert.wav"), [
+createWav(path.join(outputDir, "remedin_pre_alert.wav"), [
   { frequency: 659.25, duration: 0.16, volume: 0.25 },
   { frequency: 0, duration: 0.06, volume: 0 },
   { frequency: 783.99, duration: 0.22, volume: 0.2 },
 ]);
 
-createWav(path.join(outputDir, "medminder_alarm.wav"), [
+createWav(path.join(outputDir, "remedin_alarm.wav"), [
   { frequency: 523.25, duration: 0.28, volume: 0.38 },
   { frequency: 659.25, duration: 0.28, volume: 0.38 },
   { frequency: 783.99, duration: 0.38, volume: 0.42 },

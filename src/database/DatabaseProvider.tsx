@@ -85,7 +85,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
             Não foi possível acessar seus dados
           </AppText>
           <AppText muted style={styles.statusMessage}>
-            Nada foi apagado. Tente abrir o armazenamento do MedMinder
+            Nada foi apagado. Tente abrir o armazenamento do Remedin
             novamente.
           </AppText>
           <AppButton

@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -31,7 +31,7 @@ class MainApplication : Application(), ReactApplication {
         PeriodicWorkRequestBuilder<ReminderReconcileWorker>(12, TimeUnit.HOURS).build()
     WorkManager.getInstance(this)
         .enqueueUniquePeriodicWork(
-            "medminder-reminder-reconcile",
+            "remedin-reminder-reconcile",
             ExistingPeriodicWorkPolicy.KEEP,
             reconcileWork,
         )

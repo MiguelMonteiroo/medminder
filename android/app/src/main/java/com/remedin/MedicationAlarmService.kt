@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -88,7 +88,7 @@ class MedicationAlarmService : Service() {
     mediaPlayer =
         MediaPlayer().apply {
           setAudioAttributes(attributes)
-          resources.openRawResourceFd(R.raw.medminder_alarm).use { descriptor ->
+          resources.openRawResourceFd(R.raw.remedin_alarm).use { descriptor ->
             setDataSource(
                 descriptor.fileDescriptor,
                 descriptor.startOffset,
@@ -173,7 +173,7 @@ class MedicationAlarmService : Service() {
     return builder
         .setSmallIcon(R.mipmap.ic_launcher)
         .setContentTitle("Alarme de medicamento ativo")
-        .setContentText("Abra o MedMinder para registrar ou adiar a dose.")
+        .setContentText("Abra o Remedin para registrar ou adiar a dose.")
         .setCategory(Notification.CATEGORY_ALARM)
         .setContentIntent(contentIntent)
         .setLocalOnly(true)
@@ -208,7 +208,7 @@ class MedicationAlarmService : Service() {
   }
 
   companion object {
-    const val ACTION_START_ALARM = "com.medminder.action.START_ALARM_AUDIO"
+    const val ACTION_START_ALARM = "com.remedin.action.START_ALARM_AUDIO"
     const val EXTRA_ALARM_ID = "alarmId"
     const val EXTRA_TIMEOUT_MILLIS = "timeoutMillis"
     const val ALARM_TIMEOUT_MS = 60_000L

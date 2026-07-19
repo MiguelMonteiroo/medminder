@@ -1,7 +1,7 @@
-# MedMinder V2 visual references
+# Remedin V2 visual references
 
 Estas quatro imagens são as referências oficiais para o redesign acessível do
-MedMinder V2:
+Remedin V2:
 
 - `home-empty.webp`
 - `home-active.webp`

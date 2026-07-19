@@ -252,7 +252,7 @@ export function SettingsScreen() {
         <AppText muted style={styles.subtitle}>{ptBR.profile.subtitle}</AppText>
 
         {reminderSyncPending ? (
-          <CareInfoTip text="Alguns lembretes aguardam atualização. O MedMinder tentará novamente ao abrir o app." />
+          <CareInfoTip text="Alguns lembretes aguardam atualização. O Remedin tentará novamente ao abrir o app." />
         ) : null}
 
         <ProfileNamePanel
@@ -287,7 +287,7 @@ export function SettingsScreen() {
         <View style={styles.aboutRow}>
           <Info color={colors.primaryMuted} size={22} strokeWidth={2} />
           <View style={styles.aboutCopy}>
-            <AppText variant="small" weight="semibold">MedMinder 1.0.0</AppText>
+            <AppText variant="small" weight="semibold">Remedin 1.0.0</AppText>
             <AppText variant="caption" muted>Lembretes pessoais armazenados somente neste aparelho.</AppText>
           </View>
         </View>

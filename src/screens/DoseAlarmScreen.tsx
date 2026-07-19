@@ -259,7 +259,7 @@ export function DoseAlarmScreen({
             <BellRing color={colors.primaryDark} size={28} />
           </View>
           <AppText variant="heading" style={styles.brand}>
-            MedMinder
+            Remedin
           </AppText>
         </View>
 
@@ -332,7 +332,7 @@ export function DoseAlarmScreen({
                   ) : (
                     <View style={styles.privateNotice}>
                       <AppText muted>
-                        Desbloqueie o aparelho e abra o MedMinder para registrar a dose.
+                        Desbloqueie o aparelho e abra o Remedin para registrar a dose.
                       </AppText>
                     </View>
                   )}

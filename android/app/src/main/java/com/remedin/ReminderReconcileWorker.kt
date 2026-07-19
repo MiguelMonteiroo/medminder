@@ -1,4 +1,4 @@
-package com.medminder
+package com.remedin
 
 import android.content.Context
 import android.content.Intent

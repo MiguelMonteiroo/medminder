@@ -45,7 +45,7 @@ describe("notificationBuilder", () => {
 
     expect(notification.android?.fullScreenAction).toEqual({
       id: "dose-alarm",
-      launchActivity: "com.medminder.DoseAlarmActivity",
+      launchActivity: "com.remedin.DoseAlarmActivity",
       launchActivityFlags: [
         AndroidLaunchActivityFlag.NEW_TASK,
         AndroidLaunchActivityFlag.CLEAR_TOP,
@@ -55,7 +55,7 @@ describe("notificationBuilder", () => {
     });
     expect(notification.android?.pressAction).toEqual({
       id: "open-dose-window",
-      launchActivity: "com.medminder.DoseAlarmActivity",
+      launchActivity: "com.remedin.DoseAlarmActivity",
       launchActivityFlags: [
         AndroidLaunchActivityFlag.NEW_TASK,
         AndroidLaunchActivityFlag.CLEAR_TOP,
@@ -116,11 +116,11 @@ describe("notificationBuilder", () => {
     });
 
     expect(notification.android?.pressAction?.launchActivity).toBe(
-      "com.medminder.DoseAlarmActivity"
+      "com.remedin.DoseAlarmActivity"
     );
     expect(notification.android?.pressAction?.mainComponent).toBeUndefined();
     expect(notification.android?.fullScreenAction?.launchActivity).toBe(
-      "com.medminder.DoseAlarmActivity"
+      "com.remedin.DoseAlarmActivity"
     );
     expect(notification.android?.fullScreenAction?.mainComponent).toBeUndefined();
     expect(notification.android?.fullScreenAction?.launchActivityFlags).toEqual([
