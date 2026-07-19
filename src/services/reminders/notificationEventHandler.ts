@@ -9,6 +9,8 @@ import {
   type NotificationActionCommand,
   type NotificationActionDependencies,
 } from "./notificationActionHandler";
+import { finishDoseAlarmActivityIfOpen } from "./nativeReminderPermissions";
+import { nativeAlarmAudio } from "./nativeAlarmAudio";
 
 async function createDefaultDependencies(): Promise<NotificationActionDependencies> {
   const database = await openAppDatabase();
@@ -27,6 +29,7 @@ async function createDefaultDependencies(): Promise<NotificationActionDependenci
       await scheduler.scheduleForOccurrence(occurrence, medication, schedule, {
         showLockScreenDetails: settings.showLockScreenDetails,
         fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+        criticalAlertsEnabled: settings.criticalAlertsEnabled,
         snoozed: true,
         alarmAt: new Date(occurrence.scheduledAt),
       });
@@ -41,7 +44,10 @@ async function createDefaultDependencies(): Promise<NotificationActionDependenci
         settings.showLockScreenDetails
       );
     },
-    cancelNotification: notifee.cancelNotification,
+    cancelNotification: async (notificationId) => {
+      await notifee.cancelNotification(notificationId);
+      await nativeAlarmAudio.cancel(notificationId);
+    },
   };
 }
 
@@ -68,6 +74,13 @@ export async function handleNotifeeEvent(event: Event): Promise<void> {
   };
 
   await executeDefaultNotificationCommand(command);
+  if (
+    actionId === "mark-taken" ||
+    actionId === "snooze-five" ||
+    actionId === "end-alarm-test"
+  ) {
+    await finishDoseAlarmActivityIfOpen();
+  }
 }
 
 export async function reconcileRemindersFromBackground(): Promise<void> {

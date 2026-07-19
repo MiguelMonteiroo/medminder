@@ -28,6 +28,7 @@ O estado atual possui estas limitações:
 Antes de implementar, ler obrigatoriamente:
 
 - `docs/product/notification-flow.md`
+- `docs/product/android-permission-matrix.md`
 - `CONTEXT.md`
 - `docs/adr/0004-optional-full-screen-dose-alarms.md`
 - `docs/adr/0005-react-native-dose-alarm-screen.md`
@@ -59,7 +60,7 @@ O comportamento abaixo está fechado e não deve ser reinterpretado durante a im
 3. No horário, entregar um alarme com `Marcar como tomado` e `Adiar 5 min`.
 4. `Pular dose` permanece somente dentro do app.
 5. Tela cheia é opt-in. Sem acesso, usar notificação de alta prioridade com as mesmas ações.
-6. Som e vibração do alarme duram no máximo 60 segundos.
+6. Som nativo e vibração do alarme duram no máximo 60 segundos; a notificação usa canal silencioso quando o foreground service assume o áudio.
 7. Após 60 segundos sem ação, encerrar som/tela cheia e manter notificação acionável.
 8. Após dez minutos sem ação, entregar um único reforço sem tela cheia.
 9. `Adiar 5 min` cria um novo alarme completo cinco minutos depois.
@@ -76,7 +77,7 @@ O comportamento abaixo está fechado e não deve ser reinterpretado durante a im
 20. Detalhes na tela bloqueada são opt-in; sem isso, exigir desbloqueio para identificar e registrar a dose.
 21. Notas aparecem em no máximo duas linhas e obedecem à preferência de privacidade.
 22. Sair da tela, voltar, bloquear o aparelho ou trocar de app não resolve a dose.
-23. O app não solicita acesso para ignorar o modo Não Perturbe.
+23. `Tocar no silencioso e Não Perturbe` é opt-in; quando preferência e acesso do Android estão ativos, usar o canal crítico versionado. Recusa ou revogação volta ao canal normal sem bloquear o app.
 
 ## Target Architecture
 
@@ -146,6 +147,7 @@ type ReminderPermissionState = {
   notifications: "granted" | "denied" | "blocked";
   exactAlarms: "granted" | "denied" | "notRequired";
   fullScreen: "granted" | "denied" | "unsupported";
+  doNotDisturb: "granted" | "denied";
   batteryOptimization: "optimized" | "unrestricted" | "unknown";
 };
 
@@ -162,6 +164,7 @@ Atualizar `ReminderSettings`:
 - Manter `notificationsEnabled` como preferência do app, separada da permissão do Android.
 - Fixar `defaultSnoozeMinutes` em 5 durante a migração e parar de expor configuração no MVP.
 - Adicionar `fullScreenAlarmEnabled: boolean`, default `false`.
+- Adicionar `criticalAlertsEnabled: boolean`, default `false` e separado do acesso concedido pelo Android.
 - Adicionar `showLockScreenDetails: boolean`, default `false`.
 - Adicionar `reminderSetupCompleted: boolean`, default `false`.
 
@@ -262,17 +265,22 @@ Criar canais antes de qualquer scheduling:
    - som curto próprio;
    - sem vibração contínua;
    - categoria reminder.
-2. `medication-dose-alarms-v1`:
+2. `medication-dose-alarms-v2`:
    - importância high;
-   - som próprio reconhecível;
+   - som próprio com `AudioAttributes.USAGE_ALARM`;
    - padrão de vibração com quantidade par de valores positivos;
    - categoria alarm;
-   - usado pelo alarme de 60 segundos e pelo reforço.
-3. `medication-dose-status-v1`:
+   - usado pelo alarme normal de 60 segundos e pelo reforço.
+3. `medication-dose-alarms-critical-v2`:
+   - criado nativamente apenas após acesso à política de notificações;
+   - mesmas características do canal normal;
+   - `setBypassDnd(true)`;
+   - usado somente quando `criticalAlertsEnabled` e acesso do Android estão ativos.
+4. `medication-dose-status-v1`:
    - importância low/default;
    - sem som;
    - confirma tomada e oferece desfazer.
-4. `medication-pending-v1`:
+5. `medication-pending-v1`:
    - sem som em loop;
    - usado após o handoff de 60 segundos.
 
@@ -281,6 +289,8 @@ Adicionar sons originais/licenciados em `android/app/src/main/res/raw/`, com nom
 Como propriedades de canais ficam sob controle do usuário e não podem ser reconfiguradas livremente após criação, qualquer alteração incompatível exige novo sufixo de versão.
 
 ### 6. Implement Clear Permission And Readiness State
+
+Auditoria de 2026-07-18: o onboarding cobre os cinco acessos configuráveis na ordem de dependência do produto: notificações, Não Perturbe, horário exato, tela cheia e funcionamento em segundo plano. Entre notificações e os acessos avançados, também apresenta a escolha de privacidade `Detalhes na tela bloqueada`. Uma negativa anterior de `POST_NOTIFICATIONS` deve abrir as configurações do aplicativo, pois o Android pode não repetir o diálogo. A etapa de bateria é explicativa e opcional, mas permanece visível no primeiro acesso para aparelhos com restrições agressivas.
 
 Atualizar o serviço de permissão para distinguir:
 
@@ -293,7 +303,12 @@ Atualizar o serviço de permissão para distinguir:
    - preferência interna opt-in;
    - em API 34+, consultar `NotificationManager.canUseFullScreenIntent()` por um pequeno módulo nativo;
    - abrir `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` quando necessário.
-4. Economia de bateria:
+4. `Tocar no silencioso e Não Perturbe`:
+   - preferência interna separada do acesso do Android;
+   - consultar `NotificationManager.isNotificationPolicyAccessGranted`;
+   - abrir `ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`;
+   - reconciliar alarmes futuros após concessão ou revogação.
+5. Economia de bateria:
    - inspecionar com APIs do Notifee;
    - não pedir bypass automaticamente;
    - mostrar orientação somente quando a otimização realmente limitar confiabilidade.
@@ -315,10 +330,12 @@ Atualizar `AndroidManifest.xml`:
 1. Manter `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `VIBRATE` e `SCHEDULE_EXACT_ALARM`.
 2. Remover `USE_EXACT_ALARM` para evitar a permissão restrita do Google Play.
 3. Adicionar `USE_FULL_SCREEN_INTENT`.
-4. Não adicionar acesso para ignorar Não Perturbe.
-5. Declarar somente receivers/services realmente exigidos pela implementação e marcar `exported` corretamente.
+4. Adicionar `ACCESS_NOTIFICATION_POLICY` para o canal crítico opt-in, sem alterar globalmente o modo Não Perturbe.
+5. Declarar `DoseAlarmActivity` separada, fora dos recentes e com acesso à lockscreen somente durante alarmes.
+6. Remover `showWhenLocked` e `turnScreenOn` da `MainActivity`.
+7. Declarar somente receivers/services realmente exigidos pela implementação e marcar `exported` corretamente.
 
-Atualizar `MainActivity.kt` conforme integração oficial do Notifee para respeitar `mainComponent` quando o app for aberto por full-screen action, preservando `MedMinder` como componente padrão.
+Manter `MainActivity` como experiência comum e direcionar `pressAction`/`fullScreenAction` para `DoseAlarmActivity`, que hospeda `MedMinderDoseAlarm`, controla `STREAM_ALARM` e encerra após ação ou timeout.
 
 Adicionar um módulo Kotlin estreito para:
 
@@ -477,14 +494,16 @@ No fluxo foreground, reutilizar o mesmo componente visual como modal e preservar
 Após salvar o primeiro medicamento, se `reminderSetupCompleted` for falso, apresentar `Prepare seus lembretes`:
 
 1. `Receber lembretes`.
-2. `Avisar no horário exato`.
-3. `Alarme em tela cheia` como recomendado e opcional.
+2. `Tocar no silencioso e Não Perturbe` como recomendado e opcional.
+3. `Avisar no horário exato`.
+4. `Alarme em tela cheia` como recomendado e opcional.
 
 Permitir sair do guia sem bloquear o cadastro. Salvar progresso e não reapresentar agressivamente.
 
 Em `Perfil > Lembretes`, substituir o toggle único por estados independentes:
 
 - `Receber lembretes`;
+- `Tocar no silencioso e Não Perturbe`;
 - `Avisar no horário exato`;
 - `Abrir alarme em tela cheia`;
 - `Mostrar detalhes na tela bloqueada`;
@@ -572,6 +591,7 @@ Referências oficiais:
 - Alarme chega no horário em dispositivo real quando alarmes exatos estão permitidos.
 - Fallback funciona e é explicado quando alarmes exatos ou full-screen estão negados.
 - Tela cheia respeita opt-in e a configuração da lockscreen.
+- Alarmes críticos respeitam opt-in; recusa/revogação usa canal normal e não bloqueia o app.
 - App foreground mostra modal sem perder formulário/navegação.
 - `Marcar como tomado` funciona com app aberto, em background e encerrado.
 - `Adiar 5 min` funciona com app aberto, em background e encerrado.

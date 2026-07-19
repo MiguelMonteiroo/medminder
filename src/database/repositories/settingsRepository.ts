@@ -1,15 +1,8 @@
 import type { NativeDB } from "../nativeDb";
 import { ReminderSettings } from "../../types/domain";
+import { DEFAULT_REMINDER_SETTINGS } from "../../utils/defaultReminderSettings";
 
-const DEFAULT_SETTINGS: ReminderSettings = {
-  notificationsEnabled: false,
-  defaultSnoozeMinutes: 5,
-  userName: "",
-  fullScreenAlarmEnabled: false,
-  showLockScreenDetails: false,
-  reminderSetupCompleted: false,
-  onboardingCompleted: false,
-};
+const DEFAULT_SETTINGS = DEFAULT_REMINDER_SETTINGS;
 
 function parseSnoozeMinutes(value: string | undefined): number {
   const parsed = value ? Number.parseInt(value, 10) : Number.NaN;
@@ -34,6 +27,7 @@ export function createSettingsRepository(db: NativeDB) {
       defaultSnoozeMinutes: parseSnoozeMinutes(map.defaultSnoozeMinutes),
       userName: map.userName || DEFAULT_SETTINGS.userName,
       fullScreenAlarmEnabled: map.fullScreenAlarmEnabled === "true",
+      criticalAlertsEnabled: map.criticalAlertsEnabled === "true",
       showLockScreenDetails: map.showLockScreenDetails === "true",
       reminderSetupCompleted: map.reminderSetupCompleted === "true",
       onboardingCompleted: map.onboardingCompleted === "true",
@@ -51,6 +45,10 @@ export function createSettingsRepository(db: NativeDB) {
       [
         "fullScreenAlarmEnabled",
         settings.fullScreenAlarmEnabled ? "true" : "false",
+      ],
+      [
+        "criticalAlertsEnabled",
+        settings.criticalAlertsEnabled ? "true" : "false",
       ],
       [
         "showLockScreenDetails",

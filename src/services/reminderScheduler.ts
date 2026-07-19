@@ -20,6 +20,11 @@ import {
   buildTakenConfirmationNotification,
   type ReminderDoseViewModel,
 } from "./reminders/notificationBuilder";
+import { shouldUseCriticalAlarmChannel } from "./reminders/alarmChannelSelection";
+import {
+  nativeAlarmAudio,
+  type AlarmAudioController,
+} from "./reminders/nativeAlarmAudio";
 import {
   planOccurrenceReminders,
   type PlannedReminder,
@@ -28,6 +33,7 @@ import {
 export type ReminderScheduleOptions = {
   showLockScreenDetails?: boolean;
   fullScreenAlarmEnabled?: boolean;
+  criticalAlertsEnabled?: boolean;
   snoozed?: boolean;
   alarmAt?: Date;
 };
@@ -52,7 +58,9 @@ function artifactNotification(
   plan: PlannedReminder,
   dose: ReminderDoseViewModel,
   options: ReminderScheduleOptions,
-  fullScreenAllowed: boolean
+  fullScreenAllowed: boolean,
+  useCriticalChannel: boolean,
+  useNativeAudio: boolean
 ) {
   const showDetails = options.showLockScreenDetails ?? false;
   switch (plan.kind) {
@@ -63,18 +71,25 @@ function artifactNotification(
       return buildDoseAlarmNotification(dose, {
         showDetails,
         fullScreenEnabled: fullScreenAllowed,
+        useCriticalChannel,
+        useNativeAudio,
       });
     case "alarmHandoff":
       return buildPendingNotification(dose, showDetails);
     case "reinforcement":
-      return buildReinforcementNotification(dose, showDetails);
+      return buildReinforcementNotification(
+        dose,
+        showDetails,
+        useCriticalChannel
+      );
     default:
       return buildPendingNotification(dose, showDetails);
   }
 }
 
 export function createReminderScheduler(
-  artifactRepo: ReminderArtifactRepository
+  artifactRepo: ReminderArtifactRepository,
+  alarmAudio: AlarmAudioController = nativeAlarmAudio
 ) {
   async function scheduleForOccurrence(
     occurrence: DoseOccurrence,
@@ -93,6 +108,11 @@ export function createReminderScheduler(
     const fullScreenAllowed =
       (options.fullScreenAlarmEnabled ?? false) &&
       permissionState.fullScreen !== "denied";
+    const useCriticalChannel = shouldUseCriticalAlarmChannel(
+      options.criticalAlertsEnabled ?? false,
+      permissionState.doNotDisturb,
+      permissionState.criticalAlarmChannel
+    );
     const exactAlarmAllowed =
       permissionState.exactAlarms === "granted" ||
       permissionState.exactAlarms === "notRequired";
@@ -103,11 +123,29 @@ export function createReminderScheduler(
       const artifactId = isWindowPreAlert
         ? `pre-alert:${plan.doseWindowKey}`
         : `${occurrence.id}:${plan.kind}:${plan.scheduledFor}`;
+      const scheduledAt = new Date(plan.scheduledFor);
+      if (scheduledAt.getTime() <= Date.now()) continue;
+      const isAudioAlarm =
+        plan.kind === "doseAlarm" || plan.kind === "snoozedAlarm";
+      let nativeAudioScheduled = false;
+      if (isAudioAlarm && exactAlarmAllowed && alarmAudio.available) {
+        try {
+          nativeAudioScheduled = await alarmAudio.schedule(
+            artifactId,
+            scheduledAt.getTime(),
+            60_000
+          );
+        } catch {
+          nativeAudioScheduled = false;
+        }
+      }
       const notification = artifactNotification(
         plan,
         dose,
         options,
-        fullScreenAllowed
+        fullScreenAllowed,
+        useCriticalChannel,
+        nativeAudioScheduled
       );
       if (isWindowPreAlert) {
         const windowArtifacts = await artifactRepo.getByWindowKey(
@@ -130,23 +168,28 @@ export function createReminderScheduler(
       }
       notification.id = artifactId;
 
-      const scheduledAt = new Date(plan.scheduledFor);
-      if (scheduledAt.getTime() <= Date.now()) continue;
-
-      const notificationId = await notifee.createTriggerNotification(
-        notification,
-        {
-          type: TriggerType.TIMESTAMP,
-          timestamp: scheduledAt.getTime(),
-          ...(exactAlarmAllowed
-            ? {
-                alarmManager: {
-                  type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE,
-                },
-              }
-            : {}),
+      let notificationId: string;
+      try {
+        notificationId = await notifee.createTriggerNotification(
+          notification,
+          {
+            type: TriggerType.TIMESTAMP,
+            timestamp: scheduledAt.getTime(),
+            ...(exactAlarmAllowed
+              ? {
+                  alarmManager: {
+                    type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE,
+                  },
+                }
+              : {}),
+          }
+        );
+      } catch (error) {
+        if (nativeAudioScheduled) {
+          await alarmAudio.cancel(artifactId).catch(() => undefined);
         }
-      );
+        throw error;
+      }
 
       const artifact: ReminderArtifact = {
         id: artifactId,
@@ -183,6 +226,7 @@ export function createReminderScheduler(
         if (hasAnotherDose) continue;
       }
       await notifee.cancelNotification(artifact.notificationId);
+      await alarmAudio.cancel(artifact.id);
       await artifactRepo.remove(artifact.id);
     }
   }
@@ -203,12 +247,14 @@ export function createReminderScheduler(
         if (hasAnotherMedication) continue;
       }
       await notifee.cancelNotification(artifact.notificationId);
+      await alarmAudio.cancel(artifact.id);
       await artifactRepo.remove(artifact.id);
     }
   }
 
   async function cancelAll(): Promise<void> {
     await notifee.cancelAllNotifications();
+    await alarmAudio.cancelAll();
     await artifactRepo.removeAll();
   }
 
@@ -232,19 +278,55 @@ export function createReminderScheduler(
     );
   }
 
-  async function runAlarmTest(): Promise<string> {
+  async function runAlarmTest(options: {
+    criticalAlertsEnabled: boolean;
+    fullScreenAlarmEnabled: boolean;
+  }): Promise<string> {
     const settings = await notifee.getNotificationSettings();
+    const permissionState = await getReminderPermissionState();
     const exact =
       settings.android.alarm === AndroidNotificationSetting.ENABLED ||
       settings.android.alarm === AndroidNotificationSetting.NOT_SUPPORTED;
     const timestamp = Date.now() + 5_000;
-    return notifee.createTriggerNotification(buildAlarmTestNotification(), {
-      type: TriggerType.TIMESTAMP,
-      timestamp,
-      ...(exact
-        ? { alarmManager: { type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE } }
-        : {}),
+    const alarmId = `alarm-test:${timestamp}`;
+    let nativeAudioScheduled = false;
+    if (exact && alarmAudio.available) {
+      try {
+        nativeAudioScheduled = await alarmAudio.schedule(
+          alarmId,
+          timestamp,
+          10_000
+        );
+      } catch {
+        nativeAudioScheduled = false;
+      }
+    }
+    const notification = buildAlarmTestNotification({
+      fullScreenEnabled:
+        options.fullScreenAlarmEnabled &&
+        permissionState.fullScreen !== "denied",
+      useCriticalChannel: shouldUseCriticalAlarmChannel(
+        options.criticalAlertsEnabled,
+        permissionState.doNotDisturb,
+        permissionState.criticalAlarmChannel
+      ),
+      useNativeAudio: nativeAudioScheduled,
     });
+    notification.id = alarmId;
+    try {
+      return await notifee.createTriggerNotification(notification, {
+        type: TriggerType.TIMESTAMP,
+        timestamp,
+        ...(exact
+          ? { alarmManager: { type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE } }
+          : {}),
+      });
+    } catch (error) {
+      if (nativeAudioScheduled) {
+        await alarmAudio.cancel(alarmId).catch(() => undefined);
+      }
+      throw error;
+    }
   }
 
   return {

@@ -37,6 +37,7 @@ import {
   validateProfileName,
   validateTimeHHMM,
 } from "../utils/validation";
+import { DEFAULT_REMINDER_SETTINGS } from "../utils/defaultReminderSettings";
 
 interface AppDataContextValue {
   medications: Medication[];
@@ -76,15 +77,7 @@ interface AppDataContextValue {
   snoozeMinutes: number;
 }
 
-const DEFAULT_SETTINGS: ReminderSettings = {
-  notificationsEnabled: false,
-  defaultSnoozeMinutes: 5,
-  userName: "",
-  fullScreenAlarmEnabled: false,
-  showLockScreenDetails: false,
-  reminderSetupCompleted: false,
-  onboardingCompleted: false,
-};
+const DEFAULT_SETTINGS = DEFAULT_REMINDER_SETTINGS;
 
 const AppDataContext = createContext<AppDataContextValue>({
   medications: [],
@@ -156,6 +149,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     permissionMonitor.current = createReminderPermissionMonitor({
       readState: getReminderPermissionState,
       onCapabilitiesChanged: async () => {
+        await ensureChannelCreated();
         await reminderScheduler.cancelAll();
         await reconcileNotifications(
           repos.reminderArtifacts,
@@ -271,6 +265,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           {
             showLockScreenDetails: reminderSettings.showLockScreenDetails,
             fullScreenAlarmEnabled: reminderSettings.fullScreenAlarmEnabled,
+            criticalAlertsEnabled: reminderSettings.criticalAlertsEnabled,
           }
         );
       }
@@ -435,6 +430,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           {
             showLockScreenDetails: settings.showLockScreenDetails,
             fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
+            criticalAlertsEnabled: settings.criticalAlertsEnabled,
             snoozed: true,
             alarmAt: snoozedUntil,
           }
@@ -609,7 +605,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const runAlarmTest = useCallback(async () => {
     await ensureChannelCreated();
-    await reminderScheduler.runAlarmTest();
+    await reminderScheduler.runAlarmTest({
+      criticalAlertsEnabled: settingsRef.current.criticalAlertsEnabled,
+      fullScreenAlarmEnabled: settingsRef.current.fullScreenAlarmEnabled,
+    });
   }, []);
 
   return (

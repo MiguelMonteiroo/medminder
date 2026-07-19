@@ -9,7 +9,11 @@ import com.facebook.react.uimanager.ViewManager
 class ReminderPermissionsPackage : ReactPackage {
   override fun createNativeModules(
       reactContext: ReactApplicationContext,
-  ): List<NativeModule> = listOf(ReminderPermissionsModule(reactContext))
+  ): List<NativeModule> =
+      listOf(
+          ReminderPermissionsModule(reactContext),
+          AlarmAudioModule(reactContext),
+      )
 
   override fun createViewManagers(
       reactContext: ReactApplicationContext,

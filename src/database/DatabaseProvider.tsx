@@ -52,17 +52,21 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const initialize = useCallback(async () => {
     try {
       setState({ db: null, initialized: false, error: null });
-      resetAppDatabaseForRetry();
       const db = await openAppDatabase();
       setState({ db, initialized: true, error: null });
-    } catch (e: any) {
+    } catch {
       setState({
         db: null,
         initialized: true,
-        error: e?.message ?? "Erro ao inicializar banco de dados.",
+        error: "Erro ao inicializar banco de dados.",
       });
     }
   }, []);
+
+  const retryInitialize = useCallback(async () => {
+    resetAppDatabaseForRetry();
+    await initialize();
+  }, [initialize]);
 
   useEffect(() => {
     if (initRef.current) return;
@@ -89,7 +93,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
             accessibilityHint="Repete a inicialização do armazenamento local"
             icon={RefreshCw}
             title="Tentar novamente"
-          onPress={initialize}
+          onPress={retryInitialize}
           />
         </AppCard>
       </Screen>

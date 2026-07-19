@@ -14,19 +14,16 @@ import { AppText } from "../components/ui/AppText";
 import { createRepositories } from "../database/db";
 import { openAppDatabase } from "../database/openAppDatabase";
 import { executeDefaultNotificationCommand } from "../services/reminders/notificationEventHandler";
+import {
+  loadInitialAlarmPayload,
+  type DoseAlarmPayload,
+} from "../services/reminders/alarmPayloadLoader";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
 import type { NotificationActionId } from "../types/domain";
 
 const SYSTEM_NOTIFICATION_CLEARANCE = (StatusBar.currentHeight ?? 24) + 96;
-
-export type DoseAlarmPayload = {
-  notificationId: string;
-  title: string;
-  body: string;
-  data: Record<string, string | number | object>;
-};
 
 type Props = {
   payload?: DoseAlarmPayload | null;
@@ -37,10 +34,10 @@ type Props = {
 
 async function closeAlarmActivity(): Promise<void> {
   const module = NativeModules.ReminderPermissions as
-    | { finishCurrentActivity?: () => Promise<void> }
+    | { finishDoseAlarmActivity?: () => Promise<void> }
     | undefined;
-  if (module?.finishCurrentActivity) {
-    await module.finishCurrentActivity();
+  if (module?.finishDoseAlarmActivity) {
+    await module.finishDoseAlarmActivity();
     return;
   }
   BackHandler.exitApp();
@@ -122,37 +119,52 @@ export function DoseAlarmScreen({
     initialPayload ? [initialPayload] : []
   );
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
-    if (initialPayload) {
-      expandDoseWindow(initialPayload).then(setPayloads).catch(() => undefined);
-      return;
-    }
+    let cancelled = false;
+    setLoadFailed(false);
 
-    notifee.getInitialNotification().then((initial) => {
-      if (!initial?.notification) return;
-      const nextPayload: DoseAlarmPayload = {
-        notificationId: initial.notification.id || "",
-        title: initial.notification.title || "Hora do medicamento",
-        body: initial.notification.body || "Dose agendada agora.",
-        data: initial.notification.data || {},
-      };
-      expandDoseWindow(nextPayload)
-        .then(setPayloads)
-        .catch(() => setPayloads([nextPayload]));
-    });
-  }, [initialPayload]);
+    loadInitialAlarmPayload({
+      launchPayload: initialPayload,
+      readInitialNotification: () => notifee.getInitialNotification(),
+      readDisplayedNotifications: () => notifee.getDisplayedNotifications(),
+    })
+      .then(async (nextPayload) => {
+        if (cancelled) return;
+        if (!nextPayload) {
+          setLoadFailed(true);
+          return;
+        }
+
+        try {
+          const expanded = await expandDoseWindow(nextPayload);
+          if (!cancelled) setPayloads(expanded);
+        } catch {
+          if (!cancelled) setPayloads([nextPayload]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialPayload, loadAttempt]);
+
+  const primaryPayload = payloads[0];
+  const isTest = primaryPayload?.data.artifactKind === "alarmTest";
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (embedded) onClose?.();
       else closeAlarmActivity();
-    }, 60_000);
+    }, isTest ? 10_000 : 60_000);
     return () => clearTimeout(timer);
-  }, [embedded, onClose]);
+  }, [embedded, isTest, onClose]);
 
-  const primaryPayload = payloads[0];
-  const isTest = primaryPayload?.data.artifactKind === "alarmTest";
   const time = useMemo(
     () => formatAlarmTime(String(primaryPayload?.data.scheduledAt || "")),
     [primaryPayload]
@@ -191,10 +203,47 @@ export function DoseAlarmScreen({
   if (!primaryPayload) {
     return (
       <View style={styles.screen}>
-        <BellRing color={colors.primary} size={42} />
-        <AppText variant="heading" style={styles.loadingText}>
-          Preparando alarme...
-        </AppText>
+        <View style={styles.loadingState}>
+          <BellRing color={colors.primary} size={42} />
+          <AppText variant="heading" style={styles.loadingText}>
+            {loadFailed
+              ? "Não foi possível abrir o alarme"
+              : "Preparando alarme..."}
+          </AppText>
+          {loadFailed ? (
+            <>
+              <AppText muted style={styles.loadingDescription}>
+                O Android não entregou os dados do lembrete. Tente novamente ou feche este alarme.
+              </AppText>
+              <Pressable
+                accessibilityLabel="Tentar preparar o alarme novamente"
+                accessibilityRole="button"
+                onPress={() => setLoadAttempt((current) => current + 1)}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  styles.recoveryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <AppText style={styles.primaryButtonText}>
+                  Tentar novamente
+                </AppText>
+              </Pressable>
+              <Pressable
+                accessibilityLabel="Fechar alarme"
+                accessibilityRole="button"
+                onPress={closeAlarmActivity}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  styles.recoveryButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <AppText style={styles.secondaryButtonText}>Fechar</AppText>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
       </View>
     );
   }
@@ -314,8 +363,8 @@ export function DoseAlarmScreen({
   );
 }
 
-export function DoseAlarmRoot() {
-  return <DoseAlarmScreen />;
+export function DoseAlarmRoot({ payload }: { payload?: DoseAlarmPayload }) {
+  return <DoseAlarmScreen payload={payload} />;
 }
 
 const styles = StyleSheet.create({
@@ -403,5 +452,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   activeText: { color: colors.primary, fontWeight: "700" },
+  loadingState: { alignItems: "center", alignSelf: "stretch" },
   loadingText: { color: colors.primaryDark, marginTop: spacing.md },
+  loadingDescription: {
+    marginTop: spacing.sm,
+    maxWidth: 320,
+    paddingHorizontal: spacing.lg,
+    textAlign: "center",
+  },
+  recoveryButton: { alignSelf: "stretch", marginHorizontal: spacing.xl },
 });

@@ -9,7 +9,13 @@ type ReminderPermissionMonitorDependencies = {
 };
 
 function capabilityKey(state: ReminderPermissionState): string {
-  return [state.notifications, state.exactAlarms, state.fullScreen].join(":");
+  return [
+    state.notifications,
+    state.exactAlarms,
+    state.fullScreen,
+    state.doNotDisturb,
+    state.criticalAlarmChannel,
+  ].join(":");
 }
 
 export function createReminderPermissionMonitor({

@@ -1,7 +1,13 @@
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
-import type { ReactNode } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useState, type ReactNode } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ArrowLeft, CalendarDays, CheckCircle2, FileText } from "lucide-react-native";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  FileText,
+  Trash2,
+} from "lucide-react-native";
 import { AppCard } from "../components/ui/AppCard";
 import { AppText } from "../components/ui/AppText";
 import { CareBottomActionBar } from "../components/CareBottomActionBar";
@@ -9,6 +15,7 @@ import { CareDetailHeroCard } from "../components/CareDetailHeroCard";
 import { IconButton } from "../components/ui/IconButton";
 import { Screen } from "../components/ui/Screen";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { ConfirmationDialog } from "../components/ui/ConfirmationDialog";
 import { RootStackParamList } from "../navigation/types";
 import { useAppData } from "../services/appDataProvider";
 import { DoseLog } from "../types/domain";
@@ -18,6 +25,8 @@ import { spacing } from "../theme/spacing";
 type Props = NativeStackScreenProps<RootStackParamList, "MedicationDetail">;
 
 export function MedicationDetailScreen({ route, navigation }: Props) {
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { medicationId } = route.params;
   const {
     medications,
@@ -57,21 +66,18 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
   }
 
   function handleDelete() {
-    Alert.alert(
-      "Remover medicamento",
-      `Tem certeza que deseja remover ${medicationName}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Remover",
-          style: "destructive",
-          onPress: async () => {
-            await removeMedication(medicationId);
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    setDeleteDialogVisible(true);
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
+    try {
+      await removeMedication(medicationId);
+      setDeleteDialogVisible(false);
+      navigation.goBack();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -149,6 +155,18 @@ export function MedicationDetailScreen({ route, navigation }: Props) {
           onDelete={handleDelete}
         />
       </ScrollView>
+      <ConfirmationDialog
+        busy={deleting}
+        confirmAccessibilityLabel={`Confirmar remoção de ${medicationName}`}
+        confirmLabel="Remover medicamento"
+        description={`Tem certeza que deseja remover ${medicationName}? O medicamento, seus agendamentos e seu histórico serão excluídos deste aparelho.`}
+        icon={Trash2}
+        onCancel={() => setDeleteDialogVisible(false)}
+        onConfirm={confirmDelete}
+        title="Remover medicamento?"
+        variant="destructive"
+        visible={deleteDialogVisible}
+      />
     </Screen>
   );
 }

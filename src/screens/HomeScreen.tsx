@@ -1,4 +1,12 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { CompositeScreenProps } from "@react-navigation/native";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -19,6 +27,7 @@ import { DoseOccurrence } from "../types/domain";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
+import { getGreetingForHour, getNextGreetingChange } from "../utils/greeting";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<RootTabParamList, "Home">,
@@ -72,6 +81,9 @@ function getEncouragement(summary: {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const [greeting, setGreeting] = useState(() =>
+    getGreetingForHour(new Date().getHours())
+  );
   const {
     medications,
     todayOccurrences,
@@ -85,6 +97,31 @@ export function HomeScreen({ navigation }: Props) {
     snoozeDose,
     snoozeMinutes,
   } = useAppData();
+
+  useEffect(() => {
+    let boundaryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function refreshGreeting() {
+      if (boundaryTimer) clearTimeout(boundaryTimer);
+      const now = new Date();
+      setGreeting(getGreetingForHour(now.getHours()));
+      const delay = Math.max(
+        1_000,
+        getNextGreetingChange(now).getTime() - now.getTime()
+      );
+      boundaryTimer = setTimeout(refreshGreeting, delay);
+    }
+
+    refreshGreeting();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshGreeting();
+    });
+
+    return () => {
+      if (boundaryTimer) clearTimeout(boundaryTimer);
+      subscription.remove();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -197,7 +234,7 @@ export function HomeScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
       >
         <CareHeader
-          title={`Bom dia, ${settings.userName}!`}
+          title={`${greeting}, ${settings.userName}!`}
           subtitle="Estamos aqui para ajudar você."
           initials={settings.userName.trim().charAt(0).toUpperCase() || "M"}
         />
