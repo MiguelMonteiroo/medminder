@@ -47,7 +47,7 @@ Cada item deve ter estado legivel, explicacao curta e um unico botao contextual,
 
 ## Tela de alarme
 
-A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `MedMinderDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O Android inicia o som sem depender da renderizacao React.
+A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `MedMinderDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
 
 A tela segue o design system Home Care Cards e a referencia visual em `docs/design/dose-alarm-screen.png`: fundo creme, verde profundo, acento pessego, bordas sutis, raio maximo de 8 px, icones lineares e acoes individuais por dose.
 
@@ -72,7 +72,9 @@ Os mesmos controles permanecem disponiveis em `Perfil > Lembretes`. O app nao so
 
 ## Som e controle do sistema
 
-O alarme no horario usa som proprio com `AudioAttributes.USAGE_ALARM` e canais Android versionados: `medication-dose-alarms-v2` para o comportamento normal e `medication-dose-alarms-critical-v2` para o modo critico opt-in. O canal critico so e criado quando o Android concede acesso a politica de notificacoes.
+O alarme no horario usa um `MediaPlayer` nativo com `AudioAttributes.USAGE_ALARM` dentro de um foreground service de duracao limitada. Quando esse player e agendado, a notificacao usa um canal silencioso de alta importancia para evitar audio duplicado. Sem acesso a alarmes exatos, o app volta ao canal sonoro como fallback. O canal critico continua opcional e so e criado quando o Android concede acesso a politica de notificacoes.
+
+Em aparelhos Xiaomi, a opcao do sistema que permite midia no modo silencioso pode deixar o player nativo audivel mesmo quando sons de notificacoes seriam filtrados. Esse comportamento depende do fabricante e nao representa garantia de atravessar o modo Silencio total do Android.
 
 A tela de configuracao explica o beneficio e a consequencia antes de abrir as configuracoes do Android. Se o usuario recusar ou revogar o acesso, alarmes futuros voltam ao canal normal. O app nao muda o modo Nao Perturbe do aparelho.
 

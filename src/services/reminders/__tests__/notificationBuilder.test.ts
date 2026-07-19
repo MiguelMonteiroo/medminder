@@ -1,4 +1,8 @@
 import {
+  AndroidImportance,
+  AndroidLaunchActivityFlag,
+} from "@notifee/react-native";
+import {
   buildAlarmTestNotification,
   buildDoseAlarmNotification,
   buildPreAlertNotification,
@@ -36,24 +40,38 @@ describe("notificationBuilder", () => {
       showDetails: true,
       fullScreenEnabled: true,
       useCriticalChannel: false,
+      useNativeAudio: false,
     });
 
     expect(notification.android?.fullScreenAction).toEqual({
       id: "dose-alarm",
       launchActivity: "com.medminder.DoseAlarmActivity",
+      launchActivityFlags: [
+        AndroidLaunchActivityFlag.NEW_TASK,
+        AndroidLaunchActivityFlag.CLEAR_TOP,
+        AndroidLaunchActivityFlag.SINGLE_TOP,
+        AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
+      ],
     });
     expect(notification.android?.pressAction).toEqual({
       id: "open-dose-window",
       launchActivity: "com.medminder.DoseAlarmActivity",
+      launchActivityFlags: [
+        AndroidLaunchActivityFlag.NEW_TASK,
+        AndroidLaunchActivityFlag.CLEAR_TOP,
+        AndroidLaunchActivityFlag.SINGLE_TOP,
+        AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
+      ],
     });
     expect(notification.android?.channelId).toBe(
-      "medication-dose-alarms-v2"
+      "medication-dose-alarms-v3"
     );
     expect(notification.android?.actions?.map((action) => action.pressAction.id)).toEqual([
       "mark-taken",
       "snooze-five",
     ]);
     expect(notification.android?.loopSound).toBe(true);
+    expect(notification.android?.importance).toBe(AndroidImportance.HIGH);
     expect(notification.android?.timeoutAfter).toBe(60_000);
   });
 
@@ -62,12 +80,13 @@ describe("notificationBuilder", () => {
       showDetails: false,
       fullScreenEnabled: false,
       useCriticalChannel: true,
+      useNativeAudio: false,
     });
 
     expect(notification.title).toBe("Hora do medicamento");
     expect(notification.android?.fullScreenAction).toBeUndefined();
     expect(notification.android?.channelId).toBe(
-      "medication-dose-alarms-critical-v2"
+      "medication-dose-alarms-critical-v3"
     );
     expect(notification.android?.actions?.map((action) => action.pressAction.id)).toEqual([
       "open-dose-window",
@@ -75,17 +94,40 @@ describe("notificationBuilder", () => {
     ]);
   });
 
+  it("uses a silent alarm channel when native audio owns playback", () => {
+    const notification = buildDoseAlarmNotification(dose, {
+      showDetails: true,
+      fullScreenEnabled: true,
+      useCriticalChannel: true,
+      useNativeAudio: true,
+    });
+
+    expect(notification.android?.channelId).toBe(
+      "medication-dose-alarms-player-critical-v1"
+    );
+    expect(notification.android?.loopSound).toBe(false);
+  });
+
   it("opens alarm tests in the dedicated alarm Activity", () => {
     const notification = buildAlarmTestNotification({
       fullScreenEnabled: true,
       useCriticalChannel: true,
+      useNativeAudio: false,
     });
 
     expect(notification.android?.pressAction?.launchActivity).toBe(
       "com.medminder.DoseAlarmActivity"
     );
+    expect(notification.android?.pressAction?.mainComponent).toBeUndefined();
     expect(notification.android?.fullScreenAction?.launchActivity).toBe(
       "com.medminder.DoseAlarmActivity"
     );
+    expect(notification.android?.fullScreenAction?.mainComponent).toBeUndefined();
+    expect(notification.android?.fullScreenAction?.launchActivityFlags).toEqual([
+      AndroidLaunchActivityFlag.NEW_TASK,
+      AndroidLaunchActivityFlag.CLEAR_TOP,
+      AndroidLaunchActivityFlag.SINGLE_TOP,
+      AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
+    ]);
   });
 });

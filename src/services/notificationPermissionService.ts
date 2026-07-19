@@ -68,6 +68,7 @@ export async function getReminderPermissionState(): Promise<ReminderPermissionSt
       exactAlarms: "notRequired",
       fullScreen: "unsupported",
       doNotDisturb: "denied",
+      criticalAlarmChannel: "unavailable",
       batteryOptimization: "unknown",
     };
   }
@@ -97,12 +98,26 @@ export async function getReminderPermissionState(): Promise<ReminderPermissionSt
       : "denied";
   }
   const doNotDisturb = await getDoNotDisturbAccess();
+  let criticalAlarmChannel: ReminderPermissionState["criticalAlarmChannel"] =
+    "unavailable";
+  if (doNotDisturb === "granted") {
+    try {
+      await ensureAlarmChannels();
+      criticalAlarmChannel =
+        (await reminderPermissionsNative?.isCriticalAlarmChannelBypassingDnd?.())
+          ? "bypasses"
+          : "blocked";
+    } catch {
+      criticalAlarmChannel = "blocked";
+    }
+  }
 
   return {
     notifications,
     exactAlarms,
     fullScreen,
     doNotDisturb,
+    criticalAlarmChannel,
     batteryOptimization: batteryOptimizationEnabled
       ? "optimized"
       : "unrestricted",
@@ -132,6 +147,14 @@ export async function openFullScreenAlarmSettings(): Promise<void> {
 export async function openDoNotDisturbSettings(): Promise<void> {
   if (reminderPermissionsNative?.openNotificationPolicySettings) {
     await reminderPermissionsNative.openNotificationPolicySettings();
+    return;
+  }
+  await openNotificationSettings();
+}
+
+export async function openCriticalAlarmChannelSettings(): Promise<void> {
+  if (reminderPermissionsNative?.openCriticalAlarmChannelSettings) {
+    await reminderPermissionsNative.openCriticalAlarmChannelSettings();
     return;
   }
   await openNotificationSettings();

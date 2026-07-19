@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
 
     <application
       android:name=".MainApplication"
@@ -35,13 +37,19 @@
         android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
         android:excludeFromRecents="true"
         android:exported="false"
-        android:launchMode="singleTop"
+        android:launchMode="singleTask"
         android:showWhenLocked="true"
+        android:taskAffinity="${applicationId}.doseAlarm"
         android:theme="@style/DoseAlarmTheme"
         android:turnScreenOn="true" />
       <service
         android:name=".ReminderReconcileService"
         android:exported="false" />
+      <service
+        android:name=".MedicationAlarmService"
+        android:exported="false"
+        android:foregroundServiceType="systemExempted"
+        android:stopWithTask="false" />
       <receiver
         android:name=".ReminderRescheduleReceiver"
         android:enabled="true"
@@ -50,6 +58,7 @@
           <action android:name="android.intent.action.BOOT_COMPLETED" />
           <action android:name="android.intent.action.TIME_SET" />
           <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+          <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
         </intent-filter>
       </receiver>
     </application>

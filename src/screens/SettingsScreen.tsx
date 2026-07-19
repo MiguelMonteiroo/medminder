@@ -31,6 +31,7 @@ import {
   ensureAlarmChannels,
   getReminderPermissionState,
   openBatterySettings,
+  openCriticalAlarmChannelSettings,
   openDoNotDisturbSettings,
   openExactAlarmSettings,
   openFullScreenAlarmSettings,
@@ -128,7 +129,13 @@ export function SettingsScreen() {
     const readiness = await refreshPermissions();
     if (readiness.doNotDisturb === "granted") {
       await ensureAlarmChannels();
-      await updateReminderSettings({ criticalAlertsEnabled: true });
+      const channelReadiness = await refreshPermissions();
+      if (channelReadiness.criticalAlarmChannel === "bypasses") {
+        await updateReminderSettings({ criticalAlertsEnabled: true });
+      } else {
+        await updateReminderSettings({ criticalAlertsEnabled: true });
+        await openCriticalAlarmChannelSettings();
+      }
       return;
     }
 
@@ -256,12 +263,13 @@ export function SettingsScreen() {
         <AppCard style={styles.card}>
           <SettingHeader
             icon={Volume2}
-            title="Tocar no silencioso e Não Perturbe"
-            hint="Opcional. Dá prioridade aos alarmes de dose quando o aparelho estiver silenciado."
+            title="Alarmes prioritários"
+            hint="Toca no silencioso e nos modos de Não Perturbe que permitem alarmes."
             status={
               !advancedDisabled &&
               settings.criticalAlertsEnabled &&
-              permissionState?.doNotDisturb === "granted"
+              permissionState?.doNotDisturb === "granted" &&
+              permissionState?.criticalAlarmChannel === "bypasses"
                 ? "active"
                 : "paused"
             }
@@ -274,8 +282,9 @@ export function SettingsScreen() {
                 <View style={styles.switchText}>
                   <AppText style={styles.settingLabel}>Alarmes importantes</AppText>
                   <AppText variant="small" muted style={styles.hintText}>
-                    {permissionState?.doNotDisturb === "granted"
-                      ? "O Android autorizou alarmes durante o silencioso e Não Perturbe."
+                    {permissionState?.doNotDisturb === "granted" &&
+                    permissionState?.criticalAlarmChannel === "bypasses"
+                      ? "Ativo no silencioso e no Não Perturbe em modo Prioridade ou Alarmes. Silêncio total bloqueia todos os apps."
                       : "Sem esta autorização, o Android ainda pode silenciar o alarme."}
                   </AppText>
                 </View>
@@ -289,12 +298,17 @@ export function SettingsScreen() {
                 />
               </View>
               {settings.criticalAlertsEnabled &&
-              permissionState?.doNotDisturb === "denied" ? (
+              (permissionState?.doNotDisturb === "denied" ||
+                permissionState?.criticalAlarmChannel === "blocked") ? (
                 <AppButton
                   accessibilityHint="Abre a autorização de alarmes importantes do Android"
                   accessibilityLabel="Autorizar alarmes no Não Perturbe"
                   icon={Settings}
-                  onPress={openDoNotDisturbSettings}
+                  onPress={
+                    permissionState?.doNotDisturb === "granted"
+                      ? openCriticalAlarmChannelSettings
+                      : openDoNotDisturbSettings
+                  }
                   style={styles.inlineAction}
                   title="Autorizar no Android"
                   variant="ghost"

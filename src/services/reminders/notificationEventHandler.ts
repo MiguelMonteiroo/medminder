@@ -10,6 +10,7 @@ import {
   type NotificationActionDependencies,
 } from "./notificationActionHandler";
 import { finishDoseAlarmActivityIfOpen } from "./nativeReminderPermissions";
+import { nativeAlarmAudio } from "./nativeAlarmAudio";
 
 async function createDefaultDependencies(): Promise<NotificationActionDependencies> {
   const database = await openAppDatabase();
@@ -43,7 +44,10 @@ async function createDefaultDependencies(): Promise<NotificationActionDependenci
         settings.showLockScreenDetails
       );
     },
-    cancelNotification: notifee.cancelNotification,
+    cancelNotification: async (notificationId) => {
+      await notifee.cancelNotification(notificationId);
+      await nativeAlarmAudio.cancel(notificationId);
+    },
   };
 }
 

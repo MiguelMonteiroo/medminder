@@ -3,12 +3,38 @@ import { Platform } from "react-native";
 import { REMINDER_CHANNELS } from "./notificationBuilder";
 import { reminderPermissionsNative } from "./nativeReminderPermissions";
 
+const LEGACY_ALARM_CHANNEL_IDS = [
+  "medication-dose-alarms-v2",
+  "medication-dose-alarms-critical-v2",
+] as const;
+
+async function removeLegacyAlarmChannels(): Promise<void> {
+  const triggers = await notifee.getTriggerNotifications();
+  const legacyTriggers = triggers.filter((trigger) =>
+    LEGACY_ALARM_CHANNEL_IDS.includes(
+      trigger.notification.android?.channelId as (typeof LEGACY_ALARM_CHANNEL_IDS)[number]
+    )
+  );
+
+  await Promise.all(
+    legacyTriggers.map((trigger) =>
+      trigger.notification.id
+        ? notifee.cancelNotification(trigger.notification.id)
+        : Promise.resolve()
+    )
+  );
+  await Promise.all(
+    LEGACY_ALARM_CHANNEL_IDS.map((channelId) => notifee.deleteChannel(channelId))
+  );
+}
+
 export async function ensureReminderChannelsCreated(): Promise<void> {
   if (Platform.OS !== "android") return;
   if (!reminderPermissionsNative?.ensureAlarmChannels) {
     throw new Error("Native alarm channel support is unavailable.");
   }
 
+  await removeLegacyAlarmChannels();
   await reminderPermissionsNative.ensureAlarmChannels();
   await Promise.all([
     notifee.createChannel({

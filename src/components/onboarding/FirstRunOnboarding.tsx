@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import {
   AlarmClockCheck,
+  BatteryCharging,
   BellRing,
   CheckCircle2,
   Clock3,
@@ -25,11 +26,19 @@ import { useAppData } from "../../services/appDataProvider";
 import {
   ensureAlarmChannels,
   getReminderPermissionState,
+  openBatterySettings,
+  openCriticalAlarmChannelSettings,
   openDoNotDisturbSettings,
   openExactAlarmSettings,
   openFullScreenAlarmSettings,
+  openNotificationSettings,
   requestNotificationPermission,
 } from "../../services/notificationPermissionService";
+import {
+  getNotificationOnboardingAction,
+  ONBOARDING_PERMISSION_STEPS,
+  type OnboardingPermissionStep,
+} from "../../services/reminders/permissionOnboarding";
 import { validateProfileName } from "../../utils/validation";
 import { AppButton } from "../ui/AppButton";
 import { AppText } from "../ui/AppText";
@@ -43,22 +52,15 @@ type Step =
   | "welcome"
   | "profile"
   | "guide"
+  | OnboardingPermissionStep;
+
+type AwaitingCapability =
   | "notifications"
   | "doNotDisturb"
   | "exact"
-  | "fullScreen";
-
-type AwaitingCapability = "doNotDisturb" | "exact" | "fullScreen" | null;
-
-const PERMISSION_STEP: Record<
-  "notifications" | "doNotDisturb" | "exact" | "fullScreen",
-  number
-> = {
-  notifications: 1,
-  doNotDisturb: 2,
-  exact: 3,
-  fullScreen: 4,
-};
+  | "fullScreen"
+  | "battery"
+  | null;
 
 export function FirstRunOnboarding() {
   const {
@@ -70,6 +72,8 @@ export function FirstRunOnboarding() {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
   const [permissionMessage, setPermissionMessage] = useState("");
+  const [notificationRequestAttempted, setNotificationRequestAttempted] =
+    useState(false);
   const [confirmSkipVisible, setConfirmSkipVisible] = useState(false);
   const [awaitingCapability, setAwaitingCapability] =
     useState<AwaitingCapability>(null);
@@ -93,8 +97,25 @@ export function FirstRunOnboarding() {
       const permissions = await getReminderPermissionState();
       setAwaitingCapability(null);
 
+      if (awaitingCapability === "notifications") {
+        const granted = permissions.notifications === "granted";
+        await updateNotificationsEnabled(granted);
+        if (granted) {
+          setPermissionMessage("");
+          setStep("lockScreenDetails");
+        } else {
+          setPermissionMessage(
+            "As notificações continuam desativadas. Ative a opção do MedMinder nas configurações ou continue sem lembretes."
+          );
+        }
+        return;
+      }
+
       if (awaitingCapability === "doNotDisturb") {
-        if (permissions.doNotDisturb === "granted") {
+        if (
+          permissions.doNotDisturb === "granted" &&
+          permissions.criticalAlarmChannel === "bypasses"
+        ) {
           await ensureAlarmChannels();
           await updateReminderSettings({ criticalAlertsEnabled: true });
           setPermissionMessage("");
@@ -122,12 +143,26 @@ export function FirstRunOnboarding() {
         return;
       }
 
+      if (awaitingCapability === "battery") {
+        if (permissions.batteryOptimization === "unrestricted") {
+          setPermissionMessage("");
+          await finishOnboarding();
+        } else {
+          setPermissionMessage(
+            "A economia de bateria ainda está ativa para o MedMinder. Revise novamente ou continue; alguns aparelhos podem atrasar alarmes."
+          );
+        }
+        return;
+      }
+
+      if (awaitingCapability !== "fullScreen") return;
+
       if (
         permissions.fullScreen === "granted" ||
         permissions.fullScreen === "unsupported"
       ) {
         setPermissionMessage("");
-        await finishOnboarding();
+        setStep("battery");
       } else {
         setPermissionMessage(
           "A tela cheia ainda não foi autorizada. Você pode tentar novamente ou continuar sem ela."
@@ -152,10 +187,32 @@ export function FirstRunOnboarding() {
     setBusy(true);
     setPermissionMessage("");
     try {
+      const permissions = await getReminderPermissionState();
+      const action = getNotificationOnboardingAction(
+        permissions.notifications,
+        notificationRequestAttempted
+      );
+
+      if (action === "continue") {
+        await updateNotificationsEnabled(true);
+        setStep("lockScreenDetails");
+        return;
+      }
+
+      if (action === "settings") {
+        setAwaitingCapability("notifications");
+        setPermissionMessage(
+          "Na próxima tela, ative Permitir notificações para o MedMinder. Depois, volte ao aplicativo."
+        );
+        await openNotificationSettings();
+        return;
+      }
+
+      setNotificationRequestAttempted(true);
       const result = await requestNotificationPermission();
       await updateNotificationsEnabled(result.granted);
       if (result.granted) {
-        setStep("doNotDisturb");
+        setStep("lockScreenDetails");
       } else {
         setPermissionMessage(
           "As notificações não foram autorizadas. Tente novamente ou continue sem lembretes."
@@ -171,17 +228,29 @@ export function FirstRunOnboarding() {
     setPermissionMessage("");
     try {
       const permissions = await getReminderPermissionState();
-      if (permissions.doNotDisturb === "granted") {
+      if (
+        permissions.doNotDisturb === "granted" &&
+        permissions.criticalAlarmChannel === "bypasses"
+      ) {
         await ensureAlarmChannels();
         await updateReminderSettings({ criticalAlertsEnabled: true });
         setStep("exact");
         return;
       }
 
+      if (permissions.doNotDisturb === "granted") {
+        setAwaitingCapability("doNotDisturb");
+        setPermissionMessage(
+          "Na próxima tela, permita que o canal Alarmes críticos de dose ignore o Não Perturbe."
+        );
+        await openCriticalAlarmChannelSettings();
+        return;
+      }
+
       await updateReminderSettings({ criticalAlertsEnabled: true });
       setAwaitingCapability("doNotDisturb");
       setPermissionMessage(
-        "Na próxima tela, permita que o MedMinder envie alarmes importantes. O app não altera o modo do aparelho."
+        "Na próxima tela, localize o MedMinder e ative o acesso. O app não altera o modo do aparelho."
       );
       await openDoNotDisturbSettings();
     } finally {
@@ -222,7 +291,7 @@ export function FirstRunOnboarding() {
         permissions.fullScreen === "granted" ||
         permissions.fullScreen === "unsupported"
       ) {
-        await finishOnboarding();
+        setStep("battery");
         return;
       }
 
@@ -241,7 +310,8 @@ export function FirstRunOnboarding() {
     setBusy(true);
     try {
       await updateNotificationsEnabled(false);
-      await finishOnboarding();
+      setPermissionMessage("");
+      setStep("lockScreenDetails");
     } finally {
       setBusy(false);
     }
@@ -251,7 +321,8 @@ export function FirstRunOnboarding() {
     setBusy(true);
     try {
       await updateReminderSettings({ fullScreenAlarmEnabled: false });
-      await finishOnboarding();
+      setPermissionMessage("");
+      setStep("battery");
     } finally {
       setBusy(false);
     }
@@ -268,15 +339,48 @@ export function FirstRunOnboarding() {
     }
   }
 
+  async function chooseLockScreenDetails(enabled: boolean) {
+    setBusy(true);
+    try {
+      await updateReminderSettings({ showLockScreenDetails: enabled });
+      setPermissionMessage("");
+      setStep("doNotDisturb");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function requestBatteryAccess() {
+    setBusy(true);
+    setPermissionMessage("");
+    try {
+      const permissions = await getReminderPermissionState();
+      if (permissions.batteryOptimization === "unrestricted") {
+        await finishOnboarding();
+        return;
+      }
+
+      setAwaitingCapability("battery");
+      setPermissionMessage(
+        "Na próxima tela, procure o MedMinder e permita uso sem restrições. Depois, volte ao aplicativo."
+      );
+      await openBatterySettings();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handlePrimaryAction() {
     if (busy) return;
     if (step === "welcome") setStep("profile");
     else if (step === "profile") continueFromProfile();
     else if (step === "guide") setStep("notifications");
     else if (step === "notifications") requestBasicNotifications();
+    else if (step === "lockScreenDetails") chooseLockScreenDetails(true);
     else if (step === "doNotDisturb") requestDoNotDisturbAccess();
     else if (step === "exact") requestExactAlarms();
-    else requestFullScreenAlarm();
+    else if (step === "fullScreen") requestFullScreenAlarm();
+    else requestBatteryAccess();
   }
 
   const primaryTitle = getPrimaryTitle(step, busy);
@@ -313,20 +417,25 @@ export function FirstRunOnboarding() {
             title={primaryTitle}
           />
           {step === "notifications" ||
+          step === "lockScreenDetails" ||
           step === "doNotDisturb" ||
           step === "exact" ||
-          step === "fullScreen" ? (
+          step === "fullScreen" ||
+          step === "battery" ? (
             <Pressable
               accessibilityLabel={`Fazer ${getStepTitle(step).toLowerCase()} depois`}
               accessibilityRole="button"
               disabled={busy}
               onPress={() => {
                 if (step === "notifications") setConfirmSkipVisible(true);
+                else if (step === "lockScreenDetails")
+                  chooseLockScreenDetails(false);
                 else if (step === "doNotDisturb") skipDoNotDisturb();
                 else if (step === "exact") {
                   setPermissionMessage("");
                   setStep("fullScreen");
-                } else skipFullScreen();
+                } else if (step === "fullScreen") skipFullScreen();
+                else finishOnboarding();
               }}
               style={styles.secondaryAction}
             >
@@ -480,7 +589,8 @@ function OnboardingStepContent({
   return (
     <View style={styles.stepContent}>
       <AppText variant="caption" style={styles.stepIndicator}>
-        Etapa {PERMISSION_STEP[step]} de 4
+        Etapa {ONBOARDING_PERMISSION_STEPS.indexOf(step) + 1} de{" "}
+        {ONBOARDING_PERMISSION_STEPS.length}
       </AppText>
       <View style={styles.iconWrap}>
         <Icon color={colors.primaryDark} size={30} />
@@ -506,6 +616,14 @@ function OnboardingStepContent({
         </View>
       ) : null}
       {step === "fullScreen" ? <AlarmPreview /> : null}
+      {step === "battery" ? (
+        <View style={styles.peachTip}>
+          <BatteryCharging color={colors.accent} size={22} />
+          <AppText style={styles.tipText}>
+            Essa configuração varia entre fabricantes. O MedMinder não altera outras opções de bateria.
+          </AppText>
+        </View>
+      ) : null}
       {permissionMessage ? (
         <AppText
           accessibilityLiveRegion="polite"
@@ -526,10 +644,16 @@ const PERMISSION_CONTENT = {
       "O MedMinder precisa enviar notificações para avisar quando estiver perto da hora e no horário da dose.",
     icon: BellRing,
   },
-  doNotDisturb: {
-    title: "Tocar no silencioso e Não Perturbe",
+  lockScreenDetails: {
+    title: "Detalhes na tela bloqueada",
     description:
-      "Opcional: autorize alarmes importantes para que o Android não silencie a dose. Você continua no controle e pode desativar isso em Perfil.",
+      "Escolha se o nome, a dosagem e as notas do medicamento podem aparecer antes de desbloquear o aparelho. Desative para mostrar apenas um aviso privado.",
+    icon: LockKeyhole,
+  },
+  doNotDisturb: {
+    title: "Alarmes prioritários",
+    description:
+      "Opcional: autorize alarmes importantes para tocar no silencioso e no Não Perturbe em modo Prioridade ou Alarmes. O modo Silêncio total bloqueia todos os apps.",
     icon: Volume2,
   },
   exact: {
@@ -543,6 +667,12 @@ const PERMISSION_CONTENT = {
     description:
       "Quando permitido pelo Android, o alarme pode ocupar a tela para chamar sua atenção.",
     icon: Maximize2,
+  },
+  battery: {
+    title: "Permita funcionar em segundo plano",
+    description:
+      "Alguns aparelhos limitam aplicativos quando a tela está bloqueada. Revise a bateria para reduzir atrasos nos alarmes.",
+    icon: BatteryCharging,
   },
 } as const;
 
@@ -619,13 +749,15 @@ function getPrimaryTitle(step: Step, busy: boolean): string {
   if (step === "profile") return "Continuar";
   if (step === "guide") return "Configurar lembretes";
   if (step === "notifications") return "Permitir notificações";
+  if (step === "lockScreenDetails") return "Mostrar detalhes";
   if (step === "doNotDisturb") return "Revisar no Android";
   if (step === "exact") return "Abrir configurações";
-  return "Permitir tela cheia";
+  if (step === "fullScreen") return "Permitir tela cheia";
+  return "Revisar economia de bateria";
 }
 
 function getStepTitle(
-  step: "notifications" | "doNotDisturb" | "exact" | "fullScreen"
+  step: OnboardingPermissionStep
 ): string {
   return PERMISSION_CONTENT[step].title;
 }

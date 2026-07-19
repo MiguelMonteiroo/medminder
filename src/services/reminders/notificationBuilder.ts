@@ -1,13 +1,17 @@
 import {
   AndroidCategory,
+  AndroidImportance,
+  AndroidLaunchActivityFlag,
   AndroidVisibility,
   type Notification,
 } from "@notifee/react-native";
 
 export const REMINDER_CHANNELS = {
   preAlert: "medication-pre-alerts-v1",
-  alarm: "medication-dose-alarms-v2",
-  criticalAlarm: "medication-dose-alarms-critical-v2",
+  alarm: "medication-dose-alarms-v3",
+  criticalAlarm: "medication-dose-alarms-critical-v3",
+  nativeAlarm: "medication-dose-alarms-player-v1",
+  nativeCriticalAlarm: "medication-dose-alarms-player-critical-v1",
   pending: "medication-pending-v1",
   status: "medication-dose-status-v1",
 } as const;
@@ -27,11 +31,26 @@ type AlarmOptions = {
   showDetails: boolean;
   fullScreenEnabled: boolean;
   useCriticalChannel: boolean;
+  useNativeAudio: boolean;
 };
 
 const DOSE_ALARM_ACTIVITY = "com.medminder.DoseAlarmActivity";
+const DOSE_ALARM_ACTIVITY_FLAGS = [
+  AndroidLaunchActivityFlag.NEW_TASK,
+  AndroidLaunchActivityFlag.CLEAR_TOP,
+  AndroidLaunchActivityFlag.SINGLE_TOP,
+  AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
+];
 
-function alarmChannel(useCriticalChannel: boolean): string {
+function alarmChannel(
+  useCriticalChannel: boolean,
+  useNativeAudio = false
+): string {
+  if (useNativeAudio) {
+    return useCriticalChannel
+      ? REMINDER_CHANNELS.nativeCriticalAlarm
+      : REMINDER_CHANNELS.nativeAlarm;
+  }
   return useCriticalChannel
     ? REMINDER_CHANNELS.criticalAlarm
     : REMINDER_CHANNELS.alarm;
@@ -112,24 +131,30 @@ export function buildDoseAlarmNotification(
       showDetails: String(options.showDetails),
     },
     android: {
-      channelId: alarmChannel(options.useCriticalChannel),
+      channelId: alarmChannel(
+        options.useCriticalChannel,
+        options.useNativeAudio
+      ),
       category: AndroidCategory.ALARM,
       visibility: options.showDetails
         ? AndroidVisibility.PUBLIC
         : AndroidVisibility.PRIVATE,
       autoCancel: false,
       ongoing: true,
-      loopSound: true,
+      loopSound: !options.useNativeAudio,
       lightUpScreen: true,
+      importance: AndroidImportance.HIGH,
       timeoutAfter: 60_000,
       pressAction: {
         id: "open-dose-window",
         launchActivity: DOSE_ALARM_ACTIVITY,
+        launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "dose-alarm",
             launchActivity: DOSE_ALARM_ACTIVITY,
+            launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
           }
         : undefined,
       actions: doseActions(options.showDetails),
@@ -199,25 +224,32 @@ export function buildTakenConfirmationNotification(
 export function buildAlarmTestNotification(options: {
   fullScreenEnabled: boolean;
   useCriticalChannel: boolean;
+  useNativeAudio: boolean;
 }): Notification {
   return {
     title: "Teste de alarme",
     body: "Som, vibração e tela cheia estão sendo testados.",
     data: { payloadVersion: "1", artifactKind: "alarmTest" },
     android: {
-      channelId: alarmChannel(options.useCriticalChannel),
+      channelId: alarmChannel(
+        options.useCriticalChannel,
+        options.useNativeAudio
+      ),
       category: AndroidCategory.ALARM,
-      loopSound: true,
+      loopSound: !options.useNativeAudio,
       lightUpScreen: true,
+      importance: AndroidImportance.HIGH,
       timeoutAfter: 10_000,
       pressAction: {
         id: "alarm-test",
         launchActivity: DOSE_ALARM_ACTIVITY,
+        launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "alarm-test",
             launchActivity: DOSE_ALARM_ACTIVITY,
+            launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
           }
         : undefined,
       actions: [

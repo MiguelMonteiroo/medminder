@@ -3,8 +3,8 @@ import { Modal } from "react-native";
 import notifee, { EventType } from "@notifee/react-native";
 import {
   DoseAlarmScreen,
-  type DoseAlarmPayload,
 } from "../../screens/DoseAlarmScreen";
+import type { DoseAlarmPayload } from "../../services/reminders/alarmPayloadLoader";
 import { handleNotifeeEvent } from "../../services/reminders/notificationEventHandler";
 import { shouldPresentAlarmScreen } from "../../services/reminders/notificationPresentation";
 import { useAppData } from "../../services/appDataProvider";

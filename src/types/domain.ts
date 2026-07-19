@@ -94,6 +94,7 @@ export type ReminderPermissionState = {
   exactAlarms: "granted" | "denied" | "notRequired";
   fullScreen: "granted" | "denied" | "unsupported";
   doNotDisturb: "granted" | "denied";
+  criticalAlarmChannel: "bypasses" | "blocked" | "unavailable";
   batteryOptimization: "optimized" | "unrestricted" | "unknown";
 };
 

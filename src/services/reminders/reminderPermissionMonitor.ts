@@ -14,6 +14,7 @@ function capabilityKey(state: ReminderPermissionState): string {
     state.exactAlarms,
     state.fullScreen,
     state.doNotDisturb,
+    state.criticalAlarmChannel,
   ].join(":");
 }
 

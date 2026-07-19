@@ -4,7 +4,9 @@ export type ReminderPermissionsNativeModule = {
   canUseFullScreenIntent?: () => Promise<boolean>;
   openFullScreenIntentSettings?: () => Promise<void>;
   isNotificationPolicyAccessGranted?: () => Promise<boolean>;
+  isCriticalAlarmChannelBypassingDnd?: () => Promise<boolean>;
   openNotificationPolicySettings?: () => Promise<void>;
+  openCriticalAlarmChannelSettings?: () => Promise<void>;
   ensureAlarmChannels?: () => Promise<void>;
   finishDoseAlarmActivity?: () => Promise<void>;
 };

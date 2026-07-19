@@ -59,6 +59,17 @@ class ReminderPermissionsModule(
   }
 
   @ReactMethod
+  fun isCriticalAlarmChannelBypassingDnd(promise: Promise) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+      promise.resolve(false)
+      return
+    }
+
+    val channel = notificationManager().getNotificationChannel(CRITICAL_ALARM_CHANNEL_ID)
+    promise.resolve(channel?.canBypassDnd() == true)
+  }
+
+  @ReactMethod
   fun openNotificationPolicySettings(promise: Promise) {
     try {
       val intent =
@@ -68,6 +79,21 @@ class ReminderPermissionsModule(
       promise.resolve(null)
     } catch (error: Exception) {
       promise.reject("notification-policy-settings", error)
+    }
+  }
+
+  @ReactMethod
+  fun openCriticalAlarmChannelSettings(promise: Promise) {
+    try {
+      val intent =
+          Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+              .putExtra(Settings.EXTRA_APP_PACKAGE, reactApplicationContext.packageName)
+              .putExtra(Settings.EXTRA_CHANNEL_ID, CRITICAL_ALARM_CHANNEL_ID)
+              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      reactApplicationContext.startActivity(intent)
+      promise.resolve(null)
+    } catch (error: Exception) {
+      promise.reject("critical-alarm-channel-settings", error)
     }
   }
 
@@ -82,6 +108,16 @@ class ReminderPermissionsModule(
                 name = "Alarmes de dose",
                 description = "Alarmes no horário dos medicamentos.",
                 bypassDoNotDisturb = false,
+                playSound = true,
+            ),
+        )
+        manager.createNotificationChannel(
+            createAlarmChannel(
+                id = NATIVE_ALARM_CHANNEL_ID,
+                name = "Alarmes de dose",
+                description = "Alarmes reproduzidos diretamente pelo MedMinder.",
+                bypassDoNotDisturb = false,
+                playSound = false,
             ),
         )
 
@@ -93,6 +129,17 @@ class ReminderPermissionsModule(
                   description =
                       "Alarmes autorizados a tocar no silencioso e Não Perturbe.",
                   bypassDoNotDisturb = true,
+                  playSound = true,
+              ),
+          )
+          manager.createNotificationChannel(
+              createAlarmChannel(
+                  id = NATIVE_CRITICAL_ALARM_CHANNEL_ID,
+                  name = "Alarmes críticos de dose",
+                  description =
+                      "Alarmes prioritários reproduzidos diretamente pelo MedMinder.",
+                  bypassDoNotDisturb = true,
+                  playSound = false,
               ),
           )
         }
@@ -108,6 +155,7 @@ class ReminderPermissionsModule(
       name: String,
       description: String,
       bypassDoNotDisturb: Boolean,
+      playSound: Boolean,
   ): NotificationChannel {
     val soundUri =
         Uri.parse(
@@ -123,7 +171,7 @@ class ReminderPermissionsModule(
       this.description = description
       enableVibration(true)
       vibrationPattern = longArrayOf(300L, 450L, 300L, 450L)
-      setSound(soundUri, audioAttributes)
+      if (playSound) setSound(soundUri, audioAttributes) else setSound(null, null)
       if (bypassDoNotDisturb) setBypassDnd(true)
     }
   }
@@ -135,8 +183,11 @@ class ReminderPermissionsModule(
   }
 
   private companion object {
-    const val NORMAL_ALARM_CHANNEL_ID = "medication-dose-alarms-v2"
+    const val NORMAL_ALARM_CHANNEL_ID = "medication-dose-alarms-v3"
     const val CRITICAL_ALARM_CHANNEL_ID =
-        "medication-dose-alarms-critical-v2"
+        "medication-dose-alarms-critical-v3"
+    const val NATIVE_ALARM_CHANNEL_ID = "medication-dose-alarms-player-v1"
+    const val NATIVE_CRITICAL_ALARM_CHANNEL_ID =
+        "medication-dose-alarms-player-critical-v1"
   }
 }

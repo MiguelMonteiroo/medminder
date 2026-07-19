@@ -13,36 +13,46 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import io.invertase.notifee.NotifeeApiModule
 
 class DoseAlarmActivity : ReactActivity() {
 
   private val timeoutHandler = Handler(Looper.getMainLooper())
   private val timeoutAction = Runnable { finish() }
 
-  override fun getMainComponentName(): String =
-      NotifeeApiModule.getMainComponent("MedMinderDoseAlarm")
+  override fun getMainComponentName(): String = "MedMinderDoseAlarm"
 
   override fun createReactActivityDelegate(): ReactActivityDelegate =
-      DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+      object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
+        override fun getLaunchOptions(): Bundle? = buildLaunchOptions()
+      }
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    configureWindowForAlarm()
     super.onCreate(savedInstanceState)
+    configureWindowForAlarm()
+    hideSystemBars()
+    startAlarmTimeout()
+  }
+
+  private fun configureWindowForAlarm() {
+    @Suppress("DEPRECATION")
+    window.addFlags(
+        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON,
+    )
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
       setShowWhenLocked(true)
       setTurnScreenOn(true)
-    } else {
-      @Suppress("DEPRECATION")
-      window.addFlags(
-          WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-              WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
-      )
     }
 
-    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     volumeControlStream = AudioManager.STREAM_ALARM
-    hideSystemBars()
+  }
+
+  private fun startAlarmTimeout() {
+    timeoutHandler.removeCallbacks(timeoutAction)
     timeoutHandler.postDelayed(timeoutAction, ALARM_TIMEOUT_MS)
   }
 
@@ -54,6 +64,18 @@ class DoseAlarmActivity : ReactActivity() {
   override fun onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
     if (hasFocus) hideSystemBars()
+  }
+
+  private fun buildLaunchOptions(): Bundle? {
+    val notification = intent?.getBundleExtra(NOTIFICATION_EXTRA) ?: return null
+    val payload =
+        Bundle().apply {
+          putString("notificationId", notification.getString("id") ?: "")
+          putString("title", notification.getString("title") ?: "Hora do medicamento")
+          putString("body", notification.getString("body") ?: "Dose agendada agora.")
+          putBundle("data", notification.getBundle("data") ?: Bundle())
+        }
+    return Bundle().apply { putBundle("payload", payload) }
   }
 
   private fun hideSystemBars() {
@@ -78,5 +100,6 @@ class DoseAlarmActivity : ReactActivity() {
 
   private companion object {
     const val ALARM_TIMEOUT_MS = 60_000L
+    const val NOTIFICATION_EXTRA = "notification"
   }
 }

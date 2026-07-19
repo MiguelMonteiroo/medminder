@@ -28,6 +28,7 @@ O estado atual possui estas limitações:
 Antes de implementar, ler obrigatoriamente:
 
 - `docs/product/notification-flow.md`
+- `docs/product/android-permission-matrix.md`
 - `CONTEXT.md`
 - `docs/adr/0004-optional-full-screen-dose-alarms.md`
 - `docs/adr/0005-react-native-dose-alarm-screen.md`
@@ -59,7 +60,7 @@ O comportamento abaixo está fechado e não deve ser reinterpretado durante a im
 3. No horário, entregar um alarme com `Marcar como tomado` e `Adiar 5 min`.
 4. `Pular dose` permanece somente dentro do app.
 5. Tela cheia é opt-in. Sem acesso, usar notificação de alta prioridade com as mesmas ações.
-6. Som e vibração do alarme duram no máximo 60 segundos.
+6. Som nativo e vibração do alarme duram no máximo 60 segundos; a notificação usa canal silencioso quando o foreground service assume o áudio.
 7. Após 60 segundos sem ação, encerrar som/tela cheia e manter notificação acionável.
 8. Após dez minutos sem ação, entregar um único reforço sem tela cheia.
 9. `Adiar 5 min` cria um novo alarme completo cinco minutos depois.
@@ -288,6 +289,8 @@ Adicionar sons originais/licenciados em `android/app/src/main/res/raw/`, com nom
 Como propriedades de canais ficam sob controle do usuário e não podem ser reconfiguradas livremente após criação, qualquer alteração incompatível exige novo sufixo de versão.
 
 ### 6. Implement Clear Permission And Readiness State
+
+Auditoria de 2026-07-18: o onboarding cobre os cinco acessos configuráveis na ordem de dependência do produto: notificações, Não Perturbe, horário exato, tela cheia e funcionamento em segundo plano. Entre notificações e os acessos avançados, também apresenta a escolha de privacidade `Detalhes na tela bloqueada`. Uma negativa anterior de `POST_NOTIFICATIONS` deve abrir as configurações do aplicativo, pois o Android pode não repetir o diálogo. A etapa de bateria é explicativa e opcional, mas permanece visível no primeiro acesso para aparelhos com restrições agressivas.
 
 Atualizar o serviço de permissão para distinguir:
 
