@@ -7,7 +7,7 @@ Accepted
 Use a local StyleSheet-based design system with theme tokens and small base components before adopting an external UI kit.
 
 ## Context
-MedMinder needs a friendly, consistent experience but does not yet need the surface area or constraints of a full UI library.
+Remedin needs a friendly, consistent experience but does not yet need the surface area or constraints of a full UI library.
 
 ## Consequences
 - Colors, spacing, radii, shadows, and typography are centralized.

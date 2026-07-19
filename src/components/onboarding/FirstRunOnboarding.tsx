@@ -47,6 +47,7 @@ import { ConfirmationDialog } from "../ui/ConfirmationDialog";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
 import { spacing } from "../../theme/spacing";
+import { fontFamilies } from "../../theme/typography";
 
 type Step =
   | "welcome"
@@ -105,7 +106,7 @@ export function FirstRunOnboarding() {
           setStep("lockScreenDetails");
         } else {
           setPermissionMessage(
-            "As notificações continuam desativadas. Ative a opção do MedMinder nas configurações ou continue sem lembretes."
+            "As notificações continuam desativadas. Ative a opção do Remedin nas configurações ou continue sem lembretes."
           );
         }
         return;
@@ -149,7 +150,7 @@ export function FirstRunOnboarding() {
           await finishOnboarding();
         } else {
           setPermissionMessage(
-            "A economia de bateria ainda está ativa para o MedMinder. Revise novamente ou continue; alguns aparelhos podem atrasar alarmes."
+            "A economia de bateria ainda está ativa para o Remedin. Revise novamente ou continue; alguns aparelhos podem atrasar alarmes."
           );
         }
         return;
@@ -202,7 +203,7 @@ export function FirstRunOnboarding() {
       if (action === "settings") {
         setAwaitingCapability("notifications");
         setPermissionMessage(
-          "Na próxima tela, ative Permitir notificações para o MedMinder. Depois, volte ao aplicativo."
+          "Na próxima tela, ative Permitir notificações para o Remedin. Depois, volte ao aplicativo."
         );
         await openNotificationSettings();
         return;
@@ -250,7 +251,7 @@ export function FirstRunOnboarding() {
       await updateReminderSettings({ criticalAlertsEnabled: true });
       setAwaitingCapability("doNotDisturb");
       setPermissionMessage(
-        "Na próxima tela, localize o MedMinder e ative o acesso. O app não altera o modo do aparelho."
+        "Na próxima tela, localize o Remedin e ative o acesso. O app não altera o modo do aparelho."
       );
       await openDoNotDisturbSettings();
     } finally {
@@ -273,7 +274,7 @@ export function FirstRunOnboarding() {
 
       setAwaitingCapability("exact");
       setPermissionMessage(
-        "Na próxima tela, permita que o MedMinder defina alarmes e lembretes."
+        "Na próxima tela, permita que o Remedin defina alarmes e lembretes."
       );
       await openExactAlarmSettings();
     } finally {
@@ -297,7 +298,7 @@ export function FirstRunOnboarding() {
 
       setAwaitingCapability("fullScreen");
       setPermissionMessage(
-        "Na próxima tela, permita que o MedMinder abra alarmes em tela cheia."
+        "Na próxima tela, permita que o Remedin abra alarmes em tela cheia."
       );
       await openFullScreenAlarmSettings();
     } finally {
@@ -362,7 +363,7 @@ export function FirstRunOnboarding() {
 
       setAwaitingCapability("battery");
       setPermissionMessage(
-        "Na próxima tela, procure o MedMinder e permita uso sem restrições. Depois, volte ao aplicativo."
+        "Na próxima tela, procure o Remedin e permita uso sem restrições. Depois, volte ao aplicativo."
       );
       await openBatterySettings();
     } finally {
@@ -450,7 +451,7 @@ export function FirstRunOnboarding() {
         cancelLabel="Voltar e permitir"
         confirmAccessibilityLabel="Continuar sem lembretes"
         confirmLabel="Continuar sem lembretes"
-        description="Sem essa permissão, o MedMinder não poderá avisar quando uma dose estiver próxima ou no horário. Você ainda poderá usar o app e ativar os lembretes depois em Perfil."
+        description="Sem essa permissão, o Remedin não poderá avisar quando uma dose estiver próxima ou no horário. Você ainda poderá usar o app e ativar os lembretes depois em Perfil."
         icon={BellRing}
         onCancel={() => setConfirmSkipVisible(false)}
         onConfirm={skipBasicNotifications}
@@ -482,11 +483,11 @@ function OnboardingStepContent({
             <HeartPulse color={colors.primaryDark} size={30} />
           </View>
           <AppText variant="subheading" style={styles.brandName}>
-            MedMinder
+            Remedin
           </AppText>
         </View>
         <AppText accessibilityRole="header" variant="title" style={styles.title}>
-          Bem-vindo ao MedMinder
+          Bem-vindo ao Remedin
         </AppText>
         <AppText muted style={styles.description}>
           Organize seus medicamentos e acompanhe sua rotina com mais tranquilidade.
@@ -556,7 +557,7 @@ function OnboardingStepContent({
     return (
       <View style={styles.stepContent}>
         <AppText variant="caption" style={styles.eyebrow}>
-          Conheça o MedMinder
+          Conheça o Remedin
         </AppText>
         <AppText accessibilityRole="header" variant="title" style={styles.title}>
           Seu cuidado em um só lugar
@@ -620,7 +621,7 @@ function OnboardingStepContent({
         <View style={styles.peachTip}>
           <BatteryCharging color={colors.accent} size={22} />
           <AppText style={styles.tipText}>
-            Essa configuração varia entre fabricantes. O MedMinder não altera outras opções de bateria.
+            Essa configuração varia entre fabricantes. O Remedin não altera outras opções de bateria.
           </AppText>
         </View>
       ) : null}
@@ -641,7 +642,7 @@ const PERMISSION_CONTENT = {
   notifications: {
     title: "Receba seus lembretes",
     description:
-      "O MedMinder precisa enviar notificações para avisar quando estiver perto da hora e no horário da dose.",
+      "O Remedin precisa enviar notificações para avisar quando estiver perto da hora e no horário da dose.",
     icon: BellRing,
   },
   lockScreenDetails: {
@@ -793,7 +794,7 @@ const styles = StyleSheet.create({
   peachTip: {
     alignItems: "center",
     backgroundColor: colors.accentSoft,
-    borderColor: "#F2C4A8",
+    borderColor: colors.accentSelectionBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -807,19 +808,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   localDataText: { flex: 1, marginLeft: spacing.sm },
-  inputLabel: { fontWeight: "700", marginBottom: spacing.sm, marginTop: spacing.xxl },
+  inputLabel: { marginBottom: spacing.sm, marginTop: spacing.xxl },
   input: {
     backgroundColor: colors.white,
-    borderColor: "#BFB5A8",
+    borderColor: colors.controlBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     color: colors.text,
-    fontSize: 17,
+    fontFamily: fontFamilies.regular,
+    fontSize: 18,
     minHeight: 52,
     paddingHorizontal: spacing.lg,
   },
   inputError: { borderColor: colors.danger },
-  errorText: { color: colors.danger, fontWeight: "700", marginTop: spacing.sm },
+  errorText: { color: colors.danger, marginTop: spacing.sm },
   featureList: { marginTop: spacing.xl },
   featureRow: {
     alignItems: "center",
@@ -866,7 +868,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
     borderRadius: radii.md,
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     justifyContent: "center",
     paddingHorizontal: spacing.sm,
   },
@@ -877,7 +879,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
   },
   previewSecondaryText: { color: colors.primaryDark, textAlign: "center" },
@@ -892,9 +894,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: spacing.sm,
-    minHeight: 44,
+    minHeight: 48,
   },
-  secondaryText: { color: colors.primaryDark, fontWeight: "800" },
+  secondaryText: { color: colors.primaryDark },
   modalOverlay: {
     backgroundColor: "rgba(36, 31, 26, 0.45)",
     flex: 1,

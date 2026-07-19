@@ -42,7 +42,7 @@ export async function ensureReminderChannelsCreated(): Promise<void> {
       name: "Avisos antecipados",
       description: "Avisos suaves cinco minutos antes dos medicamentos.",
       importance: AndroidImportance.DEFAULT,
-      sound: "medminder_pre_alert",
+      sound: "remedin_pre_alert",
       vibration: false,
     }),
     notifee.createChannel({

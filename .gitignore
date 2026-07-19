@@ -46,3 +46,8 @@ yarn-error.*
 
 # local tooling artifacts
 *opencodediff*.txt
+
+# local agent instructions and execution plans
+/AGENTS.md
+/CLAUDE.md
+/roadmap/

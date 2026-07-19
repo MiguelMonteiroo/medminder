@@ -259,11 +259,12 @@ export function DoseAlarmScreen({
             <BellRing color={colors.primaryDark} size={28} />
           </View>
           <AppText variant="heading" style={styles.brand}>
-            MedMinder
+            Remedin
           </AppText>
         </View>
 
         <AppText
+          weight="bold"
           adjustsFontSizeToFit
           maxFontSizeMultiplier={1.2}
           numberOfLines={1}
@@ -308,7 +309,7 @@ export function DoseAlarmScreen({
                   ]}
                 >
                   <Volume2 color={colors.white} size={22} />
-                  <AppText style={styles.primaryButtonText}>Encerrar teste</AppText>
+                  <AppText weight="bold" style={styles.primaryButtonText}>Encerrar teste</AppText>
                 </Pressable>
               ) : (
                 <>
@@ -324,14 +325,14 @@ export function DoseAlarmScreen({
                       ]}
                     >
                       <CheckCircle2 color={colors.white} size={23} />
-                      <AppText style={styles.primaryButtonText}>
+                      <AppText weight="bold" style={styles.primaryButtonText}>
                         Marcar como tomado
                       </AppText>
                     </Pressable>
                   ) : (
                     <View style={styles.privateNotice}>
                       <AppText muted>
-                        Desbloqueie o aparelho e abra o MedMinder para registrar a dose.
+                        Desbloqueie o aparelho e abra o Remedin para registrar a dose.
                       </AppText>
                     </View>
                   )}
@@ -346,7 +347,7 @@ export function DoseAlarmScreen({
                     ]}
                   >
                     <Clock3 color={colors.accent} size={23} />
-                    <AppText style={styles.secondaryButtonText}>Adiar 5 min</AppText>
+                    <AppText weight="bold" style={styles.secondaryButtonText}>Adiar 5 min</AppText>
                   </Pressable>
                 </>
               )}
@@ -356,7 +357,7 @@ export function DoseAlarmScreen({
 
         <View style={styles.activeRow}>
           <Volume2 color={colors.primary} size={20} />
-          <AppText style={styles.activeText}>Alarme ativo</AppText>
+          <AppText weight="semibold" style={styles.activeText}>Alarme ativo</AppText>
         </View>
       </ScrollView>
     </View>
@@ -392,7 +393,6 @@ const styles = StyleSheet.create({
   time: {
     color: colors.primaryDark,
     fontSize: 72,
-    fontWeight: "800",
     includeFontPadding: true,
     lineHeight: 88,
     marginTop: spacing.xxl,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: spacing.md,
   },
-  primaryButtonText: { color: colors.white, fontWeight: "800" },
+  primaryButtonText: { color: colors.white },
   secondaryButton: {
     alignItems: "center",
     borderColor: colors.accent,
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: spacing.md,
   },
-  secondaryButtonText: { color: colors.accent, fontWeight: "800" },
+  secondaryButtonText: { color: colors.accent },
   privateNotice: {
     backgroundColor: colors.primarySoft,
     borderRadius: radii.md,
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.xl,
   },
-  activeText: { color: colors.primary, fontWeight: "700" },
+  activeText: { color: colors.primary },
   loadingState: { alignItems: "center", alignSelf: "stretch" },
   loadingText: { color: colors.primaryDark, marginTop: spacing.md },
   loadingDescription: {

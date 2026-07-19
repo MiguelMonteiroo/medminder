@@ -1,7 +1,6 @@
 import { View, ViewProps, StyleSheet } from "react-native";
 import { colors } from "../../theme/colors";
 import { radii } from "../../theme/radii";
-import { shadows } from "../../theme/shadows";
 import { spacing } from "../../theme/spacing";
 
 export function AppCard({ style, ...props }: ViewProps) {
@@ -15,6 +14,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     padding: spacing.xl,
-    ...shadows.card,
   },
 });

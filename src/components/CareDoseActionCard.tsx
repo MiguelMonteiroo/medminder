@@ -41,7 +41,7 @@ export function CareDoseActionCard({
             </AppText>
           </View>
           <View style={styles.info}>
-            <AppText style={styles.name}>{name}</AppText>
+            <AppText variant="small" weight="bold" style={styles.name}>{name}</AppText>
             <AppText variant="small" muted>
               {dosage || "Dose programada"}
             </AppText>
@@ -53,7 +53,7 @@ export function CareDoseActionCard({
           onPress={onTake}
           style={({ pressed }) => [styles.takeButton, pressed && styles.pressed]}
         >
-          <AppText style={styles.takeText}>Tomar</AppText>
+          <AppText variant="small" weight="bold" style={styles.takeText}>Tomar</AppText>
         </Pressable>
       </View>
 
@@ -64,7 +64,7 @@ export function CareDoseActionCard({
           onPress={onSnooze}
           style={styles.secondaryButton}
         >
-          <Clock3 color={colors.primaryDark} size={17} />
+          <Clock3 color={colors.primaryDark} size={19} strokeWidth={2} />
           <AppText variant="small" style={styles.secondaryText}>
             Adiar {snoozeMinutes} min
           </AppText>
@@ -76,7 +76,7 @@ export function CareDoseActionCard({
           onPress={onSkip}
           style={styles.secondaryButton}
         >
-          <SkipForward color={colors.primaryDark} size={17} />
+          <SkipForward color={colors.primaryDark} size={19} strokeWidth={2} />
           <AppText variant="small" style={styles.secondaryText}>
             Pular dose
           </AppText>
@@ -89,7 +89,7 @@ export function CareDoseActionCard({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderColor: "#E9B48F",
+    borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     marginBottom: spacing.md,
@@ -98,13 +98,13 @@ const styles = StyleSheet.create({
   main: {
     alignItems: "center",
     flexDirection: "row",
-    minHeight: 72,
+    minHeight: 88,
   },
   detailsArea: {
     alignItems: "center",
     flex: 1,
     flexDirection: "row",
-    minHeight: 72,
+    minHeight: 88,
   },
   timePane: {
     alignItems: "center",
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    width: 88,
+    width: 82,
   },
   time: {
     color: colors.accent,
@@ -122,26 +122,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   name: {
-    fontWeight: "800",
   },
   takeButton: {
     alignItems: "center",
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
     borderRadius: radii.sm,
     justifyContent: "center",
     marginRight: spacing.md,
-    minHeight: 44,
+    minHeight: 52,
     paddingHorizontal: spacing.lg,
   },
   takeText: {
     color: colors.white,
-    fontWeight: "800",
   },
   secondaryActions: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: "row",
-    minHeight: 48,
+    minHeight: 52,
   },
   secondaryButton: {
     alignItems: "center",
@@ -152,7 +150,6 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: colors.primaryDark,
-    fontWeight: "600",
   },
   divider: {
     backgroundColor: colors.border,

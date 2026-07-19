@@ -2,14 +2,14 @@
 
 ## Goal
 
-Documentar quais acessos o MedMinder realmente precisa, como cada um deve ser solicitado e qual comportamento permanece disponível quando o usuário recusa. O onboarding deve explicar o benefício antes de abrir qualquer diálogo ou tela do Android.
+Documentar quais acessos o Remedin realmente precisa, como cada um deve ser solicitado e qual comportamento permanece disponível quando o usuário recusa. O onboarding deve explicar o benefício antes de abrir qualquer diálogo ou tela do Android.
 
 ## Onboarding Permissions
 
 | Recurso | Android | Tipo | Solicitação correta | Comportamento sem acesso |
 | --- | --- | --- | --- | --- |
 | Receber lembretes | `POST_NOTIFICATIONS` no Android 13+ | Runtime | Explicar no app e chamar `notifee.requestPermission()`. Após uma negativa anterior, abrir as configurações de notificações do aplicativo. | O app funciona sem lembretes e permite ativá-los depois no Perfil. |
-| Detalhes na tela bloqueada | Preferência interna do MedMinder | Escolha de privacidade | Explicar no onboarding antes das permissões avançadas e salvar `showLockScreenDetails`. Não abrir tela do Android. | Mostrar apenas `Hora do medicamento`, sem nome, dosagem ou notas. |
+| Detalhes na tela bloqueada | Preferência interna do Remedin | Escolha de privacidade | Explicar no onboarding antes das permissões avançadas e salvar `showLockScreenDetails`. Não abrir tela do Android. | Mostrar apenas `Hora do medicamento`, sem nome, dosagem ou notas. |
 | Tocar no silencioso e Não Perturbe | `ACCESS_NOTIFICATION_POLICY` | Acesso especial opcional | Consultar `isNotificationPolicyAccessGranted()`, abrir `ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`, criar o canal crítico e confirmar `NotificationChannel.canBypassDnd()`. Se o canal não puder atravessar o DND, abrir suas configurações específicas. | Usar o canal normal. O Android pode silenciar o alarme. |
 | Avisar no horário exato | `SCHEDULE_EXACT_ALARM` no Android 12+ | Acesso especial | Consultar `AlarmManager.canScheduleExactAlarms()` pelo Notifee e abrir `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` com o pacote do app. | Usar trigger aproximado e informar que o Android pode atrasar o lembrete. |
 | Alarme em tela cheia | `USE_FULL_SCREEN_INTENT`; concessão especial no Android 14+ | Acesso especial | Consultar `NotificationManager.canUseFullScreenIntent()` e abrir `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` para o pacote. | Exibir heads-up de alta prioridade com as mesmas ações. |
@@ -22,7 +22,7 @@ Estes acessos não possuem prompt no onboarding:
 - `RECEIVE_BOOT_COMPLETED`: permite reconstruir lembretes após reinicialização.
 - `VIBRATE`: habilita a vibração configurada nos canais.
 - `WAKE_LOCK`: permite que a infraestrutura de alarme conclua trabalho curto ao acordar o aparelho.
-- `INTERNET` e `ACCESS_NETWORK_STATE`: usados pela infraestrutura React Native/Notifee; o MedMinder não envia os dados de medicamentos para um backend.
+- `INTERNET` e `ACCESS_NETWORK_STATE`: usados pela infraestrutura React Native/Notifee; o Remedin não envia os dados de medicamentos para um backend.
 - `FOREGROUND_SERVICE` e `FOREGROUND_SERVICE_SYSTEM_EXEMPTED`: mantêm o áudio nativo do alarme ativo por no máximo 60 segundos quando `SCHEDULE_EXACT_ALARM` está concedida. Não são permissões runtime, mas o uso do serviço deve ser declarado no Google Play Console.
 
 O app não solicita localização, contatos, câmera, microfone, fotos, arquivos ou telefone.

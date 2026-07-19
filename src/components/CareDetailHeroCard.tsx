@@ -28,12 +28,12 @@ export function CareDetailHeroCard({
       </View>
       <View style={styles.info}>
         <View style={styles.titleRow}>
-          <AppText variant="heading" style={styles.name}>
+          <AppText variant="heading" weight="bold" style={styles.name}>
             {name}
           </AppText>
           <StatusBadge status={paused ? "paused" : "active"} />
         </View>
-        <AppText style={styles.dosage}>{dosage}</AppText>
+        <AppText variant="small" weight="semibold" style={styles.dosage}>{dosage}</AppText>
         {onEdit ? (
           <Pressable
             accessibilityRole="button"
@@ -41,7 +41,7 @@ export function CareDetailHeroCard({
             onPress={onEdit}
             style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
           >
-            <AppText variant="small" style={styles.editText}>
+            <AppText variant="small" weight="bold" style={styles.editText}>
               Editar
             </AppText>
           </Pressable>
@@ -60,12 +60,12 @@ const styles = StyleSheet.create({
   card: {
     alignItems: "center",
     backgroundColor: colors.primarySoft,
-    borderColor: "#C7DDCF",
+    borderColor: colors.primaryBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
     marginBottom: spacing.md,
-    padding: spacing.xl,
+    padding: spacing.lg,
   },
   iconWrap: {
     alignItems: "center",
@@ -73,10 +73,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.pill,
     borderWidth: 1,
-    height: 86,
+    height: 76,
     justifyContent: "center",
     marginRight: spacing.lg,
-    width: 86,
+    width: 76,
   },
   info: {
     flex: 1,
@@ -91,16 +91,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dosage: {
-    fontWeight: "700",
     marginTop: spacing.xs,
   },
   editButton: {
     alignSelf: "flex-start",
+    minHeight: 48,
+    justifyContent: "center",
     marginTop: spacing.md,
   },
   editText: {
     color: colors.primaryDark,
-    fontWeight: "800",
   },
   pressed: {
     opacity: 0.75,

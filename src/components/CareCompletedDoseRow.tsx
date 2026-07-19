@@ -38,7 +38,7 @@ export function CareCompletedDoseRow({
       </View>
       <AppText style={[styles.time, isSkipped && styles.skippedText]}>{time}</AppText>
       <View style={styles.info}>
-        <AppText style={styles.name}>{title}</AppText>
+        <AppText variant="small" weight="semibold" style={styles.name}>{title}</AppText>
         <AppText
           variant="small"
           style={[styles.statusText, isSkipped && styles.skippedText]}
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
-    minHeight: 64,
+    minHeight: 72,
     paddingVertical: spacing.md,
   },
   statusIcon: {
@@ -74,7 +74,6 @@ const styles = StyleSheet.create({
   },
   time: {
     color: colors.success,
-    fontWeight: "800",
     marginRight: spacing.md,
     minWidth: 48,
   },
@@ -82,11 +81,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontWeight: "700",
   },
   statusText: {
     color: colors.success,
-    fontWeight: "700",
   },
   skippedText: {
     color: colors.danger,

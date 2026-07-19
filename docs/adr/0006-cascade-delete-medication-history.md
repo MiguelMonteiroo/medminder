@@ -6,7 +6,7 @@ Accepted for the MVP.
 
 ## Context
 
-MedMinder is offline-first and has no backend identity that could preserve a meaningful medication record after its local medication and schedule are deleted. Keeping dose logs or reminder artifacts without their owners would create incomplete History entries and complicate notification recovery.
+Remedin is offline-first and has no backend identity that could preserve a meaningful medication record after its local medication and schedule are deleted. Keeping dose logs or reminder artifacts without their owners would create incomplete History entries and complicate notification recovery.
 
 ## Decision
 

@@ -34,7 +34,7 @@ type AlarmOptions = {
   useNativeAudio: boolean;
 };
 
-const DOSE_ALARM_ACTIVITY = "com.medminder.DoseAlarmActivity";
+const DOSE_ALARM_ACTIVITY = "com.remedin.DoseAlarmActivity";
 const DOSE_ALARM_ACTIVITY_FLAGS = [
   AndroidLaunchActivityFlag.NEW_TASK,
   AndroidLaunchActivityFlag.CLEAR_TOP,
@@ -101,7 +101,7 @@ export function buildPreAlertNotification(
       : "Medicamento em 5 minutos",
     body: showDetails
       ? doseDescription(dose) || "Prepare sua próxima dose."
-      : "Abra o MedMinder para ver os detalhes.",
+      : "Abra o Remedin para ver os detalhes.",
     data: reminderData(dose, "preAlert"),
     android: {
       channelId: REMINDER_CHANNELS.preAlert,
@@ -168,7 +168,7 @@ export function buildPendingNotification(
 ): Notification {
   return {
     title: showDetails ? `${dose.medicationName} continua pendente` : "Dose pendente",
-    body: showDetails ? doseDescription(dose) : "Abra o MedMinder para ver os detalhes.",
+    body: showDetails ? doseDescription(dose) : "Abra o Remedin para ver os detalhes.",
     data: reminderData(dose, "alarmHandoff"),
     android: {
       channelId: REMINDER_CHANNELS.pending,
