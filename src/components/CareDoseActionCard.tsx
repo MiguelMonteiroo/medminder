@@ -36,7 +36,12 @@ export function CareDoseActionCard({
           style={styles.detailsArea}
         >
           <View style={styles.timePane}>
-            <AppText variant="subheading" style={styles.time}>
+            <AppText
+              ellipsizeMode="clip"
+              numberOfLines={1}
+              variant="subheading"
+              style={styles.time}
+            >
               {time}
             </AppText>
           </View>
@@ -112,10 +117,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    width: 82,
+    flexShrink: 0,
+    width: 108,
   },
   time: {
     color: colors.accent,
+    fontVariant: ["tabular-nums"],
+    textAlign: "center",
+    width: "100%",
   },
   info: {
     flex: 1,

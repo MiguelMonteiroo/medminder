@@ -8,7 +8,7 @@
 
     <style name="DoseAlarmTheme" parent="AppTheme">
         <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@drawable/dose_alarm_launch_background</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
     </style>

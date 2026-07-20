@@ -16,6 +16,9 @@ describe("native alarm audio configuration", () => {
       'android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED'
     );
     expect(manifest).toContain('android:name=".MedicationAlarmService"');
+    expect(manifest).toContain(
+      'android:name=".MedicationAlarmActionTaskService"'
+    );
     expect(manifest).toContain('android:foregroundServiceType="systemExempted"');
   });
 
@@ -28,5 +31,23 @@ describe("native alarm audio configuration", () => {
     expect(service).toContain("isLooping = true");
     expect(service).toContain("startForeground(");
     expect(service).toContain("ALARM_TIMEOUT_MS");
+    expect(service).toContain("setFullScreenIntent(");
+    expect(service).toContain('"Marcar como tomado"');
+    expect(service).toContain('"Adiar 5 min"');
+    expect(service).toContain("stopForeground(STOP_FOREGROUND_REMOVE)");
+    expect(service).toContain('"RemedinNativeAlarmDelivered"');
+    expect(service).toContain("LifecycleState.RESUMED");
+  });
+
+  it("routes native alarm actions through Headless JS", () => {
+    const taskService = projectFile(
+      "android/app/src/main/java/com/remedin/MedicationAlarmActionTaskService.kt"
+    );
+    const entry = projectFile("index.ts");
+
+    expect(taskService).toContain('"RemedinAlarmAction"');
+    expect(entry).toContain(
+      'AppRegistry.registerHeadlessTask("RemedinAlarmAction"'
+    );
   });
 });

@@ -50,6 +50,9 @@
         android:exported="false"
         android:foregroundServiceType="systemExempted"
         android:stopWithTask="false" />
+      <service
+        android:name=".MedicationAlarmActionTaskService"
+        android:exported="false" />
       <receiver
         android:name=".ReminderRescheduleReceiver"
         android:enabled="true"

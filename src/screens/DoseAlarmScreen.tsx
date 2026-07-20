@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BackHandler,
+  DeviceEventEmitter,
   NativeModules,
   Pressable,
   ScrollView,
@@ -121,6 +122,29 @@ export function DoseAlarmScreen({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    if (embedded) return;
+    const payloadSubscription = DeviceEventEmitter.addListener(
+      "RemedinDoseAlarmPayload",
+      (nextPayload: DoseAlarmPayload) => {
+        expandDoseWindow(nextPayload)
+          .then(setPayloads)
+          .catch(() => setPayloads([nextPayload]));
+      }
+    );
+    const backSubscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        void closeAlarmActivity();
+        return true;
+      }
+    );
+    return () => {
+      payloadSubscription.remove();
+      backSubscription.remove();
+    };
+  }, [embedded]);
 
   useEffect(() => {
     let cancelled = false;

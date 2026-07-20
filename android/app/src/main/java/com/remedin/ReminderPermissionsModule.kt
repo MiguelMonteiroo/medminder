@@ -178,7 +178,7 @@ class ReminderPermissionsModule(
 
   @ReactMethod
   fun finishDoseAlarmActivity(promise: Promise) {
-    (reactApplicationContext.currentActivity as? DoseAlarmActivity)?.finish()
+    (reactApplicationContext.currentActivity as? DoseAlarmActivity)?.finishAndCancelAlarm()
     promise.resolve(null)
   }
 

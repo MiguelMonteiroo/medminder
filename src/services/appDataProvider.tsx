@@ -24,6 +24,7 @@ import {
 } from "./notificationPermissionService";
 import { reconcileNotifications } from "./reminderSyncService";
 import { createReminderPermissionMonitor } from "./reminders/reminderPermissionMonitor";
+import { startReminderSyncInBackground } from "./reminders/reminderSyncCoordinator";
 import { createRepositories } from "../database/db";
 import { createMedicationPersistenceService } from "./medicationPersistenceService";
 import {
@@ -137,6 +138,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reminderSyncPending, setReminderSyncPending] = useState(false);
+  const reminderSyncCounterRef = useRef({ current: 0, failed: false });
 
   const repos = createRepositories(db);
   const medicationPersistence = createMedicationPersistenceService(db);
@@ -329,11 +331,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
       setMedications((prev) => [...prev, medication]);
       setSchedules((prev) => [...prev, schedule]);
-      try {
-        await scheduleMedicationNotifications(medication, schedule);
-        setReminderSyncPending(false);
-      } catch {
-        try {
+      startReminderSyncInBackground({
+        sync: async () => {
+          await scheduleMedicationNotifications(medication, schedule);
           await reconcileNotifications(
             repos.reminderArtifacts,
             repos.medications,
@@ -341,11 +341,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             repos.settings,
             reminderScheduler
           );
-          setReminderSyncPending(false);
-        } catch {
-          setReminderSyncPending(true);
-        }
-      }
+        },
+        fallback: () =>
+          reconcileNotifications(
+            repos.reminderArtifacts,
+            repos.medications,
+            repos.schedules,
+            repos.settings,
+            reminderScheduler
+          ),
+        onPendingChange: setReminderSyncPending,
+        pendingCounter: reminderSyncCounterRef.current,
+      });
     },
     [scheduleMedicationNotifications, settings.defaultSnoozeMinutes]
   );
@@ -518,12 +525,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setMedications((prev) => prev.map((m) => (m.id === medicationId ? updated : m)));
       setSchedules(await repos.schedules.getAll());
 
-      try {
-        await reminderScheduler.cancelForMedication(medicationId);
-        await scheduleMedicationNotifications(updated, persistedSchedule);
-        setReminderSyncPending(false);
-      } catch {
-        try {
+      startReminderSyncInBackground({
+        sync: async () => {
+          await reminderScheduler.cancelForMedication(medicationId);
+          await scheduleMedicationNotifications(updated, persistedSchedule);
           await reconcileNotifications(
             repos.reminderArtifacts,
             repos.medications,
@@ -531,11 +536,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             repos.settings,
             reminderScheduler
           );
-          setReminderSyncPending(false);
-        } catch {
-          setReminderSyncPending(true);
-        }
-      }
+        },
+        fallback: () =>
+          reconcileNotifications(
+            repos.reminderArtifacts,
+            repos.medications,
+            repos.schedules,
+            repos.settings,
+            reminderScheduler
+          ),
+        onPendingChange: setReminderSyncPending,
+        pendingCounter: reminderSyncCounterRef.current,
+      });
     },
     [medications, schedules, scheduleMedicationNotifications, settings.defaultSnoozeMinutes]
   );

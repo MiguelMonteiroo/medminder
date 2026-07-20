@@ -78,6 +78,7 @@ export const ptBR = {
     noDosage: "Sem dosagem",
     minimumIntervalError: "O intervalo deve ser de pelo menos 1 hora.",
     weekdayRequiredError: "Selecione pelo menos um dia da semana.",
+    saveError: "Não foi possível salvar o medicamento. Tente novamente.",
   },
   history: {
     title: "Histórico",

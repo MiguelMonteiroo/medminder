@@ -32,6 +32,8 @@ describe("DoseAlarmActivity lock-screen configuration", () => {
     );
 
     expect(activity).not.toContain("recreate()\n");
+    expect(activity).toContain("override fun onNewIntent(nextIntent: Intent)");
+    expect(activity).toContain('"RemedinDoseAlarmPayload"');
   });
 
   it("only hides system bars after ReactActivity creates its decor view", () => {

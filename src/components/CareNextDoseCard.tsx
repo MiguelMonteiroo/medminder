@@ -21,7 +21,14 @@ export function CareNextDoseCard({ time, name, dosage, onPress }: Props) {
         <AppText variant="small" weight="bold" style={styles.headingText}>Próxima dose</AppText>
       </View>
       <View style={styles.content}>
-        <AppText variant="heading" style={styles.time}>{time}</AppText>
+        <AppText
+          ellipsizeMode="clip"
+          numberOfLines={1}
+          variant="heading"
+          style={styles.time}
+        >
+          {time}
+        </AppText>
         <View style={styles.info}>
           <AppText variant="small" weight="bold">{name || "Nenhuma dose pendente"}</AppText>
           <AppText variant="caption" muted>{dosage || "Sem dosagem informada"}</AppText>
@@ -37,7 +44,14 @@ const styles = StyleSheet.create({
   heading: { alignItems: "center", flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   headingText: { color: colors.accent },
   content: { alignItems: "center", flexDirection: "row" },
-  time: { color: colors.accent, marginRight: spacing.lg },
+  time: {
+    color: colors.accent,
+    flexShrink: 0,
+    fontVariant: ["tabular-nums"],
+    marginRight: spacing.md,
+    textAlign: "center",
+    width: 108,
+  },
   info: { flex: 1, marginRight: spacing.sm },
   pressed: { opacity: 0.78 },
 });

@@ -24,6 +24,8 @@ Remedin declares the `systemExempted` foreground service type because it holds `
 
 The declaration must explain that the service runs for at most 60 seconds, remains perceptible to the user, can be stopped from the alarm actions, and cannot be deferred without risking a late medication reminder. Provide a review video showing schedule creation, alarm delivery and alarm termination.
 
+The foreground-service notification is the only visible notification for a native exact dose alarm. It is mandatory while audio is playing and is removed when the service ends. Notifee is used instead, not in parallel, when native scheduling is unavailable.
+
 ## Release verification
 
 - Confirm both permissions are present in the merged release manifest.

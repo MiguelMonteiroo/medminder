@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modal } from "react-native";
+import { DeviceEventEmitter, Modal } from "react-native";
 import notifee, { EventType } from "@notifee/react-native";
 import {
   DoseAlarmScreen,
@@ -12,6 +12,14 @@ import { useAppData } from "../../services/appDataProvider";
 export function NotificationEventBridge() {
   const [alarm, setAlarm] = useState<DoseAlarmPayload | null>(null);
   const { refreshDoseLogs } = useAppData();
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      "RemedinNativeAlarmDelivered",
+      (payload: DoseAlarmPayload) => setAlarm(payload)
+    );
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() =>
     notifee.onForegroundEvent(async (event) => {
