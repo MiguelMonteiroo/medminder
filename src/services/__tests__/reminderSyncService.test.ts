@@ -9,6 +9,7 @@ import type {
 import { createMedicationPersistenceService } from "../medicationPersistenceService";
 import type { ReminderScheduler } from "../reminderScheduler";
 import {
+  isReminderArtifactActive,
   reconcileNotifications,
   reminderArtifactsMatchPlans,
 } from "../reminderSyncService";
@@ -22,6 +23,30 @@ function localDate(date: Date): string {
 }
 
 describe("reminder synchronization", () => {
+  it("recognizes native alarms independently from Notifee triggers", () => {
+    const artifact = {
+      id: "artifact-1",
+      kind: "doseAlarm" as const,
+      notificationId: "native:artifact-1",
+      doseOccurrenceId: "dose-1",
+      medicationId: "med-1",
+      scheduleId: "schedule-1",
+      doseWindowKey: "2026-07-20T08:00",
+      scheduledFor: "2026-07-20T08:00:00",
+      expiresAt: "",
+      createdAt: "2026-07-19T08:00:00",
+    };
+
+    expect(
+      isReminderArtifactActive(
+        artifact,
+        new Set(),
+        new Set(["native:artifact-1"])
+      )
+    ).toBe(true);
+    expect(isReminderArtifactActive(artifact, new Set(), new Set())).toBe(false);
+  });
+
   it("rejects native artifacts that still point to the pre-edit time", () => {
     const occurrence: DoseOccurrence = {
       id: "med-1-schedule-1-2026-07-14-0",

@@ -55,4 +55,17 @@ class AlarmAudioModule(
       promise.reject("cancel-all-alarm-audio", error)
     }
   }
+
+  @ReactMethod
+  fun getScheduledAlarmIds(promise: Promise) {
+    try {
+      val ids = Arguments.createArray()
+      AlarmAudioScheduler.scheduledIds(reactApplicationContext)
+          .sorted()
+          .forEach(ids::pushString)
+      promise.resolve(ids)
+    } catch (error: Exception) {
+      promise.reject("get-scheduled-alarm-ids", error)
+    }
+  }
 }

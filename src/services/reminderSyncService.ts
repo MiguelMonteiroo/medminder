@@ -41,6 +41,16 @@ export function reminderArtifactsMatchPlans(
   });
 }
 
+export function isReminderArtifactActive(
+  artifact: ReminderArtifact,
+  notifeeTriggerIds: Set<string>,
+  nativeAlarmIds: Set<string>
+): boolean {
+  return artifact.notificationId.startsWith("native:")
+    ? nativeAlarmIds.has(artifact.notificationId)
+    : notifeeTriggerIds.has(artifact.notificationId);
+}
+
 export async function reconcileNotifications(
   artifactRepo: ReminderArtifactRepository,
   medicationRepo: MedicationRepository,
@@ -51,7 +61,12 @@ export async function reconcileNotifications(
 ): Promise<{ removed: number; recreated: number }> {
   const { granted } = await getNotificationPermissionStatus();
   const settings = await settingsRepo.get();
-  const activeIds = new Set(await notifee.getTriggerNotificationIds());
+  const [notifeeIds, nativeIds] = await Promise.all([
+    notifee.getTriggerNotificationIds(),
+    reminderScheduler.getScheduledNativeAlarmIds?.() ?? Promise.resolve([]),
+  ]);
+  const activeNotifeeIds = new Set(notifeeIds);
+  const activeNativeIds = new Set(nativeIds);
   const storedArtifacts = await artifactRepo.getAll();
   const now = Date.now();
   const staleBefore = now - 15 * 60 * 1000;
@@ -59,9 +74,13 @@ export async function reconcileNotifications(
 
   for (const artifact of storedArtifacts) {
     const scheduledAt = new Date(artifact.scheduledFor).getTime();
-    const missingNativeTrigger = !activeIds.has(artifact.notificationId);
+    const missingTrigger = !isReminderArtifactActive(
+      artifact,
+      activeNotifeeIds,
+      activeNativeIds
+    );
     const shouldRemoveMissingArtifact =
-      missingNativeTrigger &&
+      missingTrigger &&
       (scheduledAt > now || scheduledAt < staleBefore);
 
     if (shouldRemoveMissingArtifact) {

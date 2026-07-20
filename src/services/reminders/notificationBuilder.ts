@@ -7,7 +7,7 @@ import {
 } from "@notifee/react-native";
 
 export const REMINDER_CHANNELS = {
-  preAlert: "medication-pre-alerts-v1",
+  preAlert: "medication-pre-alerts-v4",
   alarm: "medication-dose-alarms-v3",
   criticalAlarm: "medication-dose-alarms-critical-v3",
   nativeAlarm: "medication-dose-alarms-player-v1",
@@ -105,9 +105,15 @@ export function buildPreAlertNotification(
     android: {
       channelId: REMINDER_CHANNELS.preAlert,
       category: AndroidCategory.REMINDER,
-      visibility: showDetails
-        ? AndroidVisibility.PUBLIC
-        : AndroidVisibility.PRIVATE,
+      autoCancel: true,
+      onlyAlertOnce: true,
+      loopSound: false,
+      ongoing: false,
+      lightUpScreen: true,
+      importance: AndroidImportance.DEFAULT,
+      // Generic copy already protects private doses; PUBLIC keeps the reminder
+      // visible on lock screens that completely suppress private notifications.
+      visibility: AndroidVisibility.PUBLIC,
       pressAction: {
         id: "open-dose-window",
         launchActivity: "default",

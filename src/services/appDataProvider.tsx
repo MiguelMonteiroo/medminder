@@ -39,6 +39,7 @@ import {
   validateTimeHHMM,
 } from "../utils/validation";
 import { DEFAULT_REMINDER_SETTINGS } from "../utils/defaultReminderSettings";
+import { formatLocalDateTime } from "../utils/dateTime";
 
 interface AppDataContextValue {
   medications: Medication[];
@@ -451,7 +452,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         medicationId,
         scheduleId,
         now.toISOString(),
-        snoozedUntil.toISOString()
+        formatLocalDateTime(snoozedUntil)
       );
       await refreshDoseLogs();
 
@@ -459,7 +460,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         id: occurrenceId,
         medicationId,
         scheduleId,
-        scheduledAt: snoozedUntil.toISOString(),
+        scheduledAt: formatLocalDateTime(snoozedUntil),
         status: "pending",
       };
 

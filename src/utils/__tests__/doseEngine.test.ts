@@ -83,6 +83,28 @@ describe("generateDoseOccurrencesForDate", () => {
     expect(result).toHaveLength(0);
   });
 
+  it("does not create doses before the medication was registered", () => {
+    const medication = makeMed({
+      createdAt: "2026-07-03T10:30:00",
+      updatedAt: "2026-07-03T10:30:00",
+    });
+
+    expect(
+      generateDoseOccurrencesForDate(
+        medication,
+        makeSchedule({ times: ["08:00", "12:00"] }),
+        "2026-07-02"
+      )
+    ).toEqual([]);
+    expect(
+      generateDoseOccurrencesForDate(
+        medication,
+        makeSchedule({ times: ["08:00", "12:00"] }),
+        "2026-07-03"
+      ).map((dose) => dose.scheduledAt)
+    ).toEqual(["2026-07-03T12:00:00"]);
+  });
+
   it("returns empty when date is after endDate", () => {
     const result = generateDoseOccurrencesForDate(
       makeMed(),
@@ -405,6 +427,27 @@ describe("resolveDoseOccurrence", () => {
       },
       latestLog: logs[0],
     });
+  });
+
+  it("normalizes persisted UTC snoozes to the device local time", () => {
+    const snoozedUntil = new Date(2026, 6, 3, 8, 5, 0).toISOString();
+    const result = resolveDoseOccurrence(
+      occurrence,
+      [
+        {
+          id: "log-utc-snooze",
+          doseOccurrenceId: occurrence.id,
+          medicationId: occurrence.medicationId,
+          scheduleId: occurrence.scheduleId,
+          action: "snoozed",
+          actionAt: new Date(2026, 6, 3, 8, 0, 0).toISOString(),
+          snoozedUntil,
+        },
+      ],
+      new Date(2026, 6, 3, 8, 1, 0)
+    );
+
+    expect(result.occurrence.scheduledAt).toBe("2026-07-03T08:05:00.000");
   });
 
   it("restores the original time after an undone action", () => {

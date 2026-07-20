@@ -23,6 +23,7 @@ import { spacing } from "../theme/spacing";
 import { getGreetingForHour, getNextGreetingChange } from "../utils/greeting";
 import { getHomePresentation } from "../utils/homePresentation";
 import { ptBR } from "../i18n/ptBR";
+import { formatDoseTime } from "../utils/dateTime";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<RootTabParamList, "Home">,
@@ -30,7 +31,7 @@ type Props = CompositeScreenProps<
 >;
 
 function getOccurrenceTime(occurrence: DoseOccurrence) {
-  return occurrence.scheduledAt.split("T")[1]?.substring(0, 5) || "--:--";
+  return formatDoseTime(occurrence.scheduledAt);
 }
 
 export function HomeScreen({ navigation }: Props) {

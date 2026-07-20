@@ -81,6 +81,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     (notifee.displayNotification as jest.Mock).mockResolvedValue(
       "immediate-pre-alert"
@@ -120,6 +121,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     const scheduler = createReminderScheduler(repo, alarmAudio);
 
@@ -157,6 +159,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     (notifee.createTriggerNotification as jest.Mock).mockImplementation(
       async (notification) => notification.id
@@ -197,6 +200,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     const scheduler = createReminderScheduler(repo, alarmAudio);
 
@@ -237,6 +241,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => false),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     (notifee.createTriggerNotification as jest.Mock).mockResolvedValue(
       "fallback-trigger"
@@ -265,6 +270,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     const scheduler = createReminderScheduler(repo, alarmAudio);
 
@@ -300,6 +306,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     const scheduler = createReminderScheduler(repo, alarmAudio);
 
@@ -322,6 +329,7 @@ describe("reminder scheduler alarm transport", () => {
       schedule: jest.fn(async () => true),
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
     };
     const scheduler = createReminderScheduler(repo, alarmAudio);
 

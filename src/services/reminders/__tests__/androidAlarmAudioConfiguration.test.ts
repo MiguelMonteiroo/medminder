@@ -60,6 +60,22 @@ describe("native alarm audio configuration", () => {
     expect(scheduler).toContain('payload?.getBoolean("fullScreenEnabled", false)');
   });
 
+  it("exposes native alarm inventory and invalidates it before device-event reconciliation", () => {
+    const module = projectFile(
+      "android/app/src/main/java/com/remedin/AlarmAudioModule.kt"
+    );
+    const receiver = projectFile(
+      "android/app/src/main/java/com/remedin/ReminderRescheduleReceiver.kt"
+    );
+
+    expect(module).toContain("getScheduledAlarmIds");
+    expect(module).toContain("AlarmAudioScheduler.scheduledIds");
+    expect(receiver).toContain("AlarmAudioScheduler.cancelAll(context)");
+    expect(receiver.indexOf("AlarmAudioScheduler.cancelAll(context)")).toBeLessThan(
+      receiver.indexOf("context.startService(serviceIntent)")
+    );
+  });
+
   it("routes native alarm actions through Headless JS", () => {
     const taskService = projectFile(
       "android/app/src/main/java/com/remedin/MedicationAlarmActionTaskService.kt"

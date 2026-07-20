@@ -24,6 +24,7 @@ type NativeAlarmAudioModule = {
   ) => Promise<boolean>;
   cancelAlarmAudio: (alarmId: string) => Promise<void>;
   cancelAllAlarmAudio: () => Promise<void>;
+  getScheduledAlarmIds?: () => Promise<string[]>;
 };
 
 export type AlarmAudioController = {
@@ -36,6 +37,7 @@ export type AlarmAudioController = {
   ) => Promise<boolean>;
   cancel: (alarmId: string) => Promise<void>;
   cancelAll: () => Promise<void>;
+  getScheduledIds: () => Promise<string[]>;
 };
 
 export function createAlarmAudioController(
@@ -60,6 +62,10 @@ export function createAlarmAudioController(
     cancelAll: async () => {
       if (available) await nativeModule.cancelAllAlarmAudio();
     },
+    getScheduledIds: async () =>
+      available && nativeModule.getScheduledAlarmIds
+        ? nativeModule.getScheduledAlarmIds()
+        : [],
   };
 }
 

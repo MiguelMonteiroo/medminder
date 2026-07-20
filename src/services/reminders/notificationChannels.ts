@@ -1,4 +1,7 @@
-import notifee, { AndroidImportance } from "@notifee/react-native";
+import notifee, {
+  AndroidImportance,
+  AndroidVisibility,
+} from "@notifee/react-native";
 import { Platform } from "react-native";
 import { REMINDER_CHANNELS } from "./notificationBuilder";
 import { reminderPermissionsNative } from "./nativeReminderPermissions";
@@ -7,24 +10,37 @@ const LEGACY_ALARM_CHANNEL_IDS = [
   "medication-dose-alarms-v2",
   "medication-dose-alarms-critical-v2",
 ] as const;
+const LEGACY_PRE_ALERT_CHANNEL_IDS = [
+  "medication-pre-alerts-v1",
+  "medication-pre-alerts-v2",
+  "medication-pre-alerts-v3",
+] as const;
+const LEGACY_CHANNEL_IDS = [
+  ...LEGACY_ALARM_CHANNEL_IDS,
+  ...LEGACY_PRE_ALERT_CHANNEL_IDS,
+] as const;
 
-async function removeLegacyAlarmChannels(): Promise<void> {
-  const triggers = await notifee.getTriggerNotifications();
-  const legacyTriggers = triggers.filter((trigger) =>
-    LEGACY_ALARM_CHANNEL_IDS.includes(
-      trigger.notification.android?.channelId as (typeof LEGACY_ALARM_CHANNEL_IDS)[number]
-    )
+async function removeLegacyChannels(): Promise<void> {
+  const [triggers, displayed] = await Promise.all([
+    notifee.getTriggerNotifications(),
+    notifee.getDisplayedNotifications(),
+  ]);
+  const legacyNotificationIds = new Set(
+    [...triggers, ...displayed]
+      .filter((item) =>
+        LEGACY_CHANNEL_IDS.includes(
+          item.notification.android?.channelId as (typeof LEGACY_CHANNEL_IDS)[number]
+        )
+      )
+      .map((item) => item.notification.id)
+      .filter((id): id is string => Boolean(id))
   );
 
   await Promise.all(
-    legacyTriggers.map((trigger) =>
-      trigger.notification.id
-        ? notifee.cancelNotification(trigger.notification.id)
-        : Promise.resolve()
-    )
+    [...legacyNotificationIds].map((id) => notifee.cancelNotification(id))
   );
   await Promise.all(
-    LEGACY_ALARM_CHANNEL_IDS.map((channelId) => notifee.deleteChannel(channelId))
+    LEGACY_CHANNEL_IDS.map((channelId) => notifee.deleteChannel(channelId))
   );
 }
 
@@ -34,7 +50,7 @@ export async function ensureReminderChannelsCreated(): Promise<void> {
     throw new Error("Native alarm channel support is unavailable.");
   }
 
-  await removeLegacyAlarmChannels();
+  await removeLegacyChannels();
   await reminderPermissionsNative.ensureAlarmChannels();
   await Promise.all([
     notifee.createChannel({
@@ -42,8 +58,8 @@ export async function ensureReminderChannelsCreated(): Promise<void> {
       name: "Avisos antecipados",
       description: "Avisos suaves cinco minutos antes dos medicamentos.",
       importance: AndroidImportance.DEFAULT,
-      sound: "remedin_pre_alert",
       vibration: false,
+      visibility: AndroidVisibility.PUBLIC,
     }),
     notifee.createChannel({
       id: REMINDER_CHANNELS.pending,

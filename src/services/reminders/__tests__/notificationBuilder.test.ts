@@ -1,6 +1,7 @@
 import {
   AndroidImportance,
   AndroidLaunchActivityFlag,
+  AndroidVisibility,
 } from "@notifee/react-native";
 import {
   buildAlarmTestNotification,
@@ -20,12 +21,24 @@ const dose = {
 };
 
 describe("notificationBuilder", () => {
-  it("builds a private pre-alert without dose actions", () => {
+  it("builds a lock-screen-visible pre-alert without dose actions", () => {
     const notification = buildPreAlertNotification(dose, false);
 
     expect(notification.title).toBe("Medicamento em 5 minutos");
     expect(notification.android?.actions).toBeUndefined();
-    expect(notification.android?.channelId).toBe("medication-pre-alerts-v1");
+    expect(notification.android).toEqual(
+      expect.objectContaining({
+        channelId: "medication-pre-alerts-v4",
+        autoCancel: true,
+        onlyAlertOnce: true,
+        loopSound: false,
+        ongoing: false,
+        lightUpScreen: true,
+        importance: AndroidImportance.DEFAULT,
+        visibility: AndroidVisibility.PUBLIC,
+      })
+    );
+    expect(notification.android?.fullScreenAction).toBeUndefined();
   });
 
   it("shows medication details when lock-screen details are enabled", () => {
@@ -33,6 +46,7 @@ describe("notificationBuilder", () => {
 
     expect(notification.title).toBe("Dipirona em 5 minutos");
     expect(notification.body).toContain("5 mg");
+    expect(notification.android?.visibility).toBe(AndroidVisibility.PUBLIC);
   });
 
   it("adds full-screen and individual actions to a dose alarm", () => {

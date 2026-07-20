@@ -57,6 +57,7 @@ describe("reminder scheduler persistence failure", () => {
       available: false,
       cancel: jest.fn(async () => undefined),
       cancelAll: jest.fn(async () => undefined),
+      getScheduledIds: jest.fn(async () => []),
       schedule: jest.fn(async () => false),
     };
     const createTriggerNotification =

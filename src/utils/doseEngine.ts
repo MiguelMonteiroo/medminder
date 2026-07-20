@@ -5,6 +5,17 @@ import {
   DoseLog,
   DoseStatus,
 } from "../types/domain";
+import { normalizeDoseDateTime } from "./dateTime";
+
+function occursAfterMedicationCreation(
+  occurrence: DoseOccurrence,
+  medication: Medication
+): boolean {
+  const createdAt = new Date(medication.createdAt).getTime();
+  const scheduledAt = new Date(occurrence.scheduledAt).getTime();
+  if (!Number.isFinite(createdAt) || !Number.isFinite(scheduledAt)) return true;
+  return scheduledAt >= createdAt;
+}
 
 function getDayOfWeek(dateString: string): number {
   const date = new Date(dateString + "T12:00:00");
@@ -80,7 +91,9 @@ export function generateDoseOccurrencesForDate(
   if (!isDateInRange(date, schedule.startDate, schedule.endDate)) return [];
 
   if (schedule.kind === "intervalHours") {
-    return generateIntervalOccurrences(medication, schedule, date);
+    return generateIntervalOccurrences(medication, schedule, date).filter(
+      (occurrence) => occursAfterMedicationCreation(occurrence, medication)
+    );
   }
 
   if (schedule.kind === "weekdays") {
@@ -88,13 +101,17 @@ export function generateDoseOccurrencesForDate(
     if (!schedule.weekdays.includes(dayOfWeek)) return [];
   }
 
-  return schedule.times.map((time, index) => ({
-    id: `${medication.id}-${schedule.id}-${date}-${index}`,
-    medicationId: medication.id,
-    scheduleId: schedule.id,
-    scheduledAt: `${date}T${time}:00`,
-    status: "pending" as DoseStatus,
-  }));
+  return schedule.times
+    .map((time, index) => ({
+      id: `${medication.id}-${schedule.id}-${date}-${index}`,
+      medicationId: medication.id,
+      scheduleId: schedule.id,
+      scheduledAt: `${date}T${time}:00`,
+      status: "pending" as DoseStatus,
+    }))
+    .filter((occurrence) =>
+      occursAfterMedicationCreation(occurrence, medication)
+    );
 }
 
 export function resolveDoseStatus(
@@ -158,7 +175,7 @@ export function resolveDoseOccurrence(
   );
   const scheduledAt =
     status === "snoozed" && latestLog?.action === "snoozed"
-      ? latestLog.snoozedUntil
+      ? normalizeDoseDateTime(latestLog.snoozedUntil)
       : occurrence.scheduledAt;
 
   return {
@@ -193,8 +210,9 @@ export function getTodayDoseViewModel(
     }
   }
 
-  allOccurrences.sort((left, right) =>
-    left.scheduledAt.localeCompare(right.scheduledAt)
+  allOccurrences.sort(
+    (left, right) =>
+      new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()
   );
 
   return {

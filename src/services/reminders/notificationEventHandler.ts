@@ -11,6 +11,7 @@ import {
 } from "./notificationActionHandler";
 import { finishActiveAlarm } from "./nativeReminderPermissions";
 import { nativeAlarmAudio } from "./nativeAlarmAudio";
+import { shouldReconcileDeliveredNotification } from "./notificationDeliveryPolicy";
 
 async function createDefaultDependencies(): Promise<NotificationActionDependencies> {
   const database = await openAppDatabase();
@@ -53,7 +54,11 @@ async function createDefaultDependencies(): Promise<NotificationActionDependenci
 
 export async function handleNotifeeEvent(event: Event): Promise<void> {
   if (event.type === EventType.DELIVERED) {
-    await reconcileRemindersFromBackground();
+    if (
+      shouldReconcileDeliveredNotification(event.detail.notification?.data)
+    ) {
+      await reconcileRemindersFromBackground();
+    }
     return;
   }
 

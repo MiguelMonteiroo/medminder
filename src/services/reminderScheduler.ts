@@ -418,6 +418,10 @@ export function createReminderScheduler(
     }
   }
 
+  async function getScheduledNativeAlarmIds(): Promise<string[]> {
+    return alarmAudio.getScheduledIds();
+  }
+
   return {
     scheduleForOccurrence,
     cancelSingle,
@@ -426,6 +430,7 @@ export function createReminderScheduler(
     displayTakenConfirmation,
     displayPendingNow,
     runAlarmTest,
+    getScheduledNativeAlarmIds,
   };
 }
 

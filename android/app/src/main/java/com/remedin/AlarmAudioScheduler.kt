@@ -142,7 +142,7 @@ object AlarmAudioScheduler {
         .apply()
   }
 
-  private fun scheduledIds(context: Context): Set<String> =
+  fun scheduledIds(context: Context): Set<String> =
       context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
           .getStringSet(PREFS_ALARM_IDS, emptySet())
           ?.toSet()
