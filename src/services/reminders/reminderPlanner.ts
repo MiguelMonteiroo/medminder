@@ -77,7 +77,11 @@ export function planOccurrenceReminders(
   ]);
 
   return candidates
-    .filter(([, scheduledAt]) => scheduledAt.getTime() > now.getTime())
+    .filter(([kind, scheduledAt]) =>
+      kind === "preAlert"
+        ? alarmAt.getTime() > now.getTime()
+        : scheduledAt.getTime() > now.getTime()
+    )
     .map(([kind, scheduledAt]) =>
       createPlan(occurrence, kind, scheduledAt, windowKey)
     );

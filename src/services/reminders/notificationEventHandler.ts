@@ -91,6 +91,7 @@ export async function reconcileRemindersFromBackground(): Promise<void> {
     repositories.reminderArtifacts,
     repositories.medications,
     repositories.schedules,
+    repositories.doseLogs,
     repositories.settings,
     scheduler
   );

@@ -128,6 +128,7 @@ describe("reminder synchronization", () => {
         repos.reminderArtifacts,
         repos.medications,
         repos.schedules,
+        repos.doseLogs,
         repos.settings,
         scheduler
       );
@@ -139,6 +140,175 @@ describe("reminder synchronization", () => {
         medication,
         schedule,
         expect.any(Object)
+      );
+    } finally {
+      close();
+    }
+  });
+
+  it.each(["taken", "skipped"] as const)(
+    "does not recreate reminders for a %s dose",
+    async (action) => {
+      const { db, close } = createTestDatabase();
+
+      try {
+        await migrateDbIfNeeded(db);
+        const repos = createRepositories(db);
+        const persistence = createMedicationPersistenceService(db);
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const date = localDate(tomorrow);
+        const medication: Medication = {
+          id: `med-${action}`,
+          name: "Dipirona",
+          dosage: "500 mg",
+          notes: "",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isPaused: false,
+        };
+        const schedule: MedicationSchedule = {
+          id: `schedule-${action}`,
+          medicationId: medication.id,
+          kind: "dailyTimes",
+          times: ["12:00"],
+          intervalHours: 0,
+          weekdays: [],
+          startDate: "",
+          endDate: "",
+          anchorAt: "",
+          snoozeMinutes: 5,
+          isActive: true,
+        };
+        const occurrenceId = `${medication.id}-${schedule.id}-${date}-0`;
+        await persistence.createWithSchedule(medication, schedule);
+        await repos.settings.update({
+          notificationsEnabled: true,
+          defaultSnoozeMinutes: 5,
+          userName: "Maria",
+          fullScreenAlarmEnabled: false,
+          criticalAlertsEnabled: false,
+          showLockScreenDetails: false,
+          reminderSetupCompleted: true,
+          onboardingCompleted: true,
+        });
+        await repos.doseLogs.create({
+          id: `log-${action}`,
+          doseOccurrenceId: occurrenceId,
+          medicationId: medication.id,
+          scheduleId: schedule.id,
+          action,
+          actionAt: new Date().toISOString(),
+          snoozedUntil: "",
+        });
+
+        const scheduler = {
+          cancelSingle: jest.fn().mockResolvedValue(undefined),
+          scheduleForOccurrence: jest.fn().mockResolvedValue([]),
+        } as unknown as ReminderScheduler;
+
+        await reconcileNotifications(
+          repos.reminderArtifacts,
+          repos.medications,
+          repos.schedules,
+          repos.doseLogs,
+          repos.settings,
+          scheduler
+        );
+
+        expect(scheduler.scheduleForOccurrence).not.toHaveBeenCalledWith(
+          expect.objectContaining({ id: occurrenceId }),
+          expect.anything(),
+          expect.anything(),
+          expect.anything()
+        );
+      } finally {
+        close();
+      }
+    }
+  );
+
+  it("recreates a snoozed alarm at snoozedUntil after restart", async () => {
+    const { db, close } = createTestDatabase();
+
+    try {
+      await migrateDbIfNeeded(db);
+      const repos = createRepositories(db);
+      const persistence = createMedicationPersistenceService(db);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const date = localDate(tomorrow);
+      const medication: Medication = {
+        id: "med-snoozed",
+        name: "Losartana",
+        dosage: "50 mg",
+        notes: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isPaused: false,
+      };
+      const schedule: MedicationSchedule = {
+        id: "schedule-snoozed",
+        medicationId: medication.id,
+        kind: "dailyTimes",
+        times: ["12:00"],
+        intervalHours: 0,
+        weekdays: [],
+        startDate: "",
+        endDate: "",
+        anchorAt: "",
+        snoozeMinutes: 5,
+        isActive: true,
+      };
+      const occurrenceId = `${medication.id}-${schedule.id}-${date}-0`;
+      const snoozedUntil = `${date}T12:05:00`;
+      await persistence.createWithSchedule(medication, schedule);
+      await repos.settings.update({
+        notificationsEnabled: true,
+        defaultSnoozeMinutes: 5,
+        userName: "Maria",
+        fullScreenAlarmEnabled: true,
+        criticalAlertsEnabled: false,
+        showLockScreenDetails: true,
+        reminderSetupCompleted: true,
+        onboardingCompleted: true,
+      });
+      await repos.doseLogs.create({
+        id: "log-snoozed",
+        doseOccurrenceId: occurrenceId,
+        medicationId: medication.id,
+        scheduleId: schedule.id,
+        action: "snoozed",
+        actionAt: new Date().toISOString(),
+        snoozedUntil,
+      });
+
+      const scheduler = {
+        cancelSingle: jest.fn().mockResolvedValue(undefined),
+        scheduleForOccurrence: jest.fn().mockResolvedValue(["snoozed-alarm"]),
+      } as unknown as ReminderScheduler;
+
+      await reconcileNotifications(
+        repos.reminderArtifacts,
+        repos.medications,
+        repos.schedules,
+        repos.doseLogs,
+        repos.settings,
+        scheduler
+      );
+
+      expect(scheduler.scheduleForOccurrence).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: occurrenceId,
+          scheduledAt: snoozedUntil,
+          status: "snoozed",
+        }),
+        medication,
+        schedule,
+        expect.objectContaining({
+          snoozed: true,
+          alarmAt: new Date(snoozedUntil),
+        })
       );
     } finally {
       close();

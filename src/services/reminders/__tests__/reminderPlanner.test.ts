@@ -24,17 +24,28 @@ describe("planOccurrenceReminders", () => {
     ]);
   });
 
-  it("omits only timeline items whose time already passed", () => {
+  it("keeps an overdue pre-alert while the dose is still in the future", () => {
     const result = planOccurrenceReminders(
       occurrence,
       new Date("2026-07-03T07:58:00")
     );
 
     expect(result.map((item) => item.kind)).toEqual([
+      "preAlert",
       "doseAlarm",
       "alarmHandoff",
       "reinforcement",
     ]);
+    expect(result[0].scheduledFor).toBe("2026-07-03T07:55:00.000");
+  });
+
+  it("does not plan a pre-alert after the dose time", () => {
+    const result = planOccurrenceReminders(
+      occurrence,
+      new Date("2026-07-03T08:02:00")
+    );
+
+    expect(result.map((item) => item.kind)).toEqual(["reinforcement"]);
   });
 
   it("plans a snoozed alarm without another pre-alert", () => {

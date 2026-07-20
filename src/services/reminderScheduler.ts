@@ -168,6 +168,7 @@ export function createReminderScheduler(
       permissionState.exactAlarms === "granted" ||
       permissionState.exactAlarms === "notRequired";
     const notificationIds: string[] = [];
+    const schedulingStartedAt = Date.now();
 
     for (const plan of plans) {
       const isWindowPreAlert = plan.kind === "preAlert";
@@ -176,7 +177,11 @@ export function createReminderScheduler(
         : `${occurrence.id}:${plan.kind}:${plan.scheduledFor}`;
       const nativeAlarmId = `native:${artifactId}`;
       const scheduledAt = new Date(plan.scheduledFor);
-      if (scheduledAt.getTime() <= Date.now()) continue;
+      const isImmediatePreAlert =
+        isWindowPreAlert && scheduledAt.getTime() <= schedulingStartedAt;
+      if (scheduledAt.getTime() <= schedulingStartedAt && !isImmediatePreAlert) {
+        continue;
+      }
       const isAudioAlarm =
         plan.kind === "doseAlarm" || plan.kind === "snoozedAlarm";
       const nativeArtifactKind =
@@ -233,6 +238,8 @@ export function createReminderScheduler(
       let notificationId: string;
       if (nativeAudioScheduled) {
         notificationId = nativeAlarmId;
+      } else if (isImmediatePreAlert) {
+        notificationId = await notifee.displayNotification(notification!);
       } else {
         try {
           notificationId = await notifee.createTriggerNotification(

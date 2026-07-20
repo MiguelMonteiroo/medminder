@@ -1,9 +1,15 @@
 import {
   generateDoseOccurrencesForDate,
   resolveDoseStatus,
+  resolveDoseOccurrence,
   getAdherenceSummary,
 } from "../doseEngine";
-import { Medication, MedicationSchedule, DoseLog } from "../../types/domain";
+import {
+  Medication,
+  MedicationSchedule,
+  DoseLog,
+  DoseOccurrence,
+} from "../../types/domain";
 
 function makeMed(overrides: Partial<Medication> = {}): Medication {
   return {
@@ -288,6 +294,29 @@ describe("resolveDoseStatus", () => {
     expect(resolveDoseStatus("occ-1", logs)).toBe("pending");
   });
 
+  it("keeps an undone dose pending even after its original day", () => {
+    const logs: DoseLog[] = [
+      {
+        id: "log-1",
+        doseOccurrenceId: "occ-1",
+        medicationId: "med-1",
+        scheduleId: "sched-1",
+        action: "undone",
+        actionAt: "2026-07-04T08:10:00",
+        snoozedUntil: "",
+      },
+    ];
+
+    expect(
+      resolveDoseStatus(
+        "occ-1",
+        logs,
+        "2026-07-03T08:00:00",
+        new Date("2026-07-04T09:00:00")
+      )
+    ).toBe("pending");
+  });
+
   it("uses the most recent log even when logs are not sorted ascending", () => {
     const logs: DoseLog[] = [
       {
@@ -337,6 +366,79 @@ describe("resolveDoseStatus", () => {
         new Date("2026-07-03T23:59:00")
       )
     ).toBe("pending");
+  });
+});
+
+describe("resolveDoseOccurrence", () => {
+  const occurrence: DoseOccurrence = {
+    id: "occ-1",
+    medicationId: "med-1",
+    scheduleId: "sched-1",
+    scheduledAt: "2026-07-03T08:00:00",
+    status: "pending",
+  };
+
+  it("uses snoozedUntil as the effective time while the snooze is active", () => {
+    const logs: DoseLog[] = [
+      {
+        id: "log-1",
+        doseOccurrenceId: occurrence.id,
+        medicationId: occurrence.medicationId,
+        scheduleId: occurrence.scheduleId,
+        action: "snoozed",
+        actionAt: "2026-07-03T07:59:00",
+        snoozedUntil: "2026-07-03T08:05:00",
+      },
+    ];
+
+    expect(
+      resolveDoseOccurrence(
+        occurrence,
+        logs,
+        new Date("2026-07-03T08:01:00")
+      )
+    ).toEqual({
+      occurrence: {
+        ...occurrence,
+        scheduledAt: "2026-07-03T08:05:00",
+        status: "snoozed",
+      },
+      latestLog: logs[0],
+    });
+  });
+
+  it("restores the original time after an undone action", () => {
+    const logs: DoseLog[] = [
+      {
+        id: "skip-1",
+        doseOccurrenceId: occurrence.id,
+        medicationId: occurrence.medicationId,
+        scheduleId: occurrence.scheduleId,
+        action: "skipped",
+        actionAt: "2026-07-03T07:50:00",
+        snoozedUntil: "",
+      },
+      {
+        id: "undo-1",
+        doseOccurrenceId: occurrence.id,
+        medicationId: occurrence.medicationId,
+        scheduleId: occurrence.scheduleId,
+        action: "undone",
+        actionAt: "2026-07-03T07:51:00",
+        snoozedUntil: "",
+      },
+    ];
+
+    expect(
+      resolveDoseOccurrence(
+        occurrence,
+        logs,
+        new Date("2026-07-03T07:52:00")
+      )
+    ).toEqual({
+      occurrence: { ...occurrence, status: "pending" },
+      latestLog: logs[1],
+    });
   });
 });
 

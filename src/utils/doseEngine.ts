@@ -119,11 +119,9 @@ export function resolveDoseStatus(
 
   if (relevantLogs.length === 0) return unresolvedStatus();
 
-  const latestLog = [...relevantLogs].sort((a, b) =>
-    a.actionAt.localeCompare(b.actionAt)
-  )[relevantLogs.length - 1];
+  const latestLog = getLatestDoseLog(doseOccurrenceId, relevantLogs)!;
 
-  if (latestLog.action === "undone") return unresolvedStatus();
+  if (latestLog.action === "undone") return "pending";
   if (latestLog.action === "snoozed") {
     const snoozedUntil = new Date(latestLog.snoozedUntil).getTime();
     if (snoozedUntil > now.getTime()) return "snoozed";
@@ -134,6 +132,39 @@ export function resolveDoseStatus(
   if (latestLog.action === "skipped") return "skipped";
 
   return "pending";
+}
+
+export function getLatestDoseLog(
+  doseOccurrenceId: string,
+  logs: DoseLog[]
+): DoseLog | null {
+  const relevantLogs = logs
+    .filter((log) => log.doseOccurrenceId === doseOccurrenceId)
+    .sort((a, b) => a.actionAt.localeCompare(b.actionAt));
+  return relevantLogs.at(-1) ?? null;
+}
+
+export function resolveDoseOccurrence(
+  occurrence: DoseOccurrence,
+  logs: DoseLog[],
+  now = new Date()
+): { occurrence: DoseOccurrence; latestLog: DoseLog | null } {
+  const latestLog = getLatestDoseLog(occurrence.id, logs);
+  const status = resolveDoseStatus(
+    occurrence.id,
+    logs,
+    occurrence.scheduledAt,
+    now
+  );
+  const scheduledAt =
+    status === "snoozed" && latestLog?.action === "snoozed"
+      ? latestLog.snoozedUntil
+      : occurrence.scheduledAt;
+
+  return {
+    occurrence: { ...occurrence, scheduledAt, status },
+    latestLog,
+  };
 }
 
 export function getTodayDoseViewModel(
@@ -154,12 +185,17 @@ export function getTodayDoseViewModel(
         schedule,
         date
       );
-      for (const occ of occurrences) {
-        occ.status = resolveDoseStatus(occ.id, logs, occ.scheduledAt);
-      }
-      allOccurrences.push(...occurrences);
+      allOccurrences.push(
+        ...occurrences.map(
+          (occurrence) => resolveDoseOccurrence(occurrence, logs).occurrence
+        )
+      );
     }
   }
+
+  allOccurrences.sort((left, right) =>
+    left.scheduledAt.localeCompare(right.scheduledAt)
+  );
 
   return {
     occurrences: allOccurrences,

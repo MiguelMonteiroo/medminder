@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, ScrollView, StyleSheet, View } from "react-native";
 import { CompositeScreenProps } from "@react-navigation/native";
 import { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
@@ -35,6 +35,8 @@ function getOccurrenceTime(occurrence: DoseOccurrence) {
 
 export function HomeScreen({ navigation }: Props) {
   const [greeting, setGreeting] = useState(() => getGreetingForHour(new Date().getHours()));
+  const [undoingOccurrenceId, setUndoingOccurrenceId] = useState<string | null>(null);
+  const undoingOccurrenceRef = useRef<string | null>(null);
   const {
     medications,
     todayOccurrences,
@@ -45,6 +47,7 @@ export function HomeScreen({ navigation }: Props) {
     retryLoadingData,
     setDoseTaken,
     skipDose,
+    undoDoseAction,
     snoozeDose,
     snoozeMinutes,
   } = useAppData();
@@ -141,6 +144,26 @@ export function HomeScreen({ navigation }: Props) {
         dosage={medication.dosage}
         status={occurrence.status as "taken" | "skipped"}
         onPress={() => navigation.navigate("MedicationDetail", { medicationId: occurrence.medicationId })}
+        onUndo={
+          occurrence.status === "skipped"
+            ? async () => {
+                if (undoingOccurrenceRef.current) return;
+                undoingOccurrenceRef.current = occurrence.id;
+                setUndoingOccurrenceId(occurrence.id);
+                try {
+                  await undoDoseAction(
+                    occurrence.id,
+                    occurrence.medicationId,
+                    occurrence.scheduleId
+                  );
+                } finally {
+                  undoingOccurrenceRef.current = null;
+                  setUndoingOccurrenceId(null);
+                }
+              }
+            : undefined
+        }
+        undoing={undoingOccurrenceId === occurrence.id}
       />
     );
   }

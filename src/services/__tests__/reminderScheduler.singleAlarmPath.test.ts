@@ -57,8 +57,138 @@ function repository() {
   } as unknown as ReminderArtifactRepository;
 }
 
+function memoryRepository() {
+  const artifacts: any[] = [];
+  return {
+    create: jest.fn(async (artifact) => {
+      const index = artifacts.findIndex((candidate) => candidate.id === artifact.id);
+      if (index >= 0) artifacts[index] = artifact;
+      else artifacts.push(artifact);
+    }),
+    getByWindowKey: jest.fn(async (windowKey) =>
+      artifacts.filter((artifact) => artifact.doseWindowKey === windowKey)
+    ),
+  } as unknown as ReminderArtifactRepository;
+}
+
 describe("reminder scheduler alarm transport", () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it("displays and persists an immediate pre-alert when the five-minute mark already passed", async () => {
+    const repo = repository();
+    const alarmAudio = {
+      available: true,
+      schedule: jest.fn(async () => true),
+      cancel: jest.fn(async () => undefined),
+      cancelAll: jest.fn(async () => undefined),
+    };
+    (notifee.displayNotification as jest.Mock).mockResolvedValue(
+      "immediate-pre-alert"
+    );
+    const scheduler = createReminderScheduler(repo, alarmAudio);
+    const nearOccurrence: DoseOccurrence = {
+      ...occurrence,
+      id: "dose-near",
+      scheduledAt: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+    };
+
+    await scheduler.scheduleForOccurrence(
+      nearOccurrence,
+      medication,
+      schedule
+    );
+
+    expect(notifee.displayNotification).toHaveBeenCalledTimes(1);
+    expect(notifee.displayNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.stringMatching(/^pre-alert:/),
+        data: expect.objectContaining({ artifactKind: "preAlert" }),
+      })
+    );
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "preAlert",
+        notificationId: "immediate-pre-alert",
+      })
+    );
+  });
+
+  it("keeps pre-alert notification IDs distinct for different dose times", async () => {
+    const repo = repository();
+    const alarmAudio = {
+      available: true,
+      schedule: jest.fn(async () => true),
+      cancel: jest.fn(async () => undefined),
+      cancelAll: jest.fn(async () => undefined),
+    };
+    const scheduler = createReminderScheduler(repo, alarmAudio);
+
+    await scheduler.scheduleForOccurrence(
+      {
+        ...occurrence,
+        id: "dose-first",
+        scheduledAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+      },
+      medication,
+      schedule
+    );
+    await scheduler.scheduleForOccurrence(
+      {
+        ...occurrence,
+        id: "dose-second",
+        scheduledAt: new Date(Date.now() + 40 * 60 * 1000).toISOString(),
+      },
+      medication,
+      schedule
+    );
+
+    const preAlertIds = (repo.create as jest.Mock).mock.calls
+      .map(([artifact]) => artifact)
+      .filter((artifact) => artifact.kind === "preAlert")
+      .map((artifact) => artifact.id);
+    expect(preAlertIds).toHaveLength(2);
+    expect(new Set(preAlertIds).size).toBe(2);
+  });
+
+  it("keeps one grouped pre-alert for medications scheduled in the same minute", async () => {
+    const repo = memoryRepository();
+    const alarmAudio = {
+      available: true,
+      schedule: jest.fn(async () => true),
+      cancel: jest.fn(async () => undefined),
+      cancelAll: jest.fn(async () => undefined),
+    };
+    (notifee.createTriggerNotification as jest.Mock).mockImplementation(
+      async (notification) => notification.id
+    );
+    const scheduler = createReminderScheduler(repo, alarmAudio);
+    const sharedTime = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+
+    await scheduler.scheduleForOccurrence(
+      { ...occurrence, id: "dose-first", scheduledAt: sharedTime },
+      medication,
+      schedule
+    );
+    await scheduler.scheduleForOccurrence(
+      {
+        ...occurrence,
+        id: "dose-second",
+        medicationId: "med-2",
+        scheduledAt: sharedTime,
+      },
+      { ...medication, id: "med-2", name: "Losartana" },
+      { ...schedule, id: "schedule-2", medicationId: "med-2" }
+    );
+
+    const preAlerts = (
+      notifee.createTriggerNotification as jest.Mock
+    ).mock.calls
+      .map(([notification]) => notification)
+      .filter((notification) => notification.data?.artifactKind === "preAlert");
+    expect(preAlerts).toHaveLength(2);
+    expect(preAlerts[0].id).toBe(preAlerts[1].id);
+    expect(preAlerts[1].title).toBe("2 medicamentos em 5 minutos");
+  });
 
   it("uses only the native alarm when native scheduling succeeds", async () => {
     const repo = repository();

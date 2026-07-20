@@ -56,6 +56,7 @@ interface AppDataContextValue {
   removeMedication: (id: string) => Promise<void>;
   setDoseTaken: (occurrenceId: string, medicationId: string, scheduleId: string, isTaken: boolean) => Promise<void>;
   skipDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
+  undoDoseAction: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
   snoozeDose: (occurrenceId: string, medicationId: string, scheduleId: string) => Promise<void>;
   doseService: DoseService | null;
   setMedicationPaused: (medicationId: string, paused: boolean) => Promise<void>;
@@ -96,6 +97,7 @@ const AppDataContext = createContext<AppDataContextValue>({
   removeMedication: async () => {},
   setDoseTaken: async () => {},
   skipDose: async () => {},
+  undoDoseAction: async () => {},
   snoozeDose: async () => {},
   doseService: null,
   setMedicationPaused: async () => {},
@@ -157,6 +159,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           repos.reminderArtifacts,
           repos.medications,
           repos.schedules,
+          repos.doseLogs,
           repos.settings,
           reminderScheduler
         );
@@ -191,6 +194,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         repos.reminderArtifacts,
         repos.medications,
         repos.schedules,
+        repos.doseLogs,
         repos.settings,
         reminderScheduler
       );
@@ -338,6 +342,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             repos.reminderArtifacts,
             repos.medications,
             repos.schedules,
+            repos.doseLogs,
             repos.settings,
             reminderScheduler
           );
@@ -347,6 +352,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             repos.reminderArtifacts,
             repos.medications,
             repos.schedules,
+            repos.doseLogs,
             repos.settings,
             reminderScheduler
           ),
@@ -408,6 +414,30 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const undoDoseAction = useCallback(
+    async (occurrenceId: string, medicationId: string, scheduleId: string) => {
+      await doseSvc.undoDoseAction(
+        occurrenceId,
+        medicationId,
+        scheduleId,
+        new Date().toISOString()
+      );
+      await refreshDoseLogs();
+
+      if (settingsRef.current.notificationsEnabled) {
+        await reconcileNotifications(
+          repos.reminderArtifacts,
+          repos.medications,
+          repos.schedules,
+          repos.doseLogs,
+          repos.settings,
+          reminderScheduler
+        );
+      }
+    },
+    [refreshDoseLogs]
+  );
+
   const snoozeDose = useCallback(
     async (occurrenceId: string, medicationId: string, scheduleId: string) => {
       const snoozeCount = await repos.doseLogs.countSnoozes(occurrenceId);
@@ -416,7 +446,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const snoozeMs = 5 * 60 * 1000;
       const snoozedUntil = new Date(now.getTime() + snoozeMs);
 
-      await reminderScheduler.cancelSingle(occurrenceId);
+      await doseSvc.snoozeDose(
+        occurrenceId,
+        medicationId,
+        scheduleId,
+        now.toISOString(),
+        snoozedUntil.toISOString()
+      );
+      await refreshDoseLogs();
 
       const occurrence: DoseOccurrence = {
         id: occurrenceId,
@@ -429,32 +466,23 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const medication = medications.find((m) => m.id === medicationId);
       const schedule = schedules.find((s) => s.id === scheduleId);
 
+      await reminderScheduler.cancelSingle(occurrenceId);
       if (medication && schedule) {
         await reminderScheduler.scheduleForOccurrence(
           occurrence,
           medication,
           schedule,
           {
-            showLockScreenDetails: settings.showLockScreenDetails,
-            fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
-            criticalAlertsEnabled: settings.criticalAlertsEnabled,
+            showLockScreenDetails: settingsRef.current.showLockScreenDetails,
+            fullScreenAlarmEnabled: settingsRef.current.fullScreenAlarmEnabled,
+            criticalAlertsEnabled: settingsRef.current.criticalAlertsEnabled,
             snoozed: true,
             alarmAt: snoozedUntil,
           }
         );
       }
-
-      await doseSvc.snoozeDose(
-        occurrenceId,
-        medicationId,
-        scheduleId,
-        now.toISOString(),
-        snoozedUntil.toISOString()
-      );
-
-      await refreshDoseLogs();
     },
-    [settings.defaultSnoozeMinutes, medications, schedules]
+    [medications, refreshDoseLogs, schedules]
   );
 
   const updateMedicationWithSchedule = useCallback(
@@ -533,6 +561,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             repos.reminderArtifacts,
             repos.medications,
             repos.schedules,
+            repos.doseLogs,
             repos.settings,
             reminderScheduler
           );
@@ -542,6 +571,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             repos.reminderArtifacts,
             repos.medications,
             repos.schedules,
+            repos.doseLogs,
             repos.settings,
             reminderScheduler
           ),
@@ -641,6 +671,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         removeMedication,
         setDoseTaken,
         skipDose,
+        undoDoseAction,
         snoozeDose,
         setMedicationPaused,
         updateMedicationWithSchedule,
