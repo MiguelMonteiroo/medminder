@@ -11,7 +11,7 @@ Avisar o usuario antes de uma dose e solicitar uma acao no horario agendado, mes
 3. O alarme em tela cheia e opcional e depende de consentimento explicito e da permissao especial do Android.
 4. Sem acesso a tela cheia, o app usa uma notificacao de alta prioridade com as mesmas acoes.
 5. Som e vibracao se repetem por no maximo 60 segundos.
-6. Sem interacao apos 60 segundos, o som e a vibracao param, a experiencia em tela cheia e encerrada e uma notificacao acionavel permanece visivel.
+6. Sem interacao apos 60 segundos, som, vibracao, tela cheia e a notificacao obrigatoria do foreground service sao encerrados juntos. O reforco posterior continua sendo agendado separadamente.
 7. A ausencia de interacao nao registra a dose como tomada, pulada ou perdida; ela continua pendente.
 8. Se o usuario ignorar o alarme, o app entrega um unico reforco dez minutos depois como notificacao de alta prioridade, sem abrir a tela cheia novamente.
 9. Se o usuario escolher `Adiar 5 min`, o app agenda um novo alarme completo para cinco minutos depois.
@@ -32,6 +32,9 @@ Avisar o usuario antes de uma dose e solicitar uma acao no horario agendado, mes
 24. `Tocar no silencioso e Nao Perturbe` e opcional e depende de preferencia explicita e acesso concedido pelo Android.
 25. Sem esse acesso, o Remedin usa o canal normal e explica que o Android pode silenciar o alarme.
 26. O Remedin nao altera globalmente o modo Nao Perturbe; o usuario continua no controle final dos canais.
+27. Alarmes com tela cheia habilitada usam `AlarmManager.setAlarmClock()` e mantem `setExactAndAllowWhileIdle()` como fallback.
+28. Se um fabricante impedir a abertura sobre a lockscreen, o Remedin traz a task ativa para frente assim que receber `ACTION_USER_PRESENT`.
+29. Com o aparelho ja desbloqueado, Android 13+ pode manter apenas o heads-up persistente; o app nao usa overlay nem servico de acessibilidade para contornar essa regra.
 
 ## Requisitos de configuracao
 
@@ -47,15 +50,17 @@ Cada item deve ter estado legivel, explicacao curta e um unico botao contextual,
 
 ## Tela de alarme
 
-A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `RemedinDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
+A experiencia em tela cheia abre a aplicacao principal do Remedin pela `MainActivity`. Ela ativa temporariamente as flags para aparecer sobre a lockscreen, acender a tela, mante-la ativa e ocultar as barras do sistema somente enquanto houver um alarme. Aberturas comuns nunca recebem essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
+
+Quando o alarme comeca com o aparelho bloqueado ou a tela apagada, o servico acompanha `ACTION_USER_PRESENT` somente durante a vigencia desse alarme. Se a tela cheia nao tiver sido mantida pelo fabricante, a task existente do Remedin volta para frente imediatamente apos o desbloqueio. O receiver e removido ao tomar, adiar, cancelar, encerrar o teste ou atingir o timeout, impedindo que alarmes encerrados reabram o app.
 
 A tela segue o design system Home Care Cards e a referencia visual em `docs/design/dose-alarm-screen.png`: fundo creme, verde profundo, acento pessego, bordas sutis, raio maximo de 8 px, icones lineares e acoes individuais por dose.
 
 Quando houver notas do medicamento, a tela mostra no maximo duas linhas por dose. Notas seguem a preferencia `Mostrar detalhes na tela bloqueada` e ficam ocultas quando essa preferencia estiver desativada.
 
-Quando o Remedin estiver em primeiro plano, a mesma experiencia aparece como modal sobre a tela atual. O modal nao desmonta a navegacao nem perde dados de formularios; ao encerrar, o usuario retorna ao estado anterior.
+Quando o Remedin estiver em primeiro plano, a mesma experiencia aparece como modal sobre a tela atual. Ao tomar, adiar, encerrar o teste ou atingir o timeout, o alarme e fechado e a navegacao retorna para `Hoje` com os dados atualizados.
 
-A tela nao possui acao `Fechar`. Voltar, bloquear o aparelho ou trocar de app apenas minimiza a experiencia e nao altera a dose. O som continua ate o limite de 60 segundos e a notificacao permanece visivel.
+Voltar ou fechar explicitamente a tela cancela o alarme ativo para que o audio nunca continue sem uma interface ou notificacao correspondente. Bloquear o aparelho ou trocar de app nao altera o estado da dose.
 
 Os botoes de volume ajustam apenas o volume; eles nao registram, pulam nem adiam uma dose.
 
@@ -72,7 +77,7 @@ Os mesmos controles permanecem disponiveis em `Perfil > Lembretes`. O app nao so
 
 ## Som e controle do sistema
 
-O alarme no horario usa um `MediaPlayer` nativo com `AudioAttributes.USAGE_ALARM` dentro de um foreground service de duracao limitada. Quando esse player e agendado, a notificacao usa um canal silencioso de alta importancia para evitar audio duplicado. Sem acesso a alarmes exatos, o app volta ao canal sonoro como fallback. O canal critico continua opcional e so e criado quando o Android concede acesso a politica de notificacoes.
+O alarme no horario usa um `MediaPlayer` nativo com `AudioAttributes.USAGE_ALARM` dentro de um foreground service de duracao limitada. Quando o agendamento nativo funciona, a propria notificacao do foreground service e o unico artefato visivel: ela sustenta o audio, a vibracao, a tela cheia e as acoes. O app nao agenda uma segunda notificacao Notifee para a mesma dose. Sem acesso a alarmes exatos ou sem o modulo nativo, o app usa uma unica notificacao Notifee como fallback. O canal critico continua opcional e depende do acesso a politica de notificacoes.
 
 Em aparelhos Xiaomi, a opcao do sistema que permite midia no modo silencioso pode deixar o player nativo audivel mesmo quando sons de notificacoes seriam filtrados. Esse comportamento depende do fabricante e nao representa garantia de atravessar o modo Silencio total do Android.
 
@@ -82,7 +87,7 @@ Som, vibracao, volume e excecoes ao modo Nao Perturbe permanecem sob controle fi
 
 ## Teste de alarme
 
-`Testar alarme` agenda um evento isolado para cinco segundos depois, usando tela cheia, som e vibracao reais por no maximo dez segundos. A interface mostra `Teste de alarme` e apenas a acao `Encerrar teste`.
+`Testar alarme` agenda um evento isolado para cinco segundos depois, usando tela cheia, som e vibracao reais por no maximo dez segundos. O teste nativo publica somente a notificacao do foreground service. A interface e a notificacao mostram `Teste de alarme` e apenas a acao `Encerrar teste`, processada sem depender da inicializacao do React Native.
 
 O teste nao cria ocorrencia, log, adesao, reforco nem adiamento. Ao terminar, a configuracao informa quais recursos funcionaram e quais permissoes ou acessos ainda faltam.
 

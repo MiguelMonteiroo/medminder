@@ -39,7 +39,24 @@ const MINUTES = Array.from({ length: 60 }, (_, index) =>
 
 export function WheelTimePicker({ value, onChange, label }: Props) {
   const { hour, minute } = useMemo(() => parseTime(value), [value]);
+  const latestTimeRef = useRef({ hour, minute });
   const pickerLabel = label || "Selecionar horário";
+
+  useEffect(() => {
+    latestTimeRef.current = { hour, minute };
+  }, [hour, minute]);
+
+  function changeHour(nextHour: string) {
+    const nextTime = { ...latestTimeRef.current, hour: nextHour };
+    latestTimeRef.current = nextTime;
+    onChange(`${nextTime.hour}:${nextTime.minute}`);
+  }
+
+  function changeMinute(nextMinute: string) {
+    const nextTime = { ...latestTimeRef.current, minute: nextMinute };
+    latestTimeRef.current = nextTime;
+    onChange(`${nextTime.hour}:${nextTime.minute}`);
+  }
 
   return (
     <View style={styles.container}>
@@ -70,7 +87,7 @@ export function WheelTimePicker({ value, onChange, label }: Props) {
           label="Hora"
           options={HOURS}
           selectedValue={hour}
-          onSelect={(nextHour) => onChange(`${nextHour}:${minute}`)}
+          onSelect={changeHour}
         />
         <View style={styles.separatorColumn} pointerEvents="none">
           <AppText variant="heading" style={styles.separator}>
@@ -82,7 +99,7 @@ export function WheelTimePicker({ value, onChange, label }: Props) {
           label="Minuto"
           options={MINUTES}
           selectedValue={minute}
-          onSelect={(nextMinute) => onChange(`${hour}:${nextMinute}`)}
+          onSelect={changeMinute}
         />
       </View>
     </View>

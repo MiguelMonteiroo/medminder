@@ -1,13 +1,30 @@
 import { NativeModules, Platform } from "react-native";
 
+export type NativeAlarmPayload = {
+  alarmId: string;
+  artifactKind: "doseAlarm" | "snoozedAlarm" | "alarmTest";
+  title: string;
+  body: string;
+  doseOccurrenceId: string;
+  medicationId: string;
+  scheduleId: string;
+  scheduledAt: string;
+  doseWindowKey: string;
+  showDetails: boolean;
+  fullScreenEnabled: boolean;
+  criticalAlertsEnabled: boolean;
+};
+
 type NativeAlarmAudioModule = {
   scheduleAlarmAudio: (
     alarmId: string,
     triggerAtMillis: number,
-    timeoutMillis: number
+    timeoutMillis: number,
+    payload: NativeAlarmPayload
   ) => Promise<boolean>;
   cancelAlarmAudio: (alarmId: string) => Promise<void>;
   cancelAllAlarmAudio: () => Promise<void>;
+  getScheduledAlarmIds?: () => Promise<string[]>;
 };
 
 export type AlarmAudioController = {
@@ -15,10 +32,12 @@ export type AlarmAudioController = {
   schedule: (
     alarmId: string,
     triggerAtMillis: number,
-    timeoutMillis: number
+    timeoutMillis: number,
+    payload: NativeAlarmPayload
   ) => Promise<boolean>;
   cancel: (alarmId: string) => Promise<void>;
   cancelAll: () => Promise<void>;
+  getScheduledIds: () => Promise<string[]>;
 };
 
 export function createAlarmAudioController(
@@ -28,12 +47,13 @@ export function createAlarmAudioController(
   const available = isAndroid && nativeModule !== undefined;
   return {
     available,
-    schedule: async (alarmId, triggerAtMillis, timeoutMillis) =>
+    schedule: async (alarmId, triggerAtMillis, timeoutMillis, payload) =>
       available
         ? nativeModule.scheduleAlarmAudio(
             alarmId,
             triggerAtMillis,
-            timeoutMillis
+            timeoutMillis,
+            payload
           )
         : false,
     cancel: async (alarmId) => {
@@ -42,6 +62,10 @@ export function createAlarmAudioController(
     cancelAll: async () => {
       if (available) await nativeModule.cancelAllAlarmAudio();
     },
+    getScheduledIds: async () =>
+      available && nativeModule.getScheduledAlarmIds
+        ? nativeModule.getScheduledAlarmIds()
+        : [],
   };
 }
 

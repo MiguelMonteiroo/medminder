@@ -9,8 +9,9 @@ import {
   type NotificationActionCommand,
   type NotificationActionDependencies,
 } from "./notificationActionHandler";
-import { finishDoseAlarmActivityIfOpen } from "./nativeReminderPermissions";
+import { finishActiveAlarm } from "./nativeReminderPermissions";
 import { nativeAlarmAudio } from "./nativeAlarmAudio";
+import { shouldReconcileDeliveredNotification } from "./notificationDeliveryPolicy";
 
 async function createDefaultDependencies(): Promise<NotificationActionDependencies> {
   const database = await openAppDatabase();
@@ -53,7 +54,11 @@ async function createDefaultDependencies(): Promise<NotificationActionDependenci
 
 export async function handleNotifeeEvent(event: Event): Promise<void> {
   if (event.type === EventType.DELIVERED) {
-    await reconcileRemindersFromBackground();
+    if (
+      shouldReconcileDeliveredNotification(event.detail.notification?.data)
+    ) {
+      await reconcileRemindersFromBackground();
+    }
     return;
   }
 
@@ -79,7 +84,7 @@ export async function handleNotifeeEvent(event: Event): Promise<void> {
     actionId === "snooze-five" ||
     actionId === "end-alarm-test"
   ) {
-    await finishDoseAlarmActivityIfOpen();
+    await finishActiveAlarm(notificationId);
   }
 }
 
@@ -91,6 +96,7 @@ export async function reconcileRemindersFromBackground(): Promise<void> {
     repositories.reminderArtifacts,
     repositories.medications,
     repositories.schedules,
+    repositories.doseLogs,
     repositories.settings,
     scheduler
   );

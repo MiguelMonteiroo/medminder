@@ -4,6 +4,8 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.Arguments
 
 class AlarmAudioModule(
     reactContext: ReactApplicationContext,
@@ -16,6 +18,7 @@ class AlarmAudioModule(
       alarmId: String,
       triggerAtMillis: Double,
       timeoutMillis: Double,
+      payload: ReadableMap,
       promise: Promise,
   ) {
     try {
@@ -25,6 +28,7 @@ class AlarmAudioModule(
               alarmId,
               triggerAtMillis.toLong(),
               timeoutMillis.toLong(),
+              Arguments.toBundle(payload),
           ),
       )
     } catch (error: Exception) {
@@ -49,6 +53,19 @@ class AlarmAudioModule(
       promise.resolve(null)
     } catch (error: Exception) {
       promise.reject("cancel-all-alarm-audio", error)
+    }
+  }
+
+  @ReactMethod
+  fun getScheduledAlarmIds(promise: Promise) {
+    try {
+      val ids = Arguments.createArray()
+      AlarmAudioScheduler.scheduledIds(reactApplicationContext)
+          .sorted()
+          .forEach(ids::pushString)
+      promise.resolve(ids)
+    } catch (error: Exception) {
+      promise.reject("get-scheduled-alarm-ids", error)
     }
   }
 }

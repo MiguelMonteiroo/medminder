@@ -98,6 +98,25 @@ describe("buildDailyAdherenceSummary", () => {
     expect(result.percentage).toBeNull();
   });
 
+  it("does not project a newly registered medication into earlier history", () => {
+    const newMedication = {
+      ...medication,
+      createdAt: "2026-07-13T10:30:00",
+      updatedAt: "2026-07-13T10:30:00",
+    };
+
+    const result = buildDailyAdherenceSummary(
+      "2026-07-12",
+      [newMedication],
+      [schedule],
+      [],
+      new Date("2026-07-13T12:00:00")
+    );
+
+    expect(result.total).toBe(0);
+    expect(result.percentage).toBeNull();
+  });
+
   it("uses the latest action for an occurrence", () => {
     const result = buildDailyAdherenceSummary(
       "2026-07-13",

@@ -7,7 +7,7 @@ import {
 } from "@notifee/react-native";
 
 export const REMINDER_CHANNELS = {
-  preAlert: "medication-pre-alerts-v1",
+  preAlert: "medication-pre-alerts-v4",
   alarm: "medication-dose-alarms-v3",
   criticalAlarm: "medication-dose-alarms-critical-v3",
   nativeAlarm: "medication-dose-alarms-player-v1",
@@ -34,12 +34,11 @@ type AlarmOptions = {
   useNativeAudio: boolean;
 };
 
-const DOSE_ALARM_ACTIVITY = "com.remedin.DoseAlarmActivity";
-const DOSE_ALARM_ACTIVITY_FLAGS = [
+const MAIN_ACTIVITY = "com.remedin.MainActivity";
+const MAIN_ACTIVITY_FLAGS = [
   AndroidLaunchActivityFlag.NEW_TASK,
   AndroidLaunchActivityFlag.CLEAR_TOP,
   AndroidLaunchActivityFlag.SINGLE_TOP,
-  AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
 ];
 
 function alarmChannel(
@@ -106,9 +105,15 @@ export function buildPreAlertNotification(
     android: {
       channelId: REMINDER_CHANNELS.preAlert,
       category: AndroidCategory.REMINDER,
-      visibility: showDetails
-        ? AndroidVisibility.PUBLIC
-        : AndroidVisibility.PRIVATE,
+      autoCancel: true,
+      onlyAlertOnce: true,
+      loopSound: false,
+      ongoing: false,
+      lightUpScreen: true,
+      importance: AndroidImportance.DEFAULT,
+      // Generic copy already protects private doses; PUBLIC keeps the reminder
+      // visible on lock screens that completely suppress private notifications.
+      visibility: AndroidVisibility.PUBLIC,
       pressAction: {
         id: "open-dose-window",
         launchActivity: "default",
@@ -147,14 +152,14 @@ export function buildDoseAlarmNotification(
       timeoutAfter: 60_000,
       pressAction: {
         id: "open-dose-window",
-        launchActivity: DOSE_ALARM_ACTIVITY,
-        launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+        launchActivity: MAIN_ACTIVITY,
+        launchActivityFlags: MAIN_ACTIVITY_FLAGS,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "dose-alarm",
-            launchActivity: DOSE_ALARM_ACTIVITY,
-            launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+            launchActivity: MAIN_ACTIVITY,
+            launchActivityFlags: MAIN_ACTIVITY_FLAGS,
           }
         : undefined,
       actions: doseActions(options.showDetails),
@@ -242,14 +247,14 @@ export function buildAlarmTestNotification(options: {
       timeoutAfter: 10_000,
       pressAction: {
         id: "alarm-test",
-        launchActivity: DOSE_ALARM_ACTIVITY,
-        launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+        launchActivity: MAIN_ACTIVITY,
+        launchActivityFlags: MAIN_ACTIVITY_FLAGS,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "alarm-test",
-            launchActivity: DOSE_ALARM_ACTIVITY,
-            launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+            launchActivity: MAIN_ACTIVITY,
+            launchActivityFlags: MAIN_ACTIVITY_FLAGS,
           }
         : undefined,
       actions: [

@@ -8,6 +8,7 @@ import com.facebook.react.HeadlessJsTaskService
 class ReminderRescheduleReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
     try {
+      runCatching { AlarmAudioScheduler.cancelAll(context) }
       val serviceIntent = Intent(context, ReminderReconcileService::class.java)
       serviceIntent.putExtra("reason", intent.action ?: "device-event")
       context.startService(serviceIntent)

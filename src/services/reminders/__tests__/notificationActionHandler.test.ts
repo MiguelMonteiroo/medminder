@@ -33,7 +33,7 @@ function createDependencies(existingLogs: DoseLog[] = []) {
   };
 
   const dependencies: NotificationActionDependencies = {
-    now: () => new Date("2026-07-03T08:00:00-03:00"),
+    now: () => new Date(2026, 6, 3, 8, 0, 0),
     getMedication: async () => medication,
     getSchedule: async () => schedule,
     getSettings: async () => ({
@@ -108,7 +108,7 @@ describe("processNotificationAction", () => {
     );
 
     expect(result).toEqual({ status: "snoozed", snoozeCount: 1 });
-    expect(state.scheduled).toEqual(["2026-07-03T11:05:00.000Z"]);
+    expect(state.scheduled).toEqual(["2026-07-03T08:05:00.000"]);
   });
 
   it("does not schedule a fourth snoozed alarm", async () => {
@@ -151,8 +151,36 @@ describe("processNotificationAction", () => {
     expect(state.logs.filter((log) => log.action === "snoozed")).toHaveLength(1);
     expect(state.cancelled).toEqual(["occ-1", "occ-1"]);
     expect(state.scheduled).toEqual([
-      "2026-07-03T11:05:00.000Z",
-      "2026-07-03T11:05:00.000Z",
+      "2026-07-03T08:05:00.000",
+      "2026-07-03T08:05:00.000",
     ]);
+  });
+
+  it("normalizes a legacy UTC snooze when retrying its command", async () => {
+    const commandId = "notification-1:snooze-five";
+    const localSnooze = new Date(2026, 6, 3, 8, 5, 0);
+    const state = createDependencies([
+      {
+        id: "legacy-snooze",
+        doseOccurrenceId: "occ-1",
+        medicationId: "med-1",
+        scheduleId: "sched-1",
+        action: "snoozed",
+        actionAt: new Date(2026, 6, 3, 8, 0, 0).toISOString(),
+        snoozedUntil: localSnooze.toISOString(),
+        commandId,
+      },
+    ]);
+
+    await processNotificationAction(
+      {
+        ...baseCommand,
+        actionId: "snooze-five",
+        commandId,
+      },
+      state.dependencies
+    );
+
+    expect(state.scheduled).toEqual(["2026-07-03T08:05:00.000"]);
   });
 });

@@ -12,6 +12,8 @@ Remedin declares `USE_FULL_SCREEN_INTENT` because a core app function is present
 
 Screenshots or a short review video should show the schedule creation, the Profile toggle, the Android permission page, the locked-device alarm, and the fallback.
 
+The full-screen intent opens the regular `MainActivity` in a temporary alarm mode. Lock-screen and screen-on flags are removed when the alarm ends, so ordinary application launches never appear over the lockscreen.
+
 ## Notification policy access
 
 Remedin declares `ACCESS_NOTIFICATION_POLICY` only to create an optional dose-alarm channel that can bypass silent/Do Not Disturb modes after explicit user authorization. The app does not change the global interruption filter.
@@ -23,6 +25,8 @@ Store copy, onboarding, the privacy policy, and Data Safety answers must describ
 Remedin declares the `systemExempted` foreground service type because it holds `SCHEDULE_EXACT_ALARM` and uses a short-lived service to continue user-scheduled alarm audio in the background. Complete the foreground-service declaration together with the Full-Screen Intent declaration before publishing the first internal-test release.
 
 The declaration must explain that the service runs for at most 60 seconds, remains perceptible to the user, can be stopped from the alarm actions, and cannot be deferred without risking a late medication reminder. Provide a review video showing schedule creation, alarm delivery and alarm termination.
+
+The foreground-service notification is the only visible notification for a native exact dose alarm. It is mandatory while audio is playing and is removed when the service ends. Notifee is used instead, not in parallel, when native scheduling is unavailable.
 
 ## Release verification
 

@@ -2,6 +2,7 @@ import type {
   DoseOccurrence,
   ReminderArtifactKind,
 } from "../../types/domain";
+import { formatLocalDateTime } from "../../utils/dateTime";
 
 const MINUTE_MS = 60_000;
 
@@ -19,19 +20,6 @@ type PlanOptions = {
   alarmAt?: Date;
   snoozed?: boolean;
 };
-
-function formatLocalDateTime(date: Date): string {
-  const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(date.getDate()).padStart(2, "0")}`;
-  const time = `${String(date.getHours()).padStart(2, "0")}:${String(
-    date.getMinutes()
-  ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}.${String(
-    date.getMilliseconds()
-  ).padStart(3, "0")}`;
-  return `${day}T${time}`;
-}
 
 function createPlan(
   occurrence: DoseOccurrence,
@@ -77,7 +65,11 @@ export function planOccurrenceReminders(
   ]);
 
   return candidates
-    .filter(([, scheduledAt]) => scheduledAt.getTime() > now.getTime())
+    .filter(([kind, scheduledAt]) =>
+      kind === "preAlert"
+        ? alarmAt.getTime() > now.getTime()
+        : scheduledAt.getTime() > now.getTime()
+    )
     .map(([kind, scheduledAt]) =>
       createPlan(occurrence, kind, scheduledAt, windowKey)
     );

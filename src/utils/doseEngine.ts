@@ -5,6 +5,17 @@ import {
   DoseLog,
   DoseStatus,
 } from "../types/domain";
+import { normalizeDoseDateTime } from "./dateTime";
+
+function occursAfterMedicationCreation(
+  occurrence: DoseOccurrence,
+  medication: Medication
+): boolean {
+  const createdAt = new Date(medication.createdAt).getTime();
+  const scheduledAt = new Date(occurrence.scheduledAt).getTime();
+  if (!Number.isFinite(createdAt) || !Number.isFinite(scheduledAt)) return true;
+  return scheduledAt >= createdAt;
+}
 
 function getDayOfWeek(dateString: string): number {
   const date = new Date(dateString + "T12:00:00");
@@ -80,7 +91,9 @@ export function generateDoseOccurrencesForDate(
   if (!isDateInRange(date, schedule.startDate, schedule.endDate)) return [];
 
   if (schedule.kind === "intervalHours") {
-    return generateIntervalOccurrences(medication, schedule, date);
+    return generateIntervalOccurrences(medication, schedule, date).filter(
+      (occurrence) => occursAfterMedicationCreation(occurrence, medication)
+    );
   }
 
   if (schedule.kind === "weekdays") {
@@ -88,13 +101,17 @@ export function generateDoseOccurrencesForDate(
     if (!schedule.weekdays.includes(dayOfWeek)) return [];
   }
 
-  return schedule.times.map((time, index) => ({
-    id: `${medication.id}-${schedule.id}-${date}-${index}`,
-    medicationId: medication.id,
-    scheduleId: schedule.id,
-    scheduledAt: `${date}T${time}:00`,
-    status: "pending" as DoseStatus,
-  }));
+  return schedule.times
+    .map((time, index) => ({
+      id: `${medication.id}-${schedule.id}-${date}-${index}`,
+      medicationId: medication.id,
+      scheduleId: schedule.id,
+      scheduledAt: `${date}T${time}:00`,
+      status: "pending" as DoseStatus,
+    }))
+    .filter((occurrence) =>
+      occursAfterMedicationCreation(occurrence, medication)
+    );
 }
 
 export function resolveDoseStatus(
@@ -119,11 +136,9 @@ export function resolveDoseStatus(
 
   if (relevantLogs.length === 0) return unresolvedStatus();
 
-  const latestLog = [...relevantLogs].sort((a, b) =>
-    a.actionAt.localeCompare(b.actionAt)
-  )[relevantLogs.length - 1];
+  const latestLog = getLatestDoseLog(doseOccurrenceId, relevantLogs)!;
 
-  if (latestLog.action === "undone") return unresolvedStatus();
+  if (latestLog.action === "undone") return "pending";
   if (latestLog.action === "snoozed") {
     const snoozedUntil = new Date(latestLog.snoozedUntil).getTime();
     if (snoozedUntil > now.getTime()) return "snoozed";
@@ -134,6 +149,39 @@ export function resolveDoseStatus(
   if (latestLog.action === "skipped") return "skipped";
 
   return "pending";
+}
+
+export function getLatestDoseLog(
+  doseOccurrenceId: string,
+  logs: DoseLog[]
+): DoseLog | null {
+  const relevantLogs = logs
+    .filter((log) => log.doseOccurrenceId === doseOccurrenceId)
+    .sort((a, b) => a.actionAt.localeCompare(b.actionAt));
+  return relevantLogs.at(-1) ?? null;
+}
+
+export function resolveDoseOccurrence(
+  occurrence: DoseOccurrence,
+  logs: DoseLog[],
+  now = new Date()
+): { occurrence: DoseOccurrence; latestLog: DoseLog | null } {
+  const latestLog = getLatestDoseLog(occurrence.id, logs);
+  const status = resolveDoseStatus(
+    occurrence.id,
+    logs,
+    occurrence.scheduledAt,
+    now
+  );
+  const scheduledAt =
+    status === "snoozed" && latestLog?.action === "snoozed"
+      ? normalizeDoseDateTime(latestLog.snoozedUntil)
+      : occurrence.scheduledAt;
+
+  return {
+    occurrence: { ...occurrence, scheduledAt, status },
+    latestLog,
+  };
 }
 
 export function getTodayDoseViewModel(
@@ -154,12 +202,18 @@ export function getTodayDoseViewModel(
         schedule,
         date
       );
-      for (const occ of occurrences) {
-        occ.status = resolveDoseStatus(occ.id, logs, occ.scheduledAt);
-      }
-      allOccurrences.push(...occurrences);
+      allOccurrences.push(
+        ...occurrences.map(
+          (occurrence) => resolveDoseOccurrence(occurrence, logs).occurrence
+        )
+      );
     }
   }
+
+  allOccurrences.sort(
+    (left, right) =>
+      new Date(left.scheduledAt).getTime() - new Date(right.scheduledAt).getTime()
+  );
 
   return {
     occurrences: allOccurrences,

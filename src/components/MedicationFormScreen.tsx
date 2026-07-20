@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -55,12 +56,26 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
   const [error, setError] = useState("");
   const [step, setStep] = useState<Step>(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const submissionInFlightRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const nameInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () =>
+      submissionInFlightRef.current
+    );
+    return () => subscription.remove();
+  }, []);
 
   function update<K extends keyof MedicationFormValues>(key: K, value: MedicationFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
     if (error) setError("");
+    if (submitError) setSubmitError("");
+  }
+
+  function goToStep(nextStep: Step) {
+    if (!submissionInFlightRef.current) setStep(nextStep);
   }
 
   function toggleWeekday(day: number) {
@@ -108,17 +123,22 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
   }
 
   async function handleContinue() {
-    if (isSaving || !validateStep(step)) return;
+    if (submissionInFlightRef.current || isSaving || !validateStep(step)) return;
     if (step < 4) {
       setStep((step + 1) as Step);
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
     const normalized = normalizeMedicationInput(values);
+    submissionInFlightRef.current = true;
     setIsSaving(true);
+    setSubmitError("");
     try {
       await onSubmit({ ...values, ...normalized, time: values.time.trim() });
+    } catch {
+      setSubmitError(ptBR.form.saveError);
     } finally {
+      submissionInFlightRef.current = false;
       setIsSaving(false);
     }
   }
@@ -129,7 +149,14 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardArea}>
         <View style={styles.header}>
-          <IconButton icon={ArrowLeft} label={ptBR.actions.back} onPress={onBack} />
+          <IconButton
+            disabled={isSaving}
+            icon={ArrowLeft}
+            label={ptBR.actions.back}
+            onPress={() => {
+              if (!submissionInFlightRef.current) onBack();
+            }}
+          />
           <View style={styles.headerText}>
             <AppText variant="title" style={styles.title}>{title}</AppText>
             <AppText muted>{ptBR.form.subtitle}</AppText>
@@ -152,7 +179,7 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <MedicationFormStep step={1} title={ptBR.form.medication} icon={Pill} expanded={step === 1} onPress={() => setStep(1)}>
+          <MedicationFormStep step={1} title={ptBR.form.medication} icon={Pill} expanded={step === 1} onPress={() => goToStep(1)}>
             <FieldLabel label={ptBR.form.name} />
             <TextInput
               ref={nameInputRef}
@@ -175,7 +202,7 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
             {error && step === 1 ? <FormError message={error} /> : null}
           </MedicationFormStep>
 
-          <MedicationFormStep step={2} title={ptBR.form.schedule} icon={CalendarClock} expanded={step === 2} onPress={() => setStep(2)}>
+          <MedicationFormStep step={2} title={ptBR.form.schedule} icon={CalendarClock} expanded={step === 2} onPress={() => goToStep(2)}>
             <View style={styles.segmented}>
               {SCHEDULE_KINDS.map((kind) => {
                 const active = values.scheduleKind === kind.key;
@@ -222,7 +249,7 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
             {error && step === 2 ? <FormError message={error} /> : null}
           </MedicationFormStep>
 
-          <MedicationFormStep step={3} title={ptBR.form.observations} icon={NotebookPen} optional expanded={step === 3} onPress={() => setStep(3)}>
+          <MedicationFormStep step={3} title={ptBR.form.observations} icon={NotebookPen} optional expanded={step === 3} onPress={() => goToStep(3)}>
             <FieldLabel label={ptBR.form.observations} />
             <TextInput
               accessibilityLabel={ptBR.form.observationsAccessibility}
@@ -235,7 +262,7 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
             />
           </MedicationFormStep>
 
-          <MedicationFormStep step={4} title={ptBR.form.review} icon={CircleCheck} expanded={step === 4} onPress={() => setStep(4)}>
+          <MedicationFormStep step={4} title={ptBR.form.review} icon={CircleCheck} expanded={step === 4} onPress={() => goToStep(4)}>
             <SummaryLine label={ptBR.form.medication} value={values.name || ptBR.form.notProvided} />
             <SummaryLine label={ptBR.form.dosage} value={values.dosage || ptBR.form.noDosage} />
             <SummaryLine label={ptBR.form.time} value={values.time} />
@@ -247,6 +274,7 @@ export function MedicationFormScreen({ mode, initialValues, onBack, onSubmit }: 
         <MedicationFormActionBar
           accessibilityLabel={step === 4 ? (mode === "add" ? ptBR.actions.saveMedication : ptBR.actions.saveChanges) : ptBR.actions.continue}
           busy={isSaving}
+          error={submitError}
           onPress={handleContinue}
           title={step === 4 ? (mode === "add" ? ptBR.actions.saveMedication : ptBR.actions.saveChanges) : ptBR.actions.continue}
         />

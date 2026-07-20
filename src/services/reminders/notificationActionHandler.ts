@@ -6,6 +6,10 @@ import type {
   NotificationActionId,
   ReminderSettings,
 } from "../../types/domain";
+import {
+  formatLocalDateTime,
+  normalizeDoseDateTime,
+} from "../../utils/dateTime";
 
 export type NotificationActionCommand = {
   actionId: NotificationActionId;
@@ -146,7 +150,10 @@ export async function processNotificationAction(
       await dependencies.cancelOccurrence(command.doseOccurrenceId);
       const settings = await dependencies.getSettings();
       await dependencies.scheduleSnoozed(
-        occurrenceFromCommand(command, existingCommand.snoozedUntil),
+        occurrenceFromCommand(
+          command,
+          normalizeDoseDateTime(existingCommand.snoozedUntil)
+        ),
         medication,
         schedule,
         settings
@@ -159,15 +166,16 @@ export async function processNotificationAction(
     }
 
     const snoozedUntil = new Date(now.getTime() + 5 * 60_000);
+    const localSnoozedUntil = formatLocalDateTime(snoozedUntil);
     const created = await dependencies.appendLog(
-      actionLog(command, "snoozed", actionAt, snoozedUntil.toISOString())
+      actionLog(command, "snoozed", actionAt, localSnoozedUntil)
     );
     if (!created) return { status: "duplicate" };
 
     await dependencies.cancelOccurrence(command.doseOccurrenceId);
     const settings = await dependencies.getSettings();
     await dependencies.scheduleSnoozed(
-      occurrenceFromCommand(command, snoozedUntil.toISOString()),
+      occurrenceFromCommand(command, localSnoozedUntil),
       medication,
       schedule,
       settings

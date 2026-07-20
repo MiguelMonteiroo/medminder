@@ -1,5 +1,7 @@
 # Use native foreground-service audio for dose alarms
 
+Status: Superseded by ADR 0011.
+
 Remedin will schedule a native Android foreground service alongside each exact dose alarm. The service plays the alarm resource through `MediaPlayer` with `AudioAttributes.USAGE_ALARM`, keeps a short partial wake lock, and stops after the alarm action or a maximum of 60 seconds.
 
 When native playback is scheduled successfully, the visible Notifee alarm uses a high-importance silent channel. This prevents duplicate sound while preserving full-screen intent, lock-screen actions, vibration, and notification-policy behavior. If exact-alarm access or the native module is unavailable, Remedin falls back to the existing sounding notification channel.

@@ -2,8 +2,12 @@ import notifee from "@notifee/react-native";
 import type { ReminderArtifactRepository } from "../database/repositories/reminderArtifactRepository";
 import type { MedicationRepository } from "../database/repositories/medicationRepository";
 import type { ScheduleRepository } from "../database/repositories/scheduleRepository";
+import type { DoseLogRepository } from "../database/repositories/doseLogRepository";
 import type { SettingsRepository } from "../database/repositories/settingsRepository";
-import { generateDoseOccurrencesForDate } from "../utils/doseEngine";
+import {
+  generateDoseOccurrencesForDate,
+  resolveDoseOccurrence,
+} from "../utils/doseEngine";
 import type { ReminderScheduler } from "./reminderScheduler";
 import { getNotificationPermissionStatus } from "./notificationPermissionService";
 import { planOccurrenceReminders } from "./reminders/reminderPlanner";
@@ -37,16 +41,32 @@ export function reminderArtifactsMatchPlans(
   });
 }
 
+export function isReminderArtifactActive(
+  artifact: ReminderArtifact,
+  notifeeTriggerIds: Set<string>,
+  nativeAlarmIds: Set<string>
+): boolean {
+  return artifact.notificationId.startsWith("native:")
+    ? nativeAlarmIds.has(artifact.notificationId)
+    : notifeeTriggerIds.has(artifact.notificationId);
+}
+
 export async function reconcileNotifications(
   artifactRepo: ReminderArtifactRepository,
   medicationRepo: MedicationRepository,
   scheduleRepo: ScheduleRepository,
+  doseLogRepo: DoseLogRepository,
   settingsRepo: SettingsRepository,
   reminderScheduler: ReminderScheduler
 ): Promise<{ removed: number; recreated: number }> {
   const { granted } = await getNotificationPermissionStatus();
   const settings = await settingsRepo.get();
-  const activeIds = new Set(await notifee.getTriggerNotificationIds());
+  const [notifeeIds, nativeIds] = await Promise.all([
+    notifee.getTriggerNotificationIds(),
+    reminderScheduler.getScheduledNativeAlarmIds?.() ?? Promise.resolve([]),
+  ]);
+  const activeNotifeeIds = new Set(notifeeIds);
+  const activeNativeIds = new Set(nativeIds);
   const storedArtifacts = await artifactRepo.getAll();
   const now = Date.now();
   const staleBefore = now - 15 * 60 * 1000;
@@ -54,9 +74,13 @@ export async function reconcileNotifications(
 
   for (const artifact of storedArtifacts) {
     const scheduledAt = new Date(artifact.scheduledFor).getTime();
-    const missingNativeTrigger = !activeIds.has(artifact.notificationId);
+    const missingTrigger = !isReminderArtifactActive(
+      artifact,
+      activeNotifeeIds,
+      activeNativeIds
+    );
     const shouldRemoveMissingArtifact =
-      missingNativeTrigger &&
+      missingTrigger &&
       (scheduledAt > now || scheduledAt < staleBefore);
 
     if (shouldRemoveMissingArtifact) {
@@ -71,6 +95,7 @@ export async function reconcileNotifications(
 
   const medications = await medicationRepo.getAll();
   const schedules = await scheduleRepo.getAll();
+  const doseLogs = await doseLogRepo.getAll();
   const horizon = now + 48 * 60 * 60 * 1000;
   let recreated = 0;
 
@@ -88,15 +113,34 @@ export async function reconcileNotifications(
           formatDateString(addDays(new Date(), index))
         )
       )
-        .flat()
-        .filter((occurrence) => {
-          const timestamp = new Date(occurrence.scheduledAt).getTime();
-          return timestamp > now && timestamp <= horizon;
-        });
+        .flat();
 
-      for (const occurrence of occurrences) {
+      for (const originalOccurrence of occurrences) {
+        const { occurrence } = resolveDoseOccurrence(
+          originalOccurrence,
+          doseLogs,
+          new Date(now)
+        );
         let artifacts = await artifactRepo.getByDoseOccurrenceId(occurrence.id);
-        const expectedPlans = planOccurrenceReminders(occurrence);
+        if (occurrence.status === "taken" || occurrence.status === "skipped") {
+          if (artifacts.length > 0) {
+            await reminderScheduler.cancelSingle(occurrence.id);
+          }
+          continue;
+        }
+
+        const effectiveTimestamp = new Date(occurrence.scheduledAt).getTime();
+        if (effectiveTimestamp <= now || effectiveTimestamp > horizon) continue;
+
+        const snoozed = occurrence.status === "snoozed";
+        const planOptions = snoozed
+          ? { snoozed: true, alarmAt: new Date(occurrence.scheduledAt) }
+          : {};
+        const expectedPlans = planOccurrenceReminders(
+          occurrence,
+          new Date(now),
+          planOptions
+        );
         if (!reminderArtifactsMatchPlans(artifacts, expectedPlans)) {
           await reminderScheduler.cancelSingle(occurrence.id);
           artifacts = [];
@@ -121,6 +165,7 @@ export async function reconcileNotifications(
             showLockScreenDetails: settings.showLockScreenDetails,
             fullScreenAlarmEnabled: settings.fullScreenAlarmEnabled,
             criticalAlertsEnabled: settings.criticalAlertsEnabled,
+            ...planOptions,
           }
         );
         recreated += ids.length;
