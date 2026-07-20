@@ -13,7 +13,10 @@ import { useAppData } from "./src/services/appDataProvider";
 import { colors } from "./src/theme/colors";
 import { spacing } from "./src/theme/spacing";
 import { DoseAlarmScreen } from "./src/screens/DoseAlarmScreen";
-import type { DoseAlarmPayload } from "./src/services/reminders/alarmPayloadLoader";
+import {
+  asDoseAlarmPayload,
+  type DoseAlarmPayload,
+} from "./src/services/reminders/alarmPayloadLoader";
 import {
   handleNavigationReady,
   navigationRef,
@@ -25,7 +28,9 @@ type AppProps = {
 };
 
 export default function App({ initialAlarmPayload }: AppProps) {
-  const [launchAlarm, setLaunchAlarm] = useState(initialAlarmPayload ?? null);
+  const [launchAlarm, setLaunchAlarm] = useState(() =>
+    asDoseAlarmPayload(initialAlarmPayload)
+  );
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener(

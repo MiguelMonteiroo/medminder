@@ -13,6 +13,42 @@ const initialNotification = {
 };
 
 describe("alarmPayloadLoader", () => {
+  it("ignores a pre-alert used to open the application", async () => {
+    const readInitialNotification = jest.fn().mockResolvedValue({
+      notification: {
+        id: "pre-alert-1",
+        title: "Medicamento em 5 minutos",
+        body: "Abra o Remedin para ver os detalhes.",
+        data: { artifactKind: "preAlert" },
+      },
+    });
+
+    const payload = await loadInitialAlarmPayload({
+      attempts: 1,
+      readInitialNotification,
+    });
+
+    expect(payload).toBeNull();
+  });
+
+  it("ignores a pre-alert received through native launch props", async () => {
+    const readInitialNotification = jest.fn().mockResolvedValue(null);
+
+    const payload = await loadInitialAlarmPayload({
+      attempts: 1,
+      launchPayload: {
+        notificationId: "pre-alert-native-1",
+        title: "Medicamento em 5 minutos",
+        body: "Abra o Remedin para ver os detalhes.",
+        data: { artifactKind: "preAlert" },
+      },
+      readInitialNotification,
+    });
+
+    expect(payload).toBeNull();
+    expect(readInitialNotification).toHaveBeenCalledTimes(1);
+  });
+
   it("recovers when the alarm Activity is not ready on the first read", async () => {
     const readInitialNotification = jest
       .fn()

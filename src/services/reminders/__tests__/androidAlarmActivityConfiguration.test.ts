@@ -41,6 +41,7 @@ describe("MainActivity alarm mode configuration", () => {
     expect(activity).toContain('"RemedinNativeAlarmDelivered"');
     expect(activity).toContain("consumePendingAlarmPayload");
     expect(activity).toContain("isAlarmPayload(payload)");
+    expect(activity).toContain("validatedAlarmPayload(intent)");
   });
 
   it("clears lock-screen flags when alarm mode ends", () => {

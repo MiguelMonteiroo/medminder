@@ -33,7 +33,7 @@ class MainActivity : ReactActivity() {
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
         override fun getLaunchOptions(): Bundle? {
-          val payload = alarmPayload(intent) ?: return null
+          val payload = validatedAlarmPayload(intent) ?: return null
           return Bundle().apply { putBundle(INITIAL_ALARM_PAYLOAD_PROP, payload) }
         }
       }
@@ -94,6 +94,11 @@ class MainActivity : ReactActivity() {
   private fun isAlarmPayload(payload: Bundle): Boolean {
     val kind = payload.getBundle("data")?.getString("artifactKind").orEmpty()
     return kind == "doseAlarm" || kind == "snoozedAlarm" || kind == "alarmTest"
+  }
+
+  private fun validatedAlarmPayload(sourceIntent: Intent?): Bundle? {
+    val payload = alarmPayload(sourceIntent) ?: return null
+    return payload.takeIf(::isAlarmPayload)
   }
 
   private fun configureAlarmWindowMode() {

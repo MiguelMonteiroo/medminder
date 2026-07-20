@@ -37,6 +37,13 @@ const ALARM_ARTIFACT_KINDS = new Set([
   "alarmTest",
 ]);
 
+export function asDoseAlarmPayload(
+  payload: DoseAlarmPayload | null | undefined
+): DoseAlarmPayload | null {
+  const kind = payload?.data?.artifactKind;
+  return ALARM_ARTIFACT_KINDS.has(String(kind || "")) ? payload ?? null : null;
+}
+
 function delay(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
@@ -47,12 +54,12 @@ export function toDoseAlarmPayload(
   const notification = initial?.notification;
   if (!notification) return null;
 
-  return {
+  return asDoseAlarmPayload({
     notificationId: notification.id || "",
     title: notification.title || "Hora do medicamento",
     body: notification.body || "Dose agendada agora.",
     data: notification.data || {},
-  };
+  });
 }
 
 function latestDisplayedAlarm(
@@ -83,7 +90,8 @@ export async function loadInitialAlarmPayload({
   retryDelayMs = DEFAULT_RETRY_DELAY_MS,
   wait = delay,
 }: LoadInitialAlarmPayloadOptions): Promise<DoseAlarmPayload | null> {
-  if (launchPayload) return launchPayload;
+  const validatedLaunchPayload = asDoseAlarmPayload(launchPayload);
+  if (validatedLaunchPayload) return validatedLaunchPayload;
 
   const boundedAttempts = Math.max(1, attempts);
   for (let attempt = 0; attempt < boundedAttempts; attempt += 1) {

@@ -12,6 +12,7 @@ describe("main application alarm integration", () => {
     const app = projectFile("App.tsx");
 
     expect(app).toContain("initialAlarmPayload?: DoseAlarmPayload");
+    expect(app).toContain("asDoseAlarmPayload(initialAlarmPayload)");
     expect(app.indexOf("if (launchAlarm)")).toBeLessThan(
       app.indexOf("<DatabaseProvider>")
     );
