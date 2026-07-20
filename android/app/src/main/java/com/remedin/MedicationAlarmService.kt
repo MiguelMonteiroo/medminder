@@ -5,8 +5,11 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -27,11 +30,19 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class MedicationAlarmService : Service() {
   private val activeAlarms = linkedMapOf<String, Bundle>()
+  private val alarmsAwaitingUnlock = linkedSetOf<String>()
   private val timeoutHandler = Handler(Looper.getMainLooper())
   private val timeoutAction = Runnable { stopAllAlarms() }
+  private val userPresentReceiver =
+      object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+          if (intent?.action == Intent.ACTION_USER_PRESENT) promoteAlarmAfterUnlock()
+        }
+      }
   private var audioFocusRequest: AudioFocusRequest? = null
   private var mediaPlayer: MediaPlayer? = null
   private var wakeLock: PowerManager.WakeLock? = null
+  private var userPresentReceiverRegistered = false
 
   override fun onCreate() {
     super.onCreate()
@@ -67,6 +78,10 @@ class MedicationAlarmService : Service() {
     synchronized(activeAlarms) { activeAlarms[alarmId] = Bundle(payload) }
 
     MainActivity.storePendingAlarmPayload(alarmScreenPayload(payload))
+    if (canLaunchFullScreen(payload) && isScreenUnavailable()) {
+      synchronized(alarmsAwaitingUnlock) { alarmsAwaitingUnlock.add(alarmId) }
+      registerUserPresentReceiver()
+    }
 
     val notification = buildAlarmNotification()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -96,6 +111,7 @@ class MedicationAlarmService : Service() {
 
   override fun onDestroy() {
     timeoutHandler.removeCallbacks(timeoutAction)
+    unregisterUserPresentReceiver()
     releaseAlarmAudio()
     releaseWakeLock()
     synchronized(activeAlarms) { activeAlarms.clear() }
@@ -248,11 +264,17 @@ class MedicationAlarmService : Service() {
         .setOnlyAlertOnce(true)
         .setPriority(Notification.PRIORITY_MAX)
 
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+    }
+
     if (multiple) {
       builder.addAction(0, "Abrir alarme", activityPendingIntent)
     } else if (isTest) {
+      builder.addAction(0, "Abrir alarme", activityPendingIntent)
       builder.addAction(0, "Encerrar teste", serviceAction(ACTION_END_TEST, primary))
     } else {
+      builder.addAction(0, "Abrir alarme", activityPendingIntent)
       builder.addAction(0, "Marcar como tomado", serviceAction(ACTION_MARK_TAKEN, primary))
       builder.addAction(0, "Adiar 5 min", serviceAction(ACTION_SNOOZE, primary))
     }
@@ -337,6 +359,53 @@ class MedicationAlarmService : Service() {
     return manager.canUseFullScreenIntent()
   }
 
+  private fun isScreenUnavailable(): Boolean {
+    val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+    val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+    return keyguardManager.isKeyguardLocked || !powerManager.isInteractive
+  }
+
+  private fun registerUserPresentReceiver() {
+    if (userPresentReceiverRegistered) return
+    val filter = IntentFilter(Intent.ACTION_USER_PRESENT)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      registerReceiver(userPresentReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+    } else {
+      @Suppress("DEPRECATION")
+      registerReceiver(userPresentReceiver, filter)
+    }
+    userPresentReceiverRegistered = true
+  }
+
+  private fun unregisterUserPresentReceiver() {
+    if (!userPresentReceiverRegistered) return
+    runCatching { unregisterReceiver(userPresentReceiver) }
+    userPresentReceiverRegistered = false
+  }
+
+  private fun promoteAlarmAfterUnlock() {
+    val alarmId = synchronized(alarmsAwaitingUnlock) { alarmsAwaitingUnlock.lastOrNull() }
+        ?: return
+    val payload = synchronized(activeAlarms) { activeAlarms[alarmId]?.let(::Bundle) }
+        ?: return
+
+    synchronized(alarmsAwaitingUnlock) { alarmsAwaitingUnlock.clear() }
+    unregisterUserPresentReceiver()
+    MainActivity.storePendingAlarmPayload(alarmScreenPayload(payload))
+    if (MainActivity.bringActiveAlarmToFront(alarmId)) return
+
+    runCatching { startActivity(mainAlarmIntent(payload)) }
+  }
+
+  private fun removeUnlockFallback(alarmId: String) {
+    val hasPending =
+        synchronized(alarmsAwaitingUnlock) {
+          alarmsAwaitingUnlock.remove(alarmId)
+          alarmsAwaitingUnlock.isNotEmpty()
+        }
+    if (!hasPending) unregisterUserPresentReceiver()
+  }
+
   private fun ensureAlarmChannels() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -371,6 +440,7 @@ class MedicationAlarmService : Service() {
 
   private fun removeActiveAlarm(alarmId: String) {
     if (alarmId.isBlank()) return
+    removeUnlockFallback(alarmId)
     val hasRemaining = synchronized(activeAlarms) {
       activeAlarms.remove(alarmId)
       activeAlarms.isNotEmpty()
@@ -386,6 +456,8 @@ class MedicationAlarmService : Service() {
   private fun stopAllAlarms() {
     timeoutHandler.removeCallbacks(timeoutAction)
     synchronized(activeAlarms) { activeAlarms.clear() }
+    synchronized(alarmsAwaitingUnlock) { alarmsAwaitingUnlock.clear() }
+    unregisterUserPresentReceiver()
     MainActivity.clearAlarmWindowModeIfShowing()
     releaseAlarmAudio()
     releaseWakeLock()

@@ -7,6 +7,7 @@ import type { ReminderPermissionState } from "../types/domain";
 import { ensureReminderChannelsCreated } from "./reminders/notificationChannels";
 import { reminderPermissionsNative } from "./reminders/nativeReminderPermissions";
 import { toDoNotDisturbPermissionState } from "./reminders/alarmChannelSelection";
+import type { AlarmPresentationDiagnostics } from "./reminders/alarmPresentationDiagnostics";
 
 export async function ensureChannelCreated(): Promise<void> {
   await ensureReminderChannelsCreated();
@@ -18,6 +19,27 @@ export async function ensureAlarmChannels(): Promise<void> {
     throw new Error("Native alarm channel support is unavailable.");
   }
   await reminderPermissionsNative.ensureAlarmChannels();
+}
+
+export async function getAlarmPresentationDiagnostics(
+  critical: boolean
+): Promise<AlarmPresentationDiagnostics> {
+  if (Platform.OS !== "android") {
+    return {
+      fullScreenAccess: false,
+      channelImportance: 0,
+      notificationsEnabled: true,
+      keyguardLocked: false,
+      screenInteractive: true,
+    };
+  }
+  await ensureAlarmChannels();
+  const diagnostics =
+    await reminderPermissionsNative?.getAlarmPresentationDiagnostics?.(critical);
+  if (!diagnostics) {
+    throw new Error("Native alarm presentation diagnostics are unavailable.");
+  }
+  return diagnostics;
 }
 
 export async function getDoNotDisturbAccess(): Promise<
@@ -155,6 +177,16 @@ export async function openDoNotDisturbSettings(): Promise<void> {
 export async function openCriticalAlarmChannelSettings(): Promise<void> {
   if (reminderPermissionsNative?.openCriticalAlarmChannelSettings) {
     await reminderPermissionsNative.openCriticalAlarmChannelSettings();
+    return;
+  }
+  await openNotificationSettings();
+}
+
+export async function openNativeAlarmChannelSettings(
+  critical: boolean
+): Promise<void> {
+  if (reminderPermissionsNative?.openNativeAlarmChannelSettings) {
+    await reminderPermissionsNative.openNativeAlarmChannelSettings(critical);
     return;
   }
   await openNotificationSettings();

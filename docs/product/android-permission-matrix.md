@@ -17,6 +17,8 @@ Documentar quais acessos o Remedin realmente precisa, como cada um deve ser soli
 
 ## Manifest-Only Permissions
 
+- `REORDER_TASKS`: permite trazer a task existente do Remedin para frente depois que o usuario desbloqueia o aparelho durante um alarme ativo. E uma permissao normal, sem prompt, e nunca e usada fora da vigencia do alarme.
+
 Estes acessos não possuem prompt no onboarding:
 
 - `RECEIVE_BOOT_COMPLETED`: permite reconstruir lembretes após reinicialização.

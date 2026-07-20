@@ -32,6 +32,9 @@ Avisar o usuario antes de uma dose e solicitar uma acao no horario agendado, mes
 24. `Tocar no silencioso e Nao Perturbe` e opcional e depende de preferencia explicita e acesso concedido pelo Android.
 25. Sem esse acesso, o Remedin usa o canal normal e explica que o Android pode silenciar o alarme.
 26. O Remedin nao altera globalmente o modo Nao Perturbe; o usuario continua no controle final dos canais.
+27. Alarmes com tela cheia habilitada usam `AlarmManager.setAlarmClock()` e mantem `setExactAndAllowWhileIdle()` como fallback.
+28. Se um fabricante impedir a abertura sobre a lockscreen, o Remedin traz a task ativa para frente assim que receber `ACTION_USER_PRESENT`.
+29. Com o aparelho ja desbloqueado, Android 13+ pode manter apenas o heads-up persistente; o app nao usa overlay nem servico de acessibilidade para contornar essa regra.
 
 ## Requisitos de configuracao
 
@@ -48,6 +51,8 @@ Cada item deve ter estado legivel, explicacao curta e um unico botao contextual,
 ## Tela de alarme
 
 A experiencia em tela cheia abre a aplicacao principal do Remedin pela `MainActivity`. Ela ativa temporariamente as flags para aparecer sobre a lockscreen, acender a tela, mante-la ativa e ocultar as barras do sistema somente enquanto houver um alarme. Aberturas comuns nunca recebem essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
+
+Quando o alarme comeca com o aparelho bloqueado ou a tela apagada, o servico acompanha `ACTION_USER_PRESENT` somente durante a vigencia desse alarme. Se a tela cheia nao tiver sido mantida pelo fabricante, a task existente do Remedin volta para frente imediatamente apos o desbloqueio. O receiver e removido ao tomar, adiar, cancelar, encerrar o teste ou atingir o timeout, impedindo que alarmes encerrados reabram o app.
 
 A tela segue o design system Home Care Cards e a referencia visual em `docs/design/dose-alarm-screen.png`: fundo creme, verde profundo, acento pessego, bordas sutis, raio maximo de 8 px, icones lineares e acoes individuais por dose.
 

@@ -1,5 +1,7 @@
 package com.remedin
 
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Build
@@ -236,6 +238,24 @@ class MainActivity : ReactActivity() {
         activity.clearAlarmWindowMode(alarmId)
         activity.emitAlarmStopped(alarmId)
       }
+    }
+
+    fun bringActiveAlarmToFront(alarmId: String): Boolean {
+      val activity = activeInstance?.get() ?: return false
+      val payload = peekPendingAlarmPayload() ?: return false
+      if (payload.getString("notificationId") != alarmId) return false
+
+      activity.runOnUiThread {
+        activity.activeAlarmId = alarmId
+        activity.alarmModeActive = true
+        activity.configureAlarmWindowMode()
+        activity.hideSystemBars()
+        val activityManager =
+            activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        activityManager.moveTaskToFront(activity.taskId, ActivityManager.MOVE_TASK_WITH_HOME)
+        activity.emitAlarmPayload(payload)
+      }
+      return true
     }
   }
 }

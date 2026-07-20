@@ -1,6 +1,7 @@
 package com.remedin
 
 import android.app.NotificationChannel
+import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.ContentResolver
 import android.content.Context
@@ -8,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.Arguments
@@ -186,6 +188,58 @@ class ReminderPermissionsModule(
     }
     MainActivity.clearAlarmWindowModeIfShowing(alarmId)
     promise.resolve(null)
+  }
+
+  @ReactMethod
+  fun getAlarmPresentationDiagnostics(critical: Boolean, promise: Promise) {
+    try {
+      val manager = notificationManager()
+      val keyguardManager =
+          reactApplicationContext.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+      val powerManager =
+          reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+      val fullScreenAccess =
+          Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+              manager.canUseFullScreenIntent()
+      val channelImportance =
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId =
+                if (critical) NATIVE_CRITICAL_ALARM_CHANNEL_ID else NATIVE_ALARM_CHANNEL_ID
+            manager.getNotificationChannel(channelId)?.importance
+                ?: NotificationManager.IMPORTANCE_NONE
+          } else {
+            NotificationManager.IMPORTANCE_HIGH
+          }
+
+      promise.resolve(
+          Arguments.createMap().apply {
+            putBoolean("fullScreenAccess", fullScreenAccess)
+            putInt("channelImportance", channelImportance)
+            putBoolean("notificationsEnabled", manager.areNotificationsEnabled())
+            putBoolean("keyguardLocked", keyguardManager.isKeyguardLocked)
+            putBoolean("screenInteractive", powerManager.isInteractive)
+          },
+      )
+    } catch (error: Exception) {
+      promise.reject("alarm-presentation-diagnostics", error)
+    }
+  }
+
+  @ReactMethod
+  fun openNativeAlarmChannelSettings(critical: Boolean, promise: Promise) {
+    try {
+      val channelId =
+          if (critical) NATIVE_CRITICAL_ALARM_CHANNEL_ID else NATIVE_ALARM_CHANNEL_ID
+      val intent =
+          Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+              .putExtra(Settings.EXTRA_APP_PACKAGE, reactApplicationContext.packageName)
+              .putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      reactApplicationContext.startActivity(intent)
+      promise.resolve(null)
+    } catch (error: Exception) {
+      promise.reject("native-alarm-channel-settings", error)
+    }
   }
 
   @ReactMethod

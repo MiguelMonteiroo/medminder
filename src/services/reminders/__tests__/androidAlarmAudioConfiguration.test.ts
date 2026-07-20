@@ -12,6 +12,7 @@ describe("native alarm audio configuration", () => {
     const manifest = projectFile("android/app/src/main/AndroidManifest.xml");
 
     expect(manifest).toContain('android.permission.FOREGROUND_SERVICE');
+    expect(manifest).toContain('android.permission.REORDER_TASKS');
     expect(manifest).toContain(
       'android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED'
     );
@@ -39,8 +40,24 @@ describe("native alarm audio configuration", () => {
     expect(service).toContain("LifecycleState.RESUMED");
     expect(service).toContain("Intent(this, MainActivity::class.java)");
     expect(service).toContain("ACTION_OPEN_ALARM");
+    expect(service).toContain("Intent.ACTION_USER_PRESENT");
+    expect(service).toContain("registerReceiver(");
+    expect(service).toContain("unregisterReceiver(");
+    expect(service).toContain("bringActiveAlarmToFront");
+    expect(service).toContain("Notification.FOREGROUND_SERVICE_IMMEDIATE");
     expect(service).toContain('Uri.parse("remedin://dose-alarm/');
     expect(service).not.toContain("DoseAlarmActivity");
+  });
+
+  it("uses alarm-clock scheduling with an exact idle fallback", () => {
+    const scheduler = projectFile(
+      "android/app/src/main/java/com/remedin/AlarmAudioScheduler.kt"
+    );
+
+    expect(scheduler).toContain("AlarmManager.AlarmClockInfo(");
+    expect(scheduler).toContain("alarmManager.setAlarmClock(");
+    expect(scheduler).toContain("alarmManager.setExactAndAllowWhileIdle(");
+    expect(scheduler).toContain('payload?.getBoolean("fullScreenEnabled", false)');
   });
 
   it("routes native alarm actions through Headless JS", () => {
@@ -54,5 +71,18 @@ describe("native alarm audio configuration", () => {
       'AppRegistry.registerHeadlessTask("RemedinAlarmAction"'
     );
     expect(entry).not.toContain('registerComponent("RemedinDoseAlarm"');
+  });
+
+  it("reports full-screen access, channel importance and device lock state", () => {
+    const permissions = projectFile(
+      "android/app/src/main/java/com/remedin/ReminderPermissionsModule.kt"
+    );
+
+    expect(permissions).toContain("getAlarmPresentationDiagnostics");
+    expect(permissions).toContain("manager.canUseFullScreenIntent()");
+    expect(permissions).toContain("getNotificationChannel(channelId)?.importance");
+    expect(permissions).toContain("keyguardManager.isKeyguardLocked");
+    expect(permissions).toContain("powerManager.isInteractive");
+    expect(permissions).toContain("openNativeAlarmChannelSettings");
   });
 });

@@ -25,6 +25,9 @@ describe("MainActivity alarm mode configuration", () => {
       'NotifeeApiModule.getMainComponent("Remedin")'
     );
     expect(activity).toContain("clearAlarmWindowMode");
+    expect(activity).toContain("ActivityManager");
+    expect(activity).toContain("moveTaskToFront(");
+    expect(activity).toContain("bringActiveAlarmToFront");
   });
 
   it("delivers cold-start and subsequent alarm payloads without recreating React", () => {

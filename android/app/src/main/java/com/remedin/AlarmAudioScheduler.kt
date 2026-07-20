@@ -24,18 +24,59 @@ object AlarmAudioScheduler {
       return false
     }
 
-    val pendingIntent = pendingIntent(context, alarmId, timeoutMillis, payload)
+    val operation = pendingIntent(context, alarmId, timeoutMillis, payload)
+    if (payload?.getBoolean("fullScreenEnabled", false) == true) {
+      runCatching {
+            alarmManager.setAlarmClock(
+                AlarmManager.AlarmClockInfo(
+                    triggerAtMillis,
+                    showAlarmPendingIntent(context, alarmId),
+                ),
+                operation,
+            )
+          }
+          .getOrElse {
+            scheduleExact(alarmManager, triggerAtMillis, operation)
+          }
+    } else {
+      scheduleExact(alarmManager, triggerAtMillis, operation)
+    }
+    remember(context, alarmId)
+    return true
+  }
+
+  private fun scheduleExact(
+      alarmManager: AlarmManager,
+      triggerAtMillis: Long,
+      operation: PendingIntent,
+  ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       alarmManager.setExactAndAllowWhileIdle(
           AlarmManager.RTC_WAKEUP,
           triggerAtMillis,
-          pendingIntent,
+          operation,
       )
     } else {
-      alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+      alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, operation)
     }
-    remember(context, alarmId)
-    return true
+  }
+
+  private fun showAlarmPendingIntent(context: Context, alarmId: String): PendingIntent {
+    val intent =
+        Intent(context, MainActivity::class.java).apply {
+          action = Intent.ACTION_MAIN
+          data = Uri.parse("remedin://scheduled-alarm/${Uri.encode(alarmId)}")
+          flags =
+              Intent.FLAG_ACTIVITY_NEW_TASK or
+                  Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                  Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+    return PendingIntent.getActivity(
+        context,
+        "show:$alarmId".hashCode(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
   }
 
   fun cancel(context: Context, alarmId: String) {

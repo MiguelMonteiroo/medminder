@@ -22,6 +22,7 @@ import { SettingsRow } from "../components/SettingsRow";
 import { useAppData } from "../services/appDataProvider";
 import {
   ensureAlarmChannels,
+  getAlarmPresentationDiagnostics,
   getReminderPermissionState,
   openBatterySettings,
   openCriticalAlarmChannelSettings,
@@ -29,6 +30,7 @@ import {
   openExactAlarmSettings,
   openFullScreenAlarmSettings,
   openNotificationSettings,
+  openNativeAlarmChannelSettings,
   requestNotificationPermission,
 } from "../services/notificationPermissionService";
 import type { ReminderPermissionState } from "../types/domain";
@@ -39,6 +41,11 @@ import { spacing } from "../theme/spacing";
 import { fontFamilies } from "../theme/typography";
 import { ptBR } from "../i18n/ptBR";
 import { REMINDER_SETTING_ORDER, type ReminderSettingKey } from "../utils/reminderSettingsOrder";
+import {
+  fullScreenAlarmAction,
+  isFullScreenAlarmReady,
+  type AlarmPresentationDiagnostics,
+} from "../services/reminders/alarmPresentationDiagnostics";
 
 export function SettingsScreen() {
   const {
@@ -51,6 +58,7 @@ export function SettingsScreen() {
   } = useAppData();
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [permissionState, setPermissionState] = useState<ReminderPermissionState | null>(null);
+  const [alarmPresentation, setAlarmPresentation] = useState<AlarmPresentationDiagnostics | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(settings.userName);
@@ -58,12 +66,16 @@ export function SettingsScreen() {
   const [alarmTestMessage, setAlarmTestMessage] = useState("");
 
   const refreshPermissions = useCallback(async (enabledPreference = settings.notificationsEnabled) => {
-    const readiness = await getReminderPermissionState();
+    const [readiness, presentation] = await Promise.all([
+      getReminderPermissionState(),
+      getAlarmPresentationDiagnostics(settings.criticalAlertsEnabled).catch(() => null),
+    ]);
     setPermissionState(readiness);
+    setAlarmPresentation(presentation);
     setNotificationsEnabled(enabledPreference && readiness.notifications === "granted");
     setLoading(false);
     return readiness;
-  }, [settings.notificationsEnabled]);
+  }, [settings.criticalAlertsEnabled, settings.notificationsEnabled]);
 
   useEffect(() => setNameDraft(settings.userName), [settings.userName]);
   useEffect(() => {
@@ -91,7 +103,11 @@ export function SettingsScreen() {
     remindersReady &&
     (permissionState?.exactAlarms === "granted" || permissionState?.exactAlarms === "notRequired");
   const fullScreenReady =
-    remindersReady && settings.fullScreenAlarmEnabled && permissionState?.fullScreen !== "denied";
+    remindersReady &&
+    isFullScreenAlarmReady(settings.fullScreenAlarmEnabled, alarmPresentation);
+  const fullScreenAction = alarmPresentation
+    ? fullScreenAlarmAction(alarmPresentation)
+    : null;
   const backgroundReady = permissionState?.batteryOptimization === "unrestricted";
 
   async function handleToggleNotifications(value: boolean) {
@@ -127,6 +143,19 @@ export function SettingsScreen() {
     if (advancedDisabled) return;
     await updateReminderSettings({ fullScreenAlarmEnabled: value });
     if (value && permissionState?.fullScreen === "denied") await openFullScreenAlarmSettings();
+    await refreshPermissions();
+  }
+
+  async function openFullScreenBlocker(): Promise<void> {
+    if (fullScreenAction === "notifications") {
+      await openNotificationSettings();
+      return;
+    }
+    if (fullScreenAction === "channel") {
+      await openNativeAlarmChannelSettings(settings.criticalAlertsEnabled);
+      return;
+    }
+    await openFullScreenAlarmSettings();
   }
 
   async function handleSaveName() {
@@ -146,7 +175,7 @@ export function SettingsScreen() {
     const readiness = await refreshPermissions();
     if (readiness.notifications !== "granted") return;
     await runAlarmTest();
-    setAlarmTestMessage("Teste agendado. Bloqueie a tela; o alarme aparecerá em cinco segundos.");
+    setAlarmTestMessage("Bloqueie a tela agora. O alarme deve abrir sobre a tela bloqueada ou imediatamente após você desbloquear.");
   }
 
   function renderReminderSetting(key: ReminderSettingKey) {
@@ -204,10 +233,10 @@ export function SettingsScreen() {
             icon={Maximize2}
             title={ptBR.profile.fullScreen.title}
             description={ptBR.profile.fullScreen.description}
-            state={fullScreenReady ? "Ativado" : advancedDisabled ? "Ative as notificações primeiro" : "Desativado"}
+            state={fullScreenReady ? "Ativado" : advancedDisabled ? "Ative as notificações primeiro" : settings.fullScreenAlarmEnabled ? "Precisa de autorização" : "Desativado"}
             stateTone={fullScreenReady ? "positive" : "attention"}
-            actionLabel={settings.fullScreenAlarmEnabled && permissionState?.fullScreen === "denied" ? "Autorizar" : undefined}
-            onAction={openFullScreenAlarmSettings}
+            actionLabel={settings.fullScreenAlarmEnabled && !fullScreenReady ? "Revisar autorização" : undefined}
+            onAction={openFullScreenBlocker}
             switchValue={settings.fullScreenAlarmEnabled}
             onSwitchChange={handleFullScreenToggle}
             disabled={advancedDisabled}
