@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -177,8 +178,25 @@ class ReminderPermissionsModule(
   }
 
   @ReactMethod
-  fun finishDoseAlarmActivity(promise: Promise) {
-    (reactApplicationContext.currentActivity as? DoseAlarmActivity)?.finishAndCancelAlarm()
+  fun finishActiveAlarm(alarmId: String?, promise: Promise) {
+    if (alarmId.isNullOrBlank()) {
+      AlarmAudioScheduler.cancelAll(reactApplicationContext)
+    } else {
+      AlarmAudioScheduler.cancel(reactApplicationContext, alarmId)
+    }
+    MainActivity.clearAlarmWindowModeIfShowing(alarmId)
+    promise.resolve(null)
+  }
+
+  @ReactMethod
+  fun consumePendingAlarmPayload(promise: Promise) {
+    val payload = MainActivity.consumePendingAlarmPayload()
+    promise.resolve(payload?.let(Arguments::fromBundle))
+  }
+
+  @ReactMethod
+  fun clearAlarmWindowMode(promise: Promise) {
+    MainActivity.clearAlarmWindowModeIfShowing()
     promise.resolve(null)
   }
 

@@ -45,22 +45,20 @@ describe("notificationBuilder", () => {
 
     expect(notification.android?.fullScreenAction).toEqual({
       id: "dose-alarm",
-      launchActivity: "com.remedin.DoseAlarmActivity",
+      launchActivity: "com.remedin.MainActivity",
       launchActivityFlags: [
         AndroidLaunchActivityFlag.NEW_TASK,
         AndroidLaunchActivityFlag.CLEAR_TOP,
         AndroidLaunchActivityFlag.SINGLE_TOP,
-        AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
       ],
     });
     expect(notification.android?.pressAction).toEqual({
       id: "open-dose-window",
-      launchActivity: "com.remedin.DoseAlarmActivity",
+      launchActivity: "com.remedin.MainActivity",
       launchActivityFlags: [
         AndroidLaunchActivityFlag.NEW_TASK,
         AndroidLaunchActivityFlag.CLEAR_TOP,
         AndroidLaunchActivityFlag.SINGLE_TOP,
-        AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
       ],
     });
     expect(notification.android?.channelId).toBe(
@@ -108,7 +106,7 @@ describe("notificationBuilder", () => {
     expect(notification.android?.loopSound).toBe(false);
   });
 
-  it("opens alarm tests in the dedicated alarm Activity", () => {
+  it("opens alarm tests in the main application Activity", () => {
     const notification = buildAlarmTestNotification({
       fullScreenEnabled: true,
       useCriticalChannel: true,
@@ -116,18 +114,17 @@ describe("notificationBuilder", () => {
     });
 
     expect(notification.android?.pressAction?.launchActivity).toBe(
-      "com.remedin.DoseAlarmActivity"
+      "com.remedin.MainActivity"
     );
     expect(notification.android?.pressAction?.mainComponent).toBeUndefined();
     expect(notification.android?.fullScreenAction?.launchActivity).toBe(
-      "com.remedin.DoseAlarmActivity"
+      "com.remedin.MainActivity"
     );
     expect(notification.android?.fullScreenAction?.mainComponent).toBeUndefined();
     expect(notification.android?.fullScreenAction?.launchActivityFlags).toEqual([
       AndroidLaunchActivityFlag.NEW_TASK,
       AndroidLaunchActivityFlag.CLEAR_TOP,
       AndroidLaunchActivityFlag.SINGLE_TOP,
-      AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
     ]);
   });
 });

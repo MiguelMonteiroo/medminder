@@ -19,6 +19,7 @@ import {
   loadInitialAlarmPayload,
   type DoseAlarmPayload,
 } from "../services/reminders/alarmPayloadLoader";
+import { finishActiveAlarm } from "../services/reminders/nativeReminderPermissions";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { spacing } from "../theme/spacing";
@@ -33,12 +34,12 @@ type Props = {
   onDoseAction?: () => Promise<void> | void;
 };
 
-async function closeAlarmActivity(): Promise<void> {
+async function closeActiveAlarm(alarmId?: string): Promise<void> {
   const module = NativeModules.ReminderPermissions as
-    | { finishDoseAlarmActivity?: () => Promise<void> }
+    | { finishActiveAlarm?: (id?: string) => Promise<void> }
     | undefined;
-  if (module?.finishDoseAlarmActivity) {
-    await module.finishDoseAlarmActivity();
+  if (module?.finishActiveAlarm) {
+    await finishActiveAlarm(alarmId);
     return;
   }
   BackHandler.exitApp();
@@ -126,7 +127,7 @@ export function DoseAlarmScreen({
   useEffect(() => {
     if (embedded) return;
     const payloadSubscription = DeviceEventEmitter.addListener(
-      "RemedinDoseAlarmPayload",
+      "RemedinNativeAlarmDelivered",
       (nextPayload: DoseAlarmPayload) => {
         expandDoseWindow(nextPayload)
           .then(setPayloads)
@@ -136,7 +137,7 @@ export function DoseAlarmScreen({
     const backSubscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        void closeAlarmActivity();
+        void closeActiveAlarm(payloads[0]?.notificationId);
         return true;
       }
     );
@@ -144,7 +145,7 @@ export function DoseAlarmScreen({
       payloadSubscription.remove();
       backSubscription.remove();
     };
-  }, [embedded]);
+  }, [embedded, payloads]);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,10 +185,10 @@ export function DoseAlarmScreen({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (embedded) onClose?.();
-      else closeAlarmActivity();
+      else closeActiveAlarm(primaryPayload?.notificationId);
     }, isTest ? 10_000 : 60_000);
     return () => clearTimeout(timer);
-  }, [embedded, isTest, onClose]);
+  }, [embedded, isTest, onClose, primaryPayload?.notificationId]);
 
   const time = useMemo(
     () => formatAlarmTime(String(primaryPayload?.data.scheduledAt || "")),
@@ -216,7 +217,7 @@ export function DoseAlarmScreen({
       setPayloads(remaining);
       if (remaining.length === 0) {
         onClose?.();
-        if (!embedded) await closeAlarmActivity();
+        if (!embedded) await closeActiveAlarm(payload.notificationId);
       }
     } finally {
       await Promise.resolve(onDoseAction?.()).catch(() => undefined);
@@ -256,7 +257,7 @@ export function DoseAlarmScreen({
               <Pressable
                 accessibilityLabel="Fechar alarme"
                 accessibilityRole="button"
-                onPress={closeAlarmActivity}
+                onPress={() => closeActiveAlarm()}
                 style={({ pressed }) => [
                   styles.secondaryButton,
                   styles.recoveryButton,

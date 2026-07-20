@@ -18,6 +18,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.net.Uri
 import com.facebook.react.HeadlessJsTaskService
 import com.facebook.react.ReactApplication
 import com.facebook.react.bridge.Arguments
@@ -64,6 +65,8 @@ class MedicationAlarmService : Service() {
     AlarmAudioScheduler.markDelivered(this, alarmId)
     payload.putLong(EXTRA_TIMEOUT_MILLIS, timeoutMillis)
     synchronized(activeAlarms) { activeAlarms[alarmId] = Bundle(payload) }
+
+    MainActivity.storePendingAlarmPayload(alarmScreenPayload(payload))
 
     val notification = buildAlarmNotification()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -216,7 +219,7 @@ class MedicationAlarmService : Service() {
     val body =
         if (multiple) "Abra o Remedin para registrar cada dose."
         else primary.getString("body") ?: "Dose agendada agora."
-    val activityIntent = doseAlarmIntent(primary)
+    val activityIntent = mainAlarmIntent(primary)
     val activityPendingIntent =
         PendingIntent.getActivity(
             this,
@@ -256,14 +259,17 @@ class MedicationAlarmService : Service() {
     return builder.build()
   }
 
-  private fun doseAlarmIntent(payload: Bundle): Intent =
-      Intent(this, DoseAlarmActivity::class.java).apply {
+  private fun mainAlarmIntent(payload: Bundle): Intent =
+      Intent(this, MainActivity::class.java).apply {
+        val alarmId = payload.getString("alarmId").orEmpty()
+        action = ACTION_OPEN_ALARM
+        data = Uri.parse("remedin://dose-alarm/${Uri.encode(alarmId)}")
         flags =
             Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-        putExtra(EXTRA_ALARM_ID, payload.getString("alarmId").orEmpty())
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra(MainActivity.EXTRA_ALARM_MODE, true)
+        putExtra(EXTRA_ALARM_ID, alarmId)
         putExtra(EXTRA_TIMEOUT_MILLIS, payload.getLong(EXTRA_TIMEOUT_MILLIS, ALARM_TIMEOUT_MS))
         putExtra(NOTIFICATION_EXTRA, notificationBundle(payload))
       }
@@ -288,18 +294,21 @@ class MedicationAlarmService : Service() {
         )
       }
 
+  private fun alarmScreenPayload(payload: Bundle): Bundle {
+    val notification = notificationBundle(payload)
+    return Bundle().apply {
+      putString("notificationId", notification.getString("id").orEmpty())
+      putString("title", notification.getString("title").orEmpty())
+      putString("body", notification.getString("body").orEmpty())
+      putBundle("data", notification.getBundle("data") ?: Bundle())
+    }
+  }
+
   private fun emitAlarmToForegroundApp(payload: Bundle) {
     val reactContext =
         (application as? ReactApplication)?.reactHost?.currentReactContext ?: return
     if (reactContext.lifecycleState != LifecycleState.RESUMED) return
-    val notification = notificationBundle(payload)
-    val eventPayload =
-        Bundle().apply {
-          putString("notificationId", notification.getString("id").orEmpty())
-          putString("title", notification.getString("title").orEmpty())
-          putString("body", notification.getString("body").orEmpty())
-          putBundle("data", notification.getBundle("data") ?: Bundle())
-        }
+    val eventPayload = alarmScreenPayload(payload)
     reactContext
         .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
         .emit(FOREGROUND_ALARM_EVENT, Arguments.fromBundle(eventPayload))
@@ -362,7 +371,6 @@ class MedicationAlarmService : Service() {
 
   private fun removeActiveAlarm(alarmId: String) {
     if (alarmId.isBlank()) return
-    DoseAlarmActivity.finishIfShowing(alarmId)
     val hasRemaining = synchronized(activeAlarms) {
       activeAlarms.remove(alarmId)
       activeAlarms.isNotEmpty()
@@ -378,7 +386,7 @@ class MedicationAlarmService : Service() {
   private fun stopAllAlarms() {
     timeoutHandler.removeCallbacks(timeoutAction)
     synchronized(activeAlarms) { activeAlarms.clear() }
-    DoseAlarmActivity.finishIfShowing()
+    MainActivity.clearAlarmWindowModeIfShowing()
     releaseAlarmAudio()
     releaseWakeLock()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -396,6 +404,7 @@ class MedicationAlarmService : Service() {
     const val ACTION_SNOOZE = "com.remedin.action.SNOOZE_FIVE"
     const val ACTION_END_TEST = "com.remedin.action.END_ALARM_TEST"
     const val ACTION_CANCEL_ALARM = "com.remedin.action.CANCEL_ALARM"
+    const val ACTION_OPEN_ALARM = "com.remedin.action.OPEN_ALARM"
     const val EXTRA_ALARM_ID = "alarmId"
     const val EXTRA_TIMEOUT_MILLIS = "timeoutMillis"
     const val EXTRA_ALARM_PAYLOAD = "nativeAlarmPayload"

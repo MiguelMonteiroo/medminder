@@ -12,6 +12,8 @@ Remedin declares `USE_FULL_SCREEN_INTENT` because a core app function is present
 
 Screenshots or a short review video should show the schedule creation, the Profile toggle, the Android permission page, the locked-device alarm, and the fallback.
 
+The full-screen intent opens the regular `MainActivity` in a temporary alarm mode. Lock-screen and screen-on flags are removed when the alarm ends, so ordinary application launches never appear over the lockscreen.
+
 ## Notification policy access
 
 Remedin declares `ACCESS_NOTIFICATION_POLICY` only to create an optional dose-alarm channel that can bypass silent/Do Not Disturb modes after explicit user authorization. The app does not change the global interruption filter.

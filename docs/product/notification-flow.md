@@ -47,15 +47,15 @@ Cada item deve ter estado legivel, explicacao curta e um unico botao contextual,
 
 ## Tela de alarme
 
-A experiencia em tela cheia usa a `DoseAlarmActivity`, exclusiva para alarmes, que hospeda o componente React Native `RemedinDoseAlarm`. Somente essa Activity pode aparecer sobre a lockscreen, acender a tela, mantê-la ativa e ocultar as barras do sistema. A `MainActivity` comum nunca usa essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
+A experiencia em tela cheia abre a aplicacao principal do Remedin pela `MainActivity`. Ela ativa temporariamente as flags para aparecer sobre a lockscreen, acender a tela, mante-la ativa e ocultar as barras do sistema somente enquanto houver um alarme. Aberturas comuns nunca recebem essas flags. O `MedicationAlarmService` inicia o som nativo sem depender da renderizacao React.
 
 A tela segue o design system Home Care Cards e a referencia visual em `docs/design/dose-alarm-screen.png`: fundo creme, verde profundo, acento pessego, bordas sutis, raio maximo de 8 px, icones lineares e acoes individuais por dose.
 
 Quando houver notas do medicamento, a tela mostra no maximo duas linhas por dose. Notas seguem a preferencia `Mostrar detalhes na tela bloqueada` e ficam ocultas quando essa preferencia estiver desativada.
 
-Quando o Remedin estiver em primeiro plano, a mesma experiencia aparece como modal sobre a tela atual. O modal nao desmonta a navegacao nem perde dados de formularios; ao encerrar, o usuario retorna ao estado anterior.
+Quando o Remedin estiver em primeiro plano, a mesma experiencia aparece como modal sobre a tela atual. Ao tomar, adiar, encerrar o teste ou atingir o timeout, o alarme e fechado e a navegacao retorna para `Hoje` com os dados atualizados.
 
-Voltar ou fechar explicitamente a Activity cancela o alarme ativo para que o audio nunca continue sem uma interface ou notificacao correspondente. Bloquear o aparelho ou trocar de app nao altera o estado da dose.
+Voltar ou fechar explicitamente a tela cancela o alarme ativo para que o audio nunca continue sem uma interface ou notificacao correspondente. Bloquear o aparelho ou trocar de app nao altera o estado da dose.
 
 Os botoes de volume ajustam apenas o volume; eles nao registram, pulam nem adiam uma dose.
 

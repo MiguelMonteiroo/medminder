@@ -9,7 +9,7 @@ import {
   type NotificationActionCommand,
   type NotificationActionDependencies,
 } from "./notificationActionHandler";
-import { finishDoseAlarmActivityIfOpen } from "./nativeReminderPermissions";
+import { finishActiveAlarm } from "./nativeReminderPermissions";
 import { nativeAlarmAudio } from "./nativeAlarmAudio";
 
 async function createDefaultDependencies(): Promise<NotificationActionDependencies> {
@@ -79,7 +79,7 @@ export async function handleNotifeeEvent(event: Event): Promise<void> {
     actionId === "snooze-five" ||
     actionId === "end-alarm-test"
   ) {
-    await finishDoseAlarmActivityIfOpen();
+    await finishActiveAlarm(notificationId);
   }
 }
 

@@ -37,6 +37,10 @@ describe("native alarm audio configuration", () => {
     expect(service).toContain("stopForeground(STOP_FOREGROUND_REMOVE)");
     expect(service).toContain('"RemedinNativeAlarmDelivered"');
     expect(service).toContain("LifecycleState.RESUMED");
+    expect(service).toContain("Intent(this, MainActivity::class.java)");
+    expect(service).toContain("ACTION_OPEN_ALARM");
+    expect(service).toContain('Uri.parse("remedin://dose-alarm/');
+    expect(service).not.toContain("DoseAlarmActivity");
   });
 
   it("routes native alarm actions through Headless JS", () => {
@@ -49,5 +53,6 @@ describe("native alarm audio configuration", () => {
     expect(entry).toContain(
       'AppRegistry.registerHeadlessTask("RemedinAlarmAction"'
     );
+    expect(entry).not.toContain('registerComponent("RemedinDoseAlarm"');
   });
 });

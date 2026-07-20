@@ -34,12 +34,11 @@ type AlarmOptions = {
   useNativeAudio: boolean;
 };
 
-const DOSE_ALARM_ACTIVITY = "com.remedin.DoseAlarmActivity";
-const DOSE_ALARM_ACTIVITY_FLAGS = [
+const MAIN_ACTIVITY = "com.remedin.MainActivity";
+const MAIN_ACTIVITY_FLAGS = [
   AndroidLaunchActivityFlag.NEW_TASK,
   AndroidLaunchActivityFlag.CLEAR_TOP,
   AndroidLaunchActivityFlag.SINGLE_TOP,
-  AndroidLaunchActivityFlag.EXCLUDE_FROM_RECENTS,
 ];
 
 function alarmChannel(
@@ -147,14 +146,14 @@ export function buildDoseAlarmNotification(
       timeoutAfter: 60_000,
       pressAction: {
         id: "open-dose-window",
-        launchActivity: DOSE_ALARM_ACTIVITY,
-        launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+        launchActivity: MAIN_ACTIVITY,
+        launchActivityFlags: MAIN_ACTIVITY_FLAGS,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "dose-alarm",
-            launchActivity: DOSE_ALARM_ACTIVITY,
-            launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+            launchActivity: MAIN_ACTIVITY,
+            launchActivityFlags: MAIN_ACTIVITY_FLAGS,
           }
         : undefined,
       actions: doseActions(options.showDetails),
@@ -242,14 +241,14 @@ export function buildAlarmTestNotification(options: {
       timeoutAfter: 10_000,
       pressAction: {
         id: "alarm-test",
-        launchActivity: DOSE_ALARM_ACTIVITY,
-        launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+        launchActivity: MAIN_ACTIVITY,
+        launchActivityFlags: MAIN_ACTIVITY_FLAGS,
       },
       fullScreenAction: options.fullScreenEnabled
         ? {
             id: "alarm-test",
-            launchActivity: DOSE_ALARM_ACTIVITY,
-            launchActivityFlags: DOSE_ALARM_ACTIVITY_FLAGS,
+            launchActivity: MAIN_ACTIVITY,
+            launchActivityFlags: MAIN_ACTIVITY_FLAGS,
           }
         : undefined,
       actions: [

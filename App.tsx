@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, DeviceEventEmitter, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { DatabaseProvider } from "./src/database/DatabaseProvider";
@@ -11,12 +12,53 @@ import { AppText } from "./src/components/ui/AppText";
 import { useAppData } from "./src/services/appDataProvider";
 import { colors } from "./src/theme/colors";
 import { spacing } from "./src/theme/spacing";
+import { DoseAlarmScreen } from "./src/screens/DoseAlarmScreen";
+import type { DoseAlarmPayload } from "./src/services/reminders/alarmPayloadLoader";
+import {
+  handleNavigationReady,
+  navigationRef,
+  resetToHome,
+} from "./src/navigation/navigationRef";
 
-export default function App() {
+type AppProps = {
+  initialAlarmPayload?: DoseAlarmPayload | null;
+};
+
+export default function App({ initialAlarmPayload }: AppProps) {
+  const [launchAlarm, setLaunchAlarm] = useState(initialAlarmPayload ?? null);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      "RemedinNativeAlarmStopped",
+      () => {
+        setLaunchAlarm(null);
+        resetToHome();
+      }
+    );
+    return () => subscription.remove();
+  }, []);
+
+  if (launchAlarm) {
+    return (
+      <SafeAreaProvider>
+        <DoseAlarmScreen
+          onClose={() => {
+            setLaunchAlarm(null);
+            resetToHome();
+          }}
+          payload={launchAlarm}
+        />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <DatabaseProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          onReady={handleNavigationReady}
+          ref={navigationRef}
+        >
           <AppDataProvider>
             <AppExperience />
           </AppDataProvider>

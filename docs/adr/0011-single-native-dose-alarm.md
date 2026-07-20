@@ -18,7 +18,7 @@ Notifee remains responsible for pre-alerts, handoff reminders, reinforcements an
 
 Native notification actions stop the alarm immediately. Dose actions then invoke the existing idempotent `NotificationActionCommand` through the `RemedinAlarmAction` Headless JS task. A test alarm is stopped entirely in native code.
 
-For one dose, the notification offers `Marcar como tomado` and `Adiar 5 min`. For simultaneous doses it displays one grouped notification and only `Abrir alarme`; individual actions remain in `DoseAlarmActivity`.
+For one dose, the notification offers `Marcar como tomado` and `Adiar 5 min`. For simultaneous doses it displays one grouped notification and only `Abrir alarme`; individual actions remain in the full-screen alarm presented by the main application.
 
 ## Consequences
 
